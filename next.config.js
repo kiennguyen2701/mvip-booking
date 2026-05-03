@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   images: {
     remotePatterns: [
       {
@@ -18,8 +17,8 @@ const nextConfig: NextConfig = {
   },
 
   typescript: {
-    ignoreBuildErrors: true, // 🔥 fix build Vercel
+    ignoreBuildErrors: true, // 🔥 FIX BUILD
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
