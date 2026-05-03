@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
-import Image from "next/image";
-import { getRestaurantImageUrl } from "@/lib/restaurants/images";
+import { useMemo, useState } from 'react';
+import Image from 'next/image';
+import { getRestaurantImageUrl } from '@/lib/restaurants/images';
 
 type Props = {
   name: string;
@@ -26,30 +26,34 @@ export default function RestaurantGallery({
   const [activeIndex, setActiveIndex] = useState(0);
 
   if (!images.length) {
-    return <div className="h-[320px] w-full rounded-[28px] bg-white/10 md:h-[460px]" />;
+    return (
+      <div className="h-[240px] w-full max-w-full rounded-[24px] bg-white/10 sm:h-[320px] md:h-[460px]" />
+    );
   }
 
   const activeImage = images[activeIndex];
 
   return (
-    <div className="space-y-3">
-      <div className="relative h-[320px] w-full overflow-hidden rounded-[28px] bg-[#19150f] shadow-sm md:h-[500px]">
+    <section className="w-full max-w-full overflow-hidden rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/30 md:p-4">
+      <div className="relative h-[250px] w-full overflow-hidden rounded-[22px] bg-[#19150f] sm:h-[340px] md:h-[500px]">
         <Image
           src={activeImage}
           alt={name}
           fill
           sizes="(max-width: 768px) 100vw, 780px"
           priority={activeIndex === 0}
-          className="object-cover transition duration-500"
+          className="object-cover"
         />
 
-        <div className="absolute bottom-4 left-4 rounded-full bg-black/70 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+
+        <div className="absolute bottom-3 left-3 rounded-full bg-black/75 px-3 py-1.5 text-xs font-black text-white backdrop-blur md:bottom-4 md:left-4 md:px-4 md:py-2 md:text-sm">
           {activeIndex + 1} / {images.length}
         </div>
       </div>
 
       {images.length > 1 && (
-        <div className="flex gap-3 overflow-x-auto pb-1">
+        <div className="mt-3 flex max-w-full gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-3">
           {images.map((image, index) => {
             const active = index === activeIndex;
 
@@ -58,10 +62,10 @@ export default function RestaurantGallery({
                 key={`${image}-${index}`}
                 type="button"
                 onClick={() => setActiveIndex(index)}
-                className={`relative h-20 w-28 shrink-0 overflow-hidden rounded-2xl border-2 transition md:h-24 md:w-32 ${
+                className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-2xl border-2 transition sm:h-20 sm:w-28 md:h-24 md:w-32 ${
                   active
-                    ? "scale-[1.02] border-yellow-500"
-                    : "border-transparent opacity-75 hover:opacity-100"
+                    ? 'border-amber-300 opacity-100'
+                    : 'border-transparent opacity-70 hover:opacity-100'
                 }`}
               >
                 <Image
@@ -76,6 +80,6 @@ export default function RestaurantGallery({
           })}
         </div>
       )}
-    </div>
+    </section>
   );
 }

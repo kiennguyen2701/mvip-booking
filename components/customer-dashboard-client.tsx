@@ -236,10 +236,10 @@ export default function CustomerDashboardClient({
         const matchKeyword = !keyword || searchableText.includes(keyword);
         const matchCuisine = !cuisine || getCuisine(item) === cuisine;
         const matchNearby =
-          !nearbyOnly ||
-          !userLocation ||
-          item.distance === null ||
-          item.distance <= 1;
+  !nearbyOnly ||
+  !userLocation ||
+  (item.distance !== null && item.distance <= 1);
+
         return matchKeyword && matchCuisine && matchNearby;
       })
       .sort((a, b) => {
