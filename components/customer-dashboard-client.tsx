@@ -239,7 +239,7 @@ export default function CustomerDashboardClient({
           !nearbyOnly ||
           !userLocation ||
           item.distance === null ||
-          item.distance <= 10;
+          item.distance <= 1;
         return matchKeyword && matchCuisine && matchNearby;
       })
       .sort((a, b) => {
