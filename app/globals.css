@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+.booking-input {
+  width: 100%;
+  border-radius: 1rem;
+  background: transparent;
+  padding: 0.9rem 1rem;
+  font-size: 0.875rem;
+  color: white;
+  outline: none;
+}
+
+.booking-input::placeholder {
+  color: rgb(100 116 139);
+}
+
+.booking-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.8;
+}
