@@ -1,4 +1,5 @@
-import LoginForm from "@/components/login-form";
+import { Suspense } from 'react';
+import LoginForm from '@/components/login-form';
 
 export default function LoginPage() {
   return (
@@ -14,7 +15,9 @@ export default function LoginPage() {
 
       {/* Center form */}
       <div className="relative mx-auto flex min-h-[80vh] max-w-xl items-center justify-center">
-        <LoginForm />
+        <Suspense fallback={null}>
+          <LoginForm />
+        </Suspense>
       </div>
     </main>
   );
