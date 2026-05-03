@@ -1,9 +1,9 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { adminClient } from "@/lib/supabase/admin";
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { adminClient } from '@/lib/supabase/admin';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 type AgentRow = {
@@ -13,6 +13,7 @@ type AgentRow = {
   full_name?: string | null;
   email?: string | null;
   status?: string | null;
+  is_active?: boolean | null;
   referral_code?: string | null;
   ref_code?: string | null;
   agent_code?: string | null;
@@ -31,7 +32,17 @@ type BookingRow = {
 };
 
 function money(value?: number | null) {
-  return Number(value || 0).toLocaleString("vi-VN");
+  return Number(value || 0).toLocaleString('vi-VN');
+}
+
+function getBaseUrl() {
+  const raw =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
+    'http://localhost:3000';
+
+  return raw.replace(/\/$/, '');
 }
 
 function getRefCode(agent: AgentRow) {
@@ -40,8 +51,14 @@ function getRefCode(agent: AgentRow) {
     agent.ref_code ||
     agent.agent_code ||
     agent.code ||
-    ""
+    ''
   );
+}
+
+function getRefLink(refCode: string) {
+  return `${getBaseUrl()}/api/ref?code=${encodeURIComponent(
+    refCode,
+  )}&redirect=/register`;
 }
 
 function Card({
@@ -71,31 +88,31 @@ export default async function AgentDashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect('/login');
 
   const { data: profile } = await adminClient
-    .from("users")
-    .select("*")
-    .eq("id", user.id)
+    .from('users')
+    .select('*')
+    .eq('id', user.id)
     .maybeSingle();
 
   const role = profile?.role || user.user_metadata?.role;
 
-  if (role !== "agent") redirect("/dashboard");
+  if (role !== 'agent') redirect('/dashboard');
 
   const { data: agentByUserId } = await adminClient
-    .from("agents")
-    .select("*")
-    .eq("user_id", user.id)
+    .from('agents')
+    .select('*')
+    .eq('user_id', user.id)
     .maybeSingle();
 
   let agent = agentByUserId as AgentRow | null;
 
   if (!agent && user.email) {
     const { data: agentByEmail } = await adminClient
-      .from("agents")
-      .select("*")
-      .eq("email", user.email.toLowerCase())
+      .from('agents')
+      .select('*')
+      .eq('email', user.email.toLowerCase())
       .maybeSingle();
 
     agent = agentByEmail as AgentRow | null;
@@ -114,84 +131,70 @@ export default async function AgentDashboardPage() {
   }
 
   const refCode = getRefCode(agent);
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const registerLink = `${baseUrl}/login?ref=${encodeURIComponent(refCode)}`;
+  const registerLink = getRefLink(refCode);
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
-    registerLink
+    registerLink,
   )}`;
 
   const { data: customers } = await adminClient
-    .from("users")
-    .select("id, full_name, email, ref_code")
-    .eq("role", "customer")
-    .eq("ref_code", refCode);
+    .from('users')
+    .select('id, full_name, email, ref_code')
+    .eq('role', 'customer')
+    .eq('ref_code', refCode);
 
   const { data: bookingsData } = await adminClient
-    .from("bookings")
-    .select("*")
-    .eq("agent_id", agent.id)
-    .order("created_at", { ascending: false });
+    .from('bookings')
+    .select('*')
+    .eq('agent_id', agent.id)
+    .order('created_at', { ascending: false });
 
   const bookings = (bookingsData || []) as BookingRow[];
 
   const totalBookings = bookings.length;
   const pendingBookings = bookings.filter(
     (booking) =>
-      booking.status === "pending" || booking.status === "confirmed"
+      booking.status === 'pending' || booking.status === 'confirmed',
   ).length;
 
   const completedBookings = bookings.filter(
-    (booking) => booking.status === "completed"
+    (booking) => booking.status === 'completed',
   );
 
   const totalCommission = completedBookings.reduce(
     (sum, booking) => sum + Number(booking.agent_commission_amount || 0),
-    0
+    0,
   );
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#fbf7ef] px-4 py-6 md:px-6">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-32 top-0 h-80 w-80 rounded-full bg-amber-200/25 blur-3xl" />
-        <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-orange-100/60 blur-3xl" />
-        <div className="absolute left-0 top-0 h-full w-full bg-[radial-gradient(circle_at_1px_1px,rgba(214,155,56,0.11)_1px,transparent_0)] [background-size:28px_28px]" />
-      </div>
-
       <div className="relative mx-auto max-w-7xl space-y-5">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-wide text-amber-700">
               Agent Dashboard
             </p>
-
             <h1 className="mt-1 text-3xl font-black text-slate-950">
-              {agent.full_name || agent.name || profile?.full_name || "Agent"}
+              {agent.full_name || agent.name || profile?.full_name || 'Agent'}
             </h1>
-
             <p className="mt-2 text-sm text-slate-500">
               Theo dõi khách giới thiệu, booking và hoa hồng realtime.
             </p>
           </div>
 
           <span className="rounded-full border border-amber-300 bg-amber-50 px-5 py-2 text-sm font-bold text-amber-700">
-            Status: {agent.status || "active"}
+            Status:{' '}
+            {agent.is_active === false
+              ? 'inactive'
+              : agent.status || 'active'}
           </span>
         </div>
 
         <section className="grid gap-4 md:grid-cols-5">
           <Card title="Referral Code" value={refCode} desc="Mã giới thiệu cá nhân" />
-          <Card
-            title="Customer"
-            value={customers?.length || 0}
-            desc="Khách đăng ký qua mã ref"
-          />
+          <Card title="Customer" value={customers?.length || 0} desc="Khách đăng ký qua mã ref" />
           <Card title="Booking" value={totalBookings} desc="Booking phát sinh" />
           <Card title="Pending" value={pendingBookings} desc="Booking đang xử lý" />
-          <Card
-            title="Commission"
-            value={`${money(totalCommission)}đ`}
-            desc="Hoa hồng completed"
-          />
+          <Card title="Commission" value={`${money(totalCommission)}đ`} desc="Hoa hồng completed" />
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[1fr_300px]">
@@ -201,7 +204,8 @@ export default async function AgentDashboardPage() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              Gửi link này cho khách. Khi khách đăng ký, hệ thống tự gắn ref.
+              Link này trỏ thẳng đến trang đăng ký. Hệ thống tự lưu ref và gắn
+              customer vào Agent.
             </p>
 
             <div className="mt-5">
@@ -225,8 +229,6 @@ export default async function AgentDashboardPage() {
 
           <div className="rounded-3xl border border-white/80 bg-white/95 p-6 shadow-sm">
             <h3 className="text-center text-2xl font-black">QR Code</h3>
-
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qrCodeUrl}
               alt="Agent QR"
@@ -236,9 +238,7 @@ export default async function AgentDashboardPage() {
         </section>
 
         <section className="rounded-3xl border border-white/80 bg-white/95 p-6 shadow-sm">
-          <h3 className="text-2xl font-black text-slate-950">
-            Booking gần đây
-          </h3>
+          <h3 className="text-2xl font-black text-slate-950">Booking gần đây</h3>
 
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
@@ -259,11 +259,9 @@ export default async function AgentDashboardPage() {
                     <td className="px-3 py-3 font-bold">
                       {booking.booking_code || booking.id.slice(0, 8)}
                     </td>
-                    <td className="px-3 py-3">
-                      {booking.customer_name || "-"}
-                    </td>
-                    <td className="px-3 py-3">{booking.phone || "-"}</td>
-                    <td className="px-3 py-3">{booking.status || "pending"}</td>
+                    <td className="px-3 py-3">{booking.customer_name || '-'}</td>
+                    <td className="px-3 py-3">{booking.phone || '-'}</td>
+                    <td className="px-3 py-3">{booking.status || 'pending'}</td>
                     <td className="px-3 py-3">{money(booking.total_bill)}đ</td>
                     <td className="px-3 py-3 font-bold text-emerald-700">
                       {money(booking.agent_commission_amount)}đ
@@ -273,10 +271,7 @@ export default async function AgentDashboardPage() {
 
                 {!bookings.length && (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-3 py-8 text-center text-slate-400"
-                    >
+                    <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
                       Chưa có booking nào
                     </td>
                   </tr>
