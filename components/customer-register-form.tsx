@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 export default function CustomerRegisterForm({
   initialRefCode,
@@ -11,7 +10,6 @@ export default function CustomerRegisterForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [googlePending, setGooglePending] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -45,33 +43,6 @@ export default function CustomerRegisterForm({
     document.cookie = `ref_code=${encodeURIComponent(
       cleanRef,
     )}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-  }
-
-  async function handleGoogleRegister() {
-    setError("");
-    setSuccess("");
-    setGooglePending(true);
-
-    try {
-      saveRefCode(form.refCode);
-
-      const supabase = createClient();
-
-      const { error: googleError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (googleError) {
-        setError(googleError.message || "Google registration failed.");
-        setGooglePending(false);
-      }
-    } catch {
-      setError("Google registration failed.");
-      setGooglePending(false);
-    }
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -134,24 +105,6 @@ export default function CustomerRegisterForm({
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={handleGoogleRegister}
-        disabled={googlePending || pending}
-        className="mb-4 flex w-full items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-base font-black text-blue-600">
-          G
-        </span>
-        {googlePending ? "Redirecting..." : "Đăng ký bằng Gmail"}
-      </button>
-
-      <div className="mb-4 flex items-center gap-3">
-        <div className="h-px flex-1 bg-white/10" />
-        <span className="text-xs font-bold text-slate-500">or</span>
-        <div className="h-px flex-1 bg-white/10" />
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           value={form.fullName}
@@ -197,7 +150,7 @@ export default function CustomerRegisterForm({
         <input type="hidden" name="refCode" value={form.refCode} />
 
         <button
-          disabled={pending || googlePending}
+          disabled={pending}
           className="w-full rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950 shadow-xl shadow-amber-900/20 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? "Creating account..." : "Create Account"}
