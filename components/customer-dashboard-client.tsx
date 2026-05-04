@@ -199,18 +199,28 @@ export default function CustomerDashboardClient({
     };
   }, []);
 
+  function scrollToResultsSafely() {
+    resetHorizontalPosition();
+
+    if (!resultRef.current) return;
+
+    const top =
+      resultRef.current.getBoundingClientRect().top + window.scrollY - 16;
+
+    window.scrollTo({
+      top,
+      left: 0,
+      behavior: 'smooth',
+    });
+
+    setTimeout(resetHorizontalPosition, 150);
+  }
+
   function handleSearch() {
     setQuery(input.trim());
     setVisibleCount(9);
 
-    setTimeout(() => {
-      resetHorizontalPosition();
-      resultRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-        inline: 'nearest',
-      });
-    }, 50);
+    setTimeout(scrollToResultsSafely, 80);
   }
 
   function clearFilters() {
@@ -314,6 +324,10 @@ export default function CustomerDashboardClient({
             item.short_description,
             item.address,
             item.city,
+            'restaurant',
+            'restaurants',
+            'nha hang',
+            'nhà hàng',
           ]
             .filter(Boolean)
             .join(' '),
@@ -375,7 +389,7 @@ export default function CustomerDashboardClient({
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
 
   return (
-    <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#050403] pb-10 text-white md:pb-10">
+    <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#050403] pb-10 text-white">
       <div className="pointer-events-none absolute inset-0 w-full max-w-[100vw] overflow-hidden">
         <div className="absolute left-1/2 top-0 h-[420px] w-[420px] max-w-[100vw] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
         <div className="absolute right-[-180px] top-40 h-[360px] w-[360px] rounded-full bg-orange-900/20 blur-3xl md:right-0 md:h-[440px] md:w-[440px]" />
@@ -599,8 +613,6 @@ export default function CustomerDashboardClient({
           )}
         </section>
       </div>
-
-      
     </main>
   );
 }
