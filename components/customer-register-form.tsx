@@ -25,7 +25,10 @@ export default function CustomerRegisterForm({
   });
 
   function updateField(name: keyof typeof form, value: string) {
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
   }
 
   function saveRefCode(refCode: string) {
@@ -34,8 +37,14 @@ export default function CustomerRegisterForm({
 
     localStorage.setItem("agent_ref", cleanRef);
     sessionStorage.setItem("agent_ref", cleanRef);
-    document.cookie = `mvip_ref_code=${encodeURIComponent(cleanRef)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-    document.cookie = `ref_code=${encodeURIComponent(cleanRef)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+
+    document.cookie = `mvip_ref_code=${encodeURIComponent(
+      cleanRef,
+    )}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+
+    document.cookie = `ref_code=${encodeURIComponent(
+      cleanRef,
+    )}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
   }
 
   async function handleGoogleRegister() {
@@ -43,23 +52,25 @@ export default function CustomerRegisterForm({
     setSuccess("");
     setGooglePending(true);
 
-    const refCode = form.refCode.trim().toUpperCase();
-    saveRefCode(refCode);
+    try {
+      saveRefCode(form.refCode);
 
-    const supabase = createClient();
-    const next = "/dashboard/customer";
-    const refQuery = refCode ? `&ref=${encodeURIComponent(refCode)}` : "";
+      const supabase = createClient();
 
-    const { error: googleError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}${refQuery}`,
-      },
-    });
+      const { error: googleError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-    if (googleError) {
+      if (googleError) {
+        setError(googleError.message || "Google registration failed.");
+        setGooglePending(false);
+      }
+    } catch {
+      setError("Google registration failed.");
       setGooglePending(false);
-      setError(googleError.message || "Google registration failed.");
     }
   }
 
@@ -73,7 +84,9 @@ export default function CustomerRegisterForm({
 
       const response = await fetch("/api/customer-register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(form),
       });
 
@@ -85,7 +98,10 @@ export default function CustomerRegisterForm({
       }
 
       setSuccess("Account created successfully. Please login.");
-      router.replace(`/login?registered=1&email=${encodeURIComponent(form.email)}`);
+
+      router.replace(
+        `/login?registered=1&email=${encodeURIComponent(form.email)}`,
+      );
       router.refresh();
     });
   }
@@ -124,7 +140,9 @@ export default function CustomerRegisterForm({
         disabled={googlePending || pending}
         className="mb-4 flex w-full items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <span className="text-lg">G</span>
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-base font-black text-blue-600">
+          G
+        </span>
         {googlePending ? "Redirecting..." : "Đăng ký bằng Gmail"}
       </button>
 
@@ -139,8 +157,8 @@ export default function CustomerRegisterForm({
           value={form.fullName}
           onChange={(event) => updateField("fullName", event.target.value)}
           placeholder="Full name"
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
           required
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
         />
 
         <input
@@ -148,8 +166,8 @@ export default function CustomerRegisterForm({
           onChange={(event) => updateField("email", event.target.value)}
           type="email"
           placeholder="Email"
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
           required
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
         />
 
         <input
@@ -157,9 +175,9 @@ export default function CustomerRegisterForm({
           onChange={(event) => updateField("password", event.target.value)}
           type="password"
           placeholder="Password"
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
           required
           minLength={6}
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
         />
 
         <input
