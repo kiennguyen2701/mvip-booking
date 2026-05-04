@@ -34,18 +34,18 @@ export default async function Header() {
   const dashboardHref = getDashboardHref(role);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#080704]/95 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4">
+    <header className="sticky top-0 z-50 w-full max-w-[100vw] overflow-hidden border-b border-white/10 bg-[#080704]/95 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4">
         <Link
           href={dashboardHref}
           prefetch
-          className="flex min-w-0 items-center gap-3"
+          className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden"
         >
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-slate-950 shadow-lg shadow-amber-900/20">
             ♛
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 overflow-hidden">
             <p className="truncate text-lg font-black tracking-tight text-white md:text-xl">
               Mvip Booking
             </p>
@@ -55,7 +55,7 @@ export default async function Header() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-3 md:flex">
+        <nav className="hidden shrink-0 items-center gap-3 md:flex">
           {user ? (
             <>
               {!isCustomer && (
@@ -91,7 +91,7 @@ export default async function Header() {
           )}
         </nav>
 
-        <div className="md:hidden">
+        <div className="shrink-0 md:hidden">
           <HeaderMobileMenu isLoggedIn={!!user} role={role} />
         </div>
       </div>

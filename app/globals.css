@@ -9,8 +9,9 @@ body {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
-  overscroll-behavior-x: none;
   background: #050403;
+  overscroll-behavior-x: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 @supports (width: 100dvw) {
@@ -22,9 +23,8 @@ body {
 
 body {
   position: relative;
-  color: #0f172a;
+  min-height: 100vh;
   touch-action: pan-y;
-  -webkit-text-size-adjust: 100%;
 }
 
 *,
@@ -34,38 +34,43 @@ body {
   min-width: 0;
 }
 
-body > header,
-body > main,
-body > footer {
-  width: 100%;
+body,
+header,
+main,
+footer,
+section,
+nav,
+form,
+div {
   max-width: 100vw;
-  overflow-x: clip;
 }
 
 @supports (width: 100dvw) {
-  body > header,
-  body > main,
-  body > footer {
+  body,
+  header,
+  main,
+  footer,
+  section,
+  nav,
+  form,
+  div {
     max-width: 100dvw;
   }
 }
 
-main,
 header,
-footer,
-section,
-div,
-form,
-nav {
-  max-width: 100%;
+main,
+footer {
+  width: 100%;
+  overflow-x: hidden;
 }
 
 img,
 video,
 iframe,
-table,
 svg,
-canvas {
+canvas,
+table {
   max-width: 100%;
 }
 
