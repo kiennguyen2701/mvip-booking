@@ -1,12 +1,15 @@
 'use client';
+
 import Link from 'next/link';
 import { memo, useMemo, useState } from 'react';
 import { getRestaurantImageUrl } from '@/lib/restaurants/images';
+
 type Profile = {
   fullName: string;
   email?: string;
   refCode?: string;
 };
+
 type Restaurant = {
   id: string;
   name?: string | null;
@@ -24,17 +27,22 @@ type Restaurant = {
   price_range?: string | null;
   discount_percent?: number | null;
 };
+
 type RestaurantWithDistance = Restaurant & {
   distance: number | null;
 };
+
 type Props = {
   profile: Profile;
   restaurants: Restaurant[];
 };
+
 type SortMode = 'top' | 'nearby' | 'popular';
+
 function getCuisine(item: Restaurant) {
   return item.cuisine_type || item.category || 'Signature Dining';
 }
+
 function getImage(item: Restaurant) {
   return (
     getRestaurantImageUrl(item.cover_image) ||
@@ -42,25 +50,31 @@ function getImage(item: Restaurant) {
     ''
   );
 }
+
 function getDiscount(item: Restaurant) {
   return Number(item.discount_percent ?? 5);
 }
+
 function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const r = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLon / 2) ** 2;
+
   return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
 function formatDistance(distance: number | null) {
   if (distance === null) return 'Location unavailable';
   if (distance < 1) return `${Math.round(distance * 1000)}m away`;
   return `${distance.toFixed(1)}km away`;
 }
+
 const RestaurantCard = memo(function RestaurantCard({
   restaurant,
 }: {
@@ -69,15 +83,17 @@ const RestaurantCard = memo(function RestaurantCard({
   const image = getImage(restaurant);
   const cuisine = getCuisine(restaurant);
   const discount = getDiscount(restaurant);
+
   const href = restaurant.slug
     ? `/restaurants/${restaurant.slug}`
     : `/restaurants/${restaurant.id}`;
+
   return (
     <Link
       href={href}
-      className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#11100c]/95 shadow-2xl shadow-black/30 transition hover:-translate-y-1 hover:border-amber-300/40"
+      className="group block w-full max-w-full min-w-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#11100c]/95 shadow-2xl shadow-black/30 transition hover:border-amber-300/40 md:rounded-[1.75rem] md:hover:-translate-y-1"
     >
-      <div className="relative h-52 overflow-hidden bg-[#12100b] sm:h-60">
+      <div className="relative h-48 w-full max-w-full overflow-hidden bg-[#12100b] sm:h-56 md:h-60">
         {image ? (
           <img
             src={image}
@@ -90,35 +106,43 @@ const RestaurantCard = memo(function RestaurantCard({
             🍽️
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+
         <div className="absolute left-4 top-4 rounded-full bg-amber-300 px-3 py-1 text-[11px] font-black text-slate-950 shadow-lg">
           {discount}% OFF
         </div>
-        <div className="absolute bottom-4 left-4 right-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">
+
+        <div className="absolute bottom-4 left-4 right-4 min-w-0">
+          <p className="line-clamp-1 break-words text-[10px] font-black uppercase tracking-[0.18em] text-amber-300 md:text-[11px] md:tracking-[0.22em]">
             {cuisine}
           </p>
-          <h3 className="mt-2 line-clamp-2 text-xl font-black text-white">
+
+          <h3 className="mt-2 line-clamp-2 break-words text-xl font-black leading-tight text-white md:text-2xl">
             {restaurant.name || 'Unnamed Restaurant'}
           </h3>
         </div>
       </div>
-      <div className="p-5">
-        <p className="line-clamp-2 text-sm leading-6 text-slate-400">
+
+      <div className="min-w-0 p-4 md:p-5">
+        <p className="line-clamp-2 break-words text-sm leading-6 text-slate-400">
           {restaurant.short_description ||
             restaurant.description ||
             restaurant.address ||
             'Premium dining partner available for booking.'}
         </p>
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <div className="min-w-0">
+
+        <div className="mt-5 flex min-w-0 items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-slate-300">
               📍 {restaurant.city || restaurant.address || 'Vietnam'}
             </p>
-            <p className="mt-1 text-xs font-semibold text-slate-500">
+
+            <p className="mt-1 truncate text-xs font-semibold text-slate-500">
               {restaurant.price_range || formatDistance(restaurant.distance)}
             </p>
           </div>
+
           <span className="shrink-0 rounded-2xl bg-amber-300 px-4 py-2 text-sm font-black text-slate-950 transition group-hover:bg-amber-200">
             View
           </span>
@@ -127,6 +151,7 @@ const RestaurantCard = memo(function RestaurantCard({
     </Link>
   );
 });
+
 export default function CustomerDashboardClient({
   profile,
   restaurants,
@@ -142,10 +167,13 @@ export default function CustomerDashboardClient({
     lat: number;
     lng: number;
   } | null>(null);
+
   function handleSearch() {
     setQuery(input.trim());
     setVisibleCount(9);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
   function clearFilters() {
     setInput('');
     setQuery('');
@@ -155,22 +183,26 @@ export default function CustomerDashboardClient({
     setVisibleCount(9);
     setLocationStatus('');
   }
+
   function requestLocation() {
     if (!navigator.geolocation) {
       setLocationStatus('Your browser does not support location services.');
       return;
     }
+
     setLocationStatus('Detecting your location...');
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setUserLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
+
         setNearbyOnly(true);
         setSortMode('nearby');
         setVisibleCount(9);
-        setLocationStatus('Nearby restaurants enabled.');
+        setLocationStatus('Nearby restaurants within 1km enabled.');
       },
       () => {
         setNearbyOnly(false);
@@ -179,32 +211,37 @@ export default function CustomerDashboardClient({
         );
       },
       {
-        enableHighAccuracy: false,
-        timeout: 7000,
+        enableHighAccuracy: true,
+        timeout: 10000,
         maximumAge: 1000 * 60 * 5,
       },
     );
   }
+
   function toggleNearby() {
     if (!nearbyOnly && !userLocation) {
       requestLocation();
       return;
     }
+
     setNearbyOnly((current) => !current);
     setSortMode((current) => (current === 'nearby' ? 'top' : 'nearby'));
     setVisibleCount(9);
   }
+
   const cuisines = useMemo(() => {
     return Array.from(new Set(restaurants.map((item) => getCuisine(item))))
       .filter(Boolean)
       .sort();
   }, [restaurants]);
+
   const restaurantsWithDistance = useMemo<RestaurantWithDistance[]>(() => {
     return restaurants.map((item) => {
       const hasLocation =
         userLocation &&
         typeof item.latitude === 'number' &&
         typeof item.longitude === 'number';
+
       return {
         ...item,
         distance: hasLocation
@@ -218,8 +255,10 @@ export default function CustomerDashboardClient({
       };
     });
   }, [restaurants, userLocation]);
+
   const filteredRestaurants = useMemo<RestaurantWithDistance[]>(() => {
     const keyword = query.toLowerCase();
+
     return restaurantsWithDistance
       .filter((item) => {
         const searchableText = [
@@ -233,12 +272,14 @@ export default function CustomerDashboardClient({
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
+
         const matchKeyword = !keyword || searchableText.includes(keyword);
         const matchCuisine = !cuisine || getCuisine(item) === cuisine;
+
         const matchNearby =
-  !nearbyOnly ||
-  !userLocation ||
-  (item.distance !== null && item.distance <= 1);
+          !nearbyOnly ||
+          !userLocation ||
+          (item.distance !== null && item.distance <= 1);
 
         return matchKeyword && matchCuisine && matchNearby;
       })
@@ -249,25 +290,31 @@ export default function CustomerDashboardClient({
           if (b.distance === null) return -1;
           return a.distance - b.distance;
         }
+
         if (sortMode === 'popular') {
           const aScore =
             (a.cover_image || a.image_url ? 20 : 0) +
             (a.short_description ? 10 : 0) +
             (a.city ? 8 : 0);
+
           const bScore =
             (b.cover_image || b.image_url ? 20 : 0) +
             (b.short_description ? 10 : 0) +
             (b.city ? 8 : 0);
+
           return bScore - aScore;
         }
+
         const aScore =
           (a.cover_image || a.image_url ? 50 : 0) +
           (a.name ? 10 : 0) +
           (a.short_description ? 10 : 0);
+
         const bScore =
           (b.cover_image || b.image_url ? 50 : 0) +
           (b.name ? 10 : 0) +
           (b.short_description ? 10 : 0);
+
         return bScore - aScore;
       });
   }, [
@@ -278,39 +325,43 @@ export default function CustomerDashboardClient({
     nearbyOnly,
     userLocation,
   ]);
+
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050403] pb-24 text-white md:pb-10">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-0 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl" />
-        <div className="absolute right-0 top-40 h-[440px] w-[440px] rounded-full bg-orange-900/20 blur-3xl" />
+    <main className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[#050403] pb-28 text-white md:pb-10">
+      <div className="pointer-events-none absolute inset-0 max-w-full overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
+        <div className="absolute right-[-180px] top-40 h-[360px] w-[360px] rounded-full bg-orange-900/20 blur-3xl md:right-0 md:h-[440px] md:w-[440px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.12)_1px,transparent_0)] [background-size:28px_28px]" />
       </div>
-      <div className="relative mx-auto max-w-7xl px-4 py-5 md:px-6 md:py-10">
-        <section className="relative overflow-hidden rounded-[1.75rem] border border-amber-300/15 bg-[#11100c]/95 p-5 shadow-[0_30px_100px_rgba(0,0,0,0.65)] md:rounded-[2.5rem] md:p-8">
-          <div className="pointer-events-none absolute inset-0">
+
+      <div className="relative mx-auto w-full max-w-7xl overflow-x-hidden px-4 py-5 md:px-6 md:py-8">
+        <section className="relative w-full max-w-full overflow-hidden rounded-[1.75rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.65)] md:rounded-[2.4rem] md:p-8">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -left-20 -top-24 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
             <div className="absolute -right-16 top-8 h-80 w-80 rounded-full bg-orange-700/10 blur-3xl" />
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-300/50 to-transparent" />
           </div>
-          <div className="relative">
-            <div className="grid gap-5 md:grid-cols-[1fr_260px] md:items-end">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.35em] text-amber-300 md:tracking-[0.45em]">
+
+          <div className="relative min-w-0">
+            <div className="mb-6 grid gap-5 lg:grid-cols-[1fr_260px] lg:items-end">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300 md:text-xs md:tracking-[0.45em]">
                   Customer Dashboard
                 </p>
-                <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl md:text-6xl">
-                  Welcome,{' '}
-                  <span className="block break-words md:inline">
-                    {profile.fullName || 'Customer'}
-                  </span>
+
+                <h1 className="mt-3 break-words text-3xl font-black leading-tight tracking-tight text-white md:mt-4 md:text-6xl">
+                  Welcome, {profile.fullName || 'Customer'}
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 md:text-base">
+
+                <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-slate-400 md:mt-4">
                   Discover curated premium restaurants and book instantly with
                   your exclusive Mvip benefits.
                 </p>
               </div>
-              <div className="rounded-[1.5rem] border border-amber-300/20 bg-amber-300/[0.07] px-5 py-4 shadow-2xl shadow-amber-950/20">
+
+              <div className="w-full rounded-[1.5rem] border border-amber-300/20 bg-amber-300/[0.07] px-5 py-4 shadow-2xl shadow-amber-950/20">
                 <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-300">
                   Member Benefit
                 </p>
@@ -320,8 +371,9 @@ export default function CustomerDashboardClient({
                 </p>
               </div>
             </div>
-            <div className="mt-7 rounded-[1.5rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl">
-              <div className="grid gap-3 md:grid-cols-[1fr_130px_260px]">
+
+            <div className="w-full max-w-full rounded-[1.5rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
+              <div className="grid w-full gap-3 lg:grid-cols-[1fr_120px_260px]">
                 <input
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
@@ -329,26 +381,29 @@ export default function CustomerDashboardClient({
                     if (event.key === 'Enter') handleSearch();
                   }}
                   placeholder="Search restaurant, city or cuisine..."
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+                  className="min-w-0 w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
                 />
+
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
+                  className="w-full rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
                 >
                   Search
                 </button>
+
                 <select
                   value={cuisine}
                   onChange={(event) => {
                     setCuisine(event.target.value);
                     setVisibleCount(9);
                   }}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+                  className="min-w-0 w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
                 >
                   <option value="" className="text-slate-950">
                     All Cuisines
                   </option>
+
                   {cuisines.map((item) => (
                     <option key={item} value={item} className="text-slate-950">
                       {item}
@@ -356,8 +411,9 @@ export default function CustomerDashboardClient({
                   ))}
                 </select>
               </div>
+
               <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-3 gap-2 md:flex md:flex-wrap">
                   <button
                     type="button"
                     onClick={() => {
@@ -367,23 +423,25 @@ export default function CustomerDashboardClient({
                     }}
                     className={
                       sortMode === 'top'
-                        ? 'rounded-xl bg-amber-300 px-5 py-3 text-xs font-black text-slate-950'
-                        : 'rounded-xl border border-white/10 px-5 py-3 text-xs font-black text-slate-400 transition hover:bg-white/[0.08] hover:text-white'
+                        ? 'rounded-xl bg-amber-300 px-3 py-3 text-xs font-black text-slate-950 md:px-5'
+                        : 'rounded-xl border border-white/10 px-3 py-3 text-xs font-black text-slate-400 transition hover:bg-white/[0.08] hover:text-white md:px-5'
                     }
                   >
                     TOP
                   </button>
+
                   <button
                     type="button"
                     onClick={toggleNearby}
                     className={
                       sortMode === 'nearby'
-                        ? 'rounded-xl bg-amber-300 px-5 py-3 text-xs font-black text-slate-950'
-                        : 'rounded-xl border border-white/10 px-5 py-3 text-xs font-black text-slate-400 transition hover:bg-white/[0.08] hover:text-white'
+                        ? 'rounded-xl bg-amber-300 px-3 py-3 text-xs font-black text-slate-950 md:px-5'
+                        : 'rounded-xl border border-white/10 px-3 py-3 text-xs font-black text-slate-400 transition hover:bg-white/[0.08] hover:text-white md:px-5'
                     }
                   >
                     NEARBY
                   </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -393,17 +451,19 @@ export default function CustomerDashboardClient({
                     }}
                     className={
                       sortMode === 'popular'
-                        ? 'rounded-xl bg-amber-300 px-5 py-3 text-xs font-black text-slate-950'
-                        : 'rounded-xl border border-white/10 px-5 py-3 text-xs font-black text-slate-400 transition hover:bg-white/[0.08] hover:text-white'
+                        ? 'rounded-xl bg-amber-300 px-3 py-3 text-xs font-black text-slate-950 md:px-5'
+                        : 'rounded-xl border border-white/10 px-3 py-3 text-xs font-black text-slate-400 transition hover:bg-white/[0.08] hover:text-white md:px-5'
                     }
                   >
                     POPULAR
                   </button>
                 </div>
-                <div className="flex items-center gap-3 text-xs font-black text-slate-400">
+
+                <div className="flex min-w-0 flex-wrap items-center gap-3 text-xs font-black text-slate-400">
                   <span>
                     Showing {filteredRestaurants.length} of {restaurants.length}
                   </span>
+
                   <button
                     type="button"
                     onClick={clearFilters}
@@ -414,9 +474,11 @@ export default function CustomerDashboardClient({
                 </div>
               </div>
             </div>
+
             {locationStatus && (
-              <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
+              <div className="mt-4 break-words rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
                 {locationStatus}
+
                 {!userLocation && (
                   <button
                     type="button"
@@ -430,19 +492,23 @@ export default function CustomerDashboardClient({
             )}
           </div>
         </section>
-        <section className="mt-10">
-          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.45em] text-amber-300">
+
+        <section className="mt-8 w-full max-w-full md:mt-10">
+          <div className="flex min-w-0 flex-col justify-between gap-3 md:flex-row md:items-end">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.32em] text-amber-300 md:tracking-[0.45em]">
                 Curated Selection
               </p>
-              <h2 className="mt-3 text-3xl font-black text-white md:text-4xl">
+
+              <h2 className="mt-3 break-words text-3xl font-black leading-tight text-white md:text-4xl">
                 Premium Restaurants
               </h2>
-              <p className="mt-2 text-sm text-slate-400">
+
+              <p className="mt-2 break-words text-sm text-slate-400">
                 Browse luxury dining partners available for booking.
               </p>
             </div>
+
             <button
               type="button"
               onClick={requestLocation}
@@ -451,18 +517,20 @@ export default function CustomerDashboardClient({
               Find nearby restaurants
             </button>
           </div>
+
           {visibleRestaurants.length === 0 ? (
             <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.05] px-6 py-10 text-center text-sm text-slate-300">
               No restaurants match your filters. Try clearing filters or explore
               top picks ✨
             </div>
           ) : (
-            <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-6 grid w-full max-w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
               {visibleRestaurants.map((restaurant) => (
                 <RestaurantCard key={restaurant.id} restaurant={restaurant} />
               ))}
             </div>
           )}
+
           {visibleRestaurants.length < filteredRestaurants.length && (
             <div className="mt-8 flex justify-center">
               <button
@@ -476,6 +544,7 @@ export default function CustomerDashboardClient({
           )}
         </section>
       </div>
+
       <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-[1.5rem] border border-white/10 bg-black/80 px-3 py-3 shadow-2xl shadow-black/60 backdrop-blur-xl md:hidden">
         <Link
           href="/dashboard/customer"
@@ -484,6 +553,7 @@ export default function CustomerDashboardClient({
           <div className="text-lg">🏠</div>
           Home
         </Link>
+
         <Link
           href="/dashboard/customer/bookings"
           className="text-center text-xs font-black text-slate-400"
@@ -491,6 +561,7 @@ export default function CustomerDashboardClient({
           <div className="text-lg">📅</div>
           Bookings
         </Link>
+
         <button
           type="button"
           onClick={requestLocation}
@@ -499,6 +570,7 @@ export default function CustomerDashboardClient({
           <div className="text-lg">📍</div>
           Nearby
         </button>
+
         <Link
           href="/dashboard/customer/profile"
           className="text-center text-xs font-black text-slate-400"
