@@ -2,20 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 body {
+  position: relative;
   background: #f8fafc;
   color: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 a {
   color: inherit;
   text-decoration: none;
 }
+
+img,
+video,
+iframe,
+table,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+main,
+header,
+footer,
+section,
+div {
+  max-width: 100%;
+}
+
 .booking-input {
   width: 100%;
   border-radius: 1rem;
@@ -33,36 +60,4 @@ a {
 .booking-input::-webkit-calendar-picker-indicator {
   filter: invert(1);
   opacity: 0.8;
-}
-html,
-body {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-img,
-video,
-iframe,
-table {
-  max-width: 100%;
-}
-
-body {
-  position: relative;
-}
-html,
-body {
-  max-width: 100%;
-  overflow-x: hidden;
-}
-
-#__next,
-main {
-  max-width: 100vw;
-  overflow-x: hidden;
 }

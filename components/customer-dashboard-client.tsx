@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { getRestaurantImageUrl } from '@/lib/restaurants/images';
 
 type Profile = {
@@ -45,7 +45,6 @@ function normalizeSearch(value: string) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'd')
     .trim();
 }
 
@@ -171,8 +170,6 @@ export default function CustomerDashboardClient({
   profile,
   restaurants,
 }: Props) {
-  const resultRef = useRef<HTMLElement | null>(null);
-
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
   const [cuisine, setCuisine] = useState('');
@@ -186,41 +183,14 @@ export default function CustomerDashboardClient({
   } | null>(null);
 
   useEffect(() => {
-    document.documentElement.style.overflowX = 'hidden';
-    document.body.style.overflowX = 'hidden';
-    document.body.style.width = '100%';
-    document.body.style.maxWidth = '100vw';
-
-    return () => {
-      document.documentElement.style.overflowX = '';
-      document.body.style.overflowX = '';
-      document.body.style.width = '';
-      document.body.style.maxWidth = '';
-    };
-  }, []);
-
-  function scrollToResultsSafely() {
     resetHorizontalPosition();
-
-    if (!resultRef.current) return;
-
-    const top =
-      resultRef.current.getBoundingClientRect().top + window.scrollY - 16;
-
-    window.scrollTo({
-      top,
-      left: 0,
-      behavior: 'smooth',
-    });
-
-    setTimeout(resetHorizontalPosition, 150);
-  }
+  }, [query, cuisine, sortMode, nearbyOnly, visibleCount]);
 
   function handleSearch() {
     setQuery(input.trim());
     setVisibleCount(9);
-
-    setTimeout(scrollToResultsSafely, 80);
+    resetHorizontalPosition();
+    setTimeout(resetHorizontalPosition, 80);
   }
 
   function clearFilters() {
@@ -231,8 +201,7 @@ export default function CustomerDashboardClient({
     setNearbyOnly(false);
     setVisibleCount(9);
     setLocationStatus('');
-
-    setTimeout(resetHorizontalPosition, 50);
+    setTimeout(resetHorizontalPosition, 80);
   }
 
   function requestLocation() {
@@ -255,7 +224,7 @@ export default function CustomerDashboardClient({
         setVisibleCount(9);
         setLocationStatus('Nearby restaurants within 1km enabled.');
 
-        setTimeout(resetHorizontalPosition, 50);
+        setTimeout(resetHorizontalPosition, 80);
       },
       () => {
         setNearbyOnly(false);
@@ -280,8 +249,7 @@ export default function CustomerDashboardClient({
     setNearbyOnly((current) => !current);
     setSortMode((current) => (current === 'nearby' ? 'top' : 'nearby'));
     setVisibleCount(9);
-
-    setTimeout(resetHorizontalPosition, 50);
+    setTimeout(resetHorizontalPosition, 80);
   }
 
   const cuisines = useMemo(() => {
@@ -389,19 +357,18 @@ export default function CustomerDashboardClient({
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
 
   return (
-    <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#050403] pb-10 text-white">
-      <div className="pointer-events-none absolute inset-0 w-full max-w-[100vw] overflow-hidden">
+    <main className="relative min-h-screen w-full overflow-x-clip bg-[#050403] pb-10 text-white">
+      <div className="pointer-events-none absolute inset-0 w-full overflow-hidden">
         <div className="absolute left-1/2 top-0 h-[420px] w-[420px] max-w-[100vw] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
-        <div className="absolute right-[-180px] top-40 h-[360px] w-[360px] rounded-full bg-orange-900/20 blur-3xl md:right-0 md:h-[440px] md:w-[440px]" />
+        <div className="absolute right-0 top-40 h-[260px] w-[260px] rounded-full bg-orange-900/20 blur-3xl md:h-[440px] md:w-[440px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.12)_1px,transparent_0)] [background-size:28px_28px]" />
       </div>
 
-      <div className="relative mx-auto w-full max-w-7xl overflow-x-hidden px-4 py-5 md:px-6 md:py-8">
-        <section className="relative w-full max-w-full overflow-hidden rounded-[1.75rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.65)] md:rounded-[2.4rem] md:p-8">
+      <div className="relative mx-auto w-full max-w-7xl overflow-x-clip px-4 py-5 md:px-6 md:py-8">
+        <section className="relative w-full overflow-hidden rounded-[1.75rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.65)] md:rounded-[2.4rem] md:p-8">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -left-20 -top-24 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
-            <div className="absolute -right-16 top-8 h-80 w-80 rounded-full bg-orange-700/10 blur-3xl" />
-            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-300/50 to-transparent" />
+            <div className="absolute right-0 top-8 h-80 w-80 rounded-full bg-orange-700/10 blur-3xl" />
           </div>
 
           <div className="relative min-w-0">
@@ -432,8 +399,8 @@ export default function CustomerDashboardClient({
               </div>
             </div>
 
-            <div className="w-full max-w-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
-              <div className="grid w-full max-w-full gap-3 lg:grid-cols-[1fr_120px_260px]">
+            <div className="w-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
+              <div className="grid w-full gap-3 lg:grid-cols-[1fr_120px_260px]">
                 <input
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
@@ -441,13 +408,13 @@ export default function CustomerDashboardClient({
                     if (event.key === 'Enter') handleSearch();
                   }}
                   placeholder="Search restaurant, city or cuisine..."
-                  className="min-w-0 w-full max-w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+                  className="min-w-0 w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
                 />
 
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="w-full max-w-full rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
+                  className="w-full rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
                 >
                   Search
                 </button>
@@ -457,9 +424,9 @@ export default function CustomerDashboardClient({
                   onChange={(event) => {
                     setCuisine(event.target.value);
                     setVisibleCount(9);
-                    setTimeout(resetHorizontalPosition, 50);
+                    setTimeout(resetHorizontalPosition, 80);
                   }}
-                  className="min-w-0 w-full max-w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+                  className="min-w-0 w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
                 >
                   <option value="" className="text-slate-950">
                     All Cuisines
@@ -474,14 +441,13 @@ export default function CustomerDashboardClient({
               </div>
 
               <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
-                <div className="grid w-full max-w-full grid-cols-3 gap-2 md:flex md:w-auto md:flex-wrap">
+                <div className="grid w-full grid-cols-3 gap-2 md:flex md:w-auto md:flex-wrap">
                   <button
                     type="button"
                     onClick={() => {
                       setSortMode('top');
                       setNearbyOnly(false);
                       setVisibleCount(9);
-                      setTimeout(resetHorizontalPosition, 50);
                     }}
                     className={
                       sortMode === 'top'
@@ -510,7 +476,6 @@ export default function CustomerDashboardClient({
                       setSortMode('popular');
                       setNearbyOnly(false);
                       setVisibleCount(9);
-                      setTimeout(resetHorizontalPosition, 50);
                     }}
                     className={
                       sortMode === 'popular'
@@ -541,25 +506,12 @@ export default function CustomerDashboardClient({
             {locationStatus && (
               <div className="mt-4 break-words rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
                 {locationStatus}
-
-                {!userLocation && (
-                  <button
-                    type="button"
-                    onClick={requestLocation}
-                    className="ml-2 font-black text-amber-300 underline underline-offset-4"
-                  >
-                    Enable location
-                  </button>
-                )}
               </div>
             )}
           </div>
         </section>
 
-        <section
-          ref={resultRef}
-          className="mt-8 w-full max-w-full overflow-x-hidden md:mt-10"
-        >
+        <section className="mt-8 w-full overflow-x-clip md:mt-10">
           <div className="flex min-w-0 flex-col justify-between gap-3 md:flex-row md:items-end">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.32em] text-amber-300 md:tracking-[0.45em]">
@@ -590,7 +542,7 @@ export default function CustomerDashboardClient({
               top picks ✨
             </div>
           ) : (
-            <div className="mt-6 grid w-full max-w-full grid-cols-1 gap-5 overflow-x-hidden md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-6 grid w-full grid-cols-1 gap-5 overflow-x-clip md:grid-cols-2 xl:grid-cols-3">
               {visibleRestaurants.map((restaurant) => (
                 <RestaurantCard key={restaurant.id} restaurant={restaurant} />
               ))}
@@ -603,7 +555,7 @@ export default function CustomerDashboardClient({
                 type="button"
                 onClick={() => {
                   setVisibleCount((current) => current + 9);
-                  setTimeout(resetHorizontalPosition, 50);
+                  setTimeout(resetHorizontalPosition, 80);
                 }}
                 className="rounded-2xl border border-amber-300/40 px-6 py-3 text-sm font-black text-amber-300 transition hover:bg-amber-300 hover:text-slate-950"
               >
