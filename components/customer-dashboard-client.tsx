@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { getRestaurantImageUrl } from '@/lib/restaurants/images';
 
 type Profile = {
@@ -38,6 +38,16 @@ type Props = {
 };
 
 type SortMode = 'top' | 'nearby' | 'popular';
+
+function lockHorizontalScroll() {
+  document.documentElement.scrollLeft = 0;
+  document.body.scrollLeft = 0;
+  window.scrollTo({
+    top: 0,
+    left: 0,
+    behavior: 'smooth',
+  });
+}
 
 function getCuisine(item: Restaurant) {
   return item.cuisine_type || item.category || 'Signature Dining';
@@ -99,7 +109,7 @@ const RestaurantCard = memo(function RestaurantCard({
             src={image}
             alt={restaurant.name || 'Restaurant'}
             loading="lazy"
-            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+            className="h-full w-full max-w-full object-cover transition duration-700 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#12100b] via-[#1c1407] to-[#3a2407] text-5xl">
@@ -168,10 +178,31 @@ export default function CustomerDashboardClient({
     lng: number;
   } | null>(null);
 
+  useEffect(() => {
+    document.documentElement.style.overflowX = 'hidden';
+    document.body.style.overflowX = 'hidden';
+    document.body.style.width = '100%';
+    document.body.style.maxWidth = '100vw';
+
+    return () => {
+      document.documentElement.style.overflowX = '';
+      document.body.style.overflowX = '';
+      document.body.style.width = '';
+      document.body.style.maxWidth = '';
+    };
+  }, []);
+
   function handleSearch() {
     setQuery(input.trim());
     setVisibleCount(9);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    requestAnimationFrame(() => {
+      lockHorizontalScroll();
+    });
+
+    setTimeout(() => {
+      lockHorizontalScroll();
+    }, 120);
   }
 
   function clearFilters() {
@@ -182,6 +213,10 @@ export default function CustomerDashboardClient({
     setNearbyOnly(false);
     setVisibleCount(9);
     setLocationStatus('');
+
+    setTimeout(() => {
+      lockHorizontalScroll();
+    }, 0);
   }
 
   function requestLocation() {
@@ -203,6 +238,10 @@ export default function CustomerDashboardClient({
         setSortMode('nearby');
         setVisibleCount(9);
         setLocationStatus('Nearby restaurants within 1km enabled.');
+
+        setTimeout(() => {
+          lockHorizontalScroll();
+        }, 0);
       },
       () => {
         setNearbyOnly(false);
@@ -227,6 +266,10 @@ export default function CustomerDashboardClient({
     setNearbyOnly((current) => !current);
     setSortMode((current) => (current === 'nearby' ? 'top' : 'nearby'));
     setVisibleCount(9);
+
+    setTimeout(() => {
+      lockHorizontalScroll();
+    }, 0);
   }
 
   const cuisines = useMemo(() => {
@@ -329,9 +372,9 @@ export default function CustomerDashboardClient({
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
 
   return (
-    <main className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[#050403] pb-28 text-white md:pb-10">
-      <div className="pointer-events-none absolute inset-0 max-w-full overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
+    <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#050403] pb-28 text-white md:pb-10">
+      <div className="pointer-events-none absolute inset-0 w-full max-w-[100vw] overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-[420px] w-[420px] max-w-[100vw] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
         <div className="absolute right-[-180px] top-40 h-[360px] w-[360px] rounded-full bg-orange-900/20 blur-3xl md:right-0 md:h-[440px] md:w-[440px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.12)_1px,transparent_0)] [background-size:28px_28px]" />
       </div>
@@ -372,8 +415,8 @@ export default function CustomerDashboardClient({
               </div>
             </div>
 
-            <div className="w-full max-w-full rounded-[1.5rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
-              <div className="grid w-full gap-3 lg:grid-cols-[1fr_120px_260px]">
+            <div className="w-full max-w-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
+              <div className="grid w-full max-w-full gap-3 lg:grid-cols-[1fr_120px_260px]">
                 <input
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
@@ -381,13 +424,13 @@ export default function CustomerDashboardClient({
                     if (event.key === 'Enter') handleSearch();
                   }}
                   placeholder="Search restaurant, city or cuisine..."
-                  className="min-w-0 w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+                  className="min-w-0 w-full max-w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
                 />
 
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="w-full rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
+                  className="w-full max-w-full rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
                 >
                   Search
                 </button>
@@ -397,8 +440,9 @@ export default function CustomerDashboardClient({
                   onChange={(event) => {
                     setCuisine(event.target.value);
                     setVisibleCount(9);
+                    setTimeout(() => lockHorizontalScroll(), 0);
                   }}
-                  className="min-w-0 w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+                  className="min-w-0 w-full max-w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
                 >
                   <option value="" className="text-slate-950">
                     All Cuisines
@@ -413,13 +457,14 @@ export default function CustomerDashboardClient({
               </div>
 
               <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
-                <div className="grid grid-cols-3 gap-2 md:flex md:flex-wrap">
+                <div className="grid w-full max-w-full grid-cols-3 gap-2 md:flex md:w-auto md:flex-wrap">
                   <button
                     type="button"
                     onClick={() => {
                       setSortMode('top');
                       setNearbyOnly(false);
                       setVisibleCount(9);
+                      setTimeout(() => lockHorizontalScroll(), 0);
                     }}
                     className={
                       sortMode === 'top'
@@ -448,6 +493,7 @@ export default function CustomerDashboardClient({
                       setSortMode('popular');
                       setNearbyOnly(false);
                       setVisibleCount(9);
+                      setTimeout(() => lockHorizontalScroll(), 0);
                     }}
                     className={
                       sortMode === 'popular'
@@ -493,7 +539,7 @@ export default function CustomerDashboardClient({
           </div>
         </section>
 
-        <section className="mt-8 w-full max-w-full md:mt-10">
+        <section className="mt-8 w-full max-w-full overflow-x-hidden md:mt-10">
           <div className="flex min-w-0 flex-col justify-between gap-3 md:flex-row md:items-end">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.32em] text-amber-300 md:tracking-[0.45em]">
@@ -524,7 +570,7 @@ export default function CustomerDashboardClient({
               top picks ✨
             </div>
           ) : (
-            <div className="mt-6 grid w-full max-w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-6 grid w-full max-w-full grid-cols-1 gap-5 overflow-x-hidden md:grid-cols-2 xl:grid-cols-3">
               {visibleRestaurants.map((restaurant) => (
                 <RestaurantCard key={restaurant.id} restaurant={restaurant} />
               ))}
@@ -535,7 +581,10 @@ export default function CustomerDashboardClient({
             <div className="mt-8 flex justify-center">
               <button
                 type="button"
-                onClick={() => setVisibleCount((current) => current + 9)}
+                onClick={() => {
+                  setVisibleCount((current) => current + 9);
+                  setTimeout(() => lockHorizontalScroll(), 0);
+                }}
                 className="rounded-2xl border border-amber-300/40 px-6 py-3 text-sm font-black text-amber-300 transition hover:bg-amber-300 hover:text-slate-950"
               >
                 Load more restaurants

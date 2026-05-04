@@ -34,3 +34,24 @@ a {
   filter: invert(1);
   opacity: 0.8;
 }
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+video,
+iframe,
+table {
+  max-width: 100%;
+}
+
+body {
+  position: relative;
+}
