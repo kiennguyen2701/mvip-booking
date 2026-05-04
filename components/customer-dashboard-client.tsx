@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { getRestaurantImageUrl } from '@/lib/restaurants/images';
 
 type Profile = {
@@ -39,14 +39,19 @@ type Props = {
 
 type SortMode = 'top' | 'nearby' | 'popular';
 
-function lockHorizontalScroll() {
+function normalizeSearch(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .trim();
+}
+
+function resetHorizontalPosition() {
   document.documentElement.scrollLeft = 0;
   document.body.scrollLeft = 0;
-  window.scrollTo({
-    top: 0,
-    left: 0,
-    behavior: 'smooth',
-  });
 }
 
 function getCuisine(item: Restaurant) {
@@ -101,15 +106,15 @@ const RestaurantCard = memo(function RestaurantCard({
   return (
     <Link
       href={href}
-      className="group block w-full max-w-full min-w-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#11100c]/95 shadow-2xl shadow-black/30 transition hover:border-amber-300/40 md:rounded-[1.75rem] md:hover:-translate-y-1"
+      className="group block w-full min-w-0 max-w-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#11100c]/95 shadow-2xl shadow-black/30 transition hover:border-amber-300/40 md:rounded-[1.75rem] md:hover:-translate-y-1"
     >
-      <div className="relative h-48 w-full max-w-full overflow-hidden bg-[#12100b] sm:h-56 md:h-60">
+      <div className="relative h-48 w-full min-w-0 max-w-full overflow-hidden bg-[#12100b] sm:h-56 md:h-60">
         {image ? (
           <img
             src={image}
             alt={restaurant.name || 'Restaurant'}
             loading="lazy"
-            className="h-full w-full max-w-full object-cover transition duration-700 group-hover:scale-105"
+            className="block h-full w-full max-w-full object-cover transition duration-700 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#12100b] via-[#1c1407] to-[#3a2407] text-5xl">
@@ -166,6 +171,8 @@ export default function CustomerDashboardClient({
   profile,
   restaurants,
 }: Props) {
+  const resultRef = useRef<HTMLElement | null>(null);
+
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
   const [cuisine, setCuisine] = useState('');
@@ -196,13 +203,14 @@ export default function CustomerDashboardClient({
     setQuery(input.trim());
     setVisibleCount(9);
 
-    requestAnimationFrame(() => {
-      lockHorizontalScroll();
-    });
-
     setTimeout(() => {
-      lockHorizontalScroll();
-    }, 120);
+      resetHorizontalPosition();
+      resultRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+        inline: 'nearest',
+      });
+    }, 50);
   }
 
   function clearFilters() {
@@ -214,9 +222,7 @@ export default function CustomerDashboardClient({
     setVisibleCount(9);
     setLocationStatus('');
 
-    setTimeout(() => {
-      lockHorizontalScroll();
-    }, 0);
+    setTimeout(resetHorizontalPosition, 50);
   }
 
   function requestLocation() {
@@ -239,9 +245,7 @@ export default function CustomerDashboardClient({
         setVisibleCount(9);
         setLocationStatus('Nearby restaurants within 1km enabled.');
 
-        setTimeout(() => {
-          lockHorizontalScroll();
-        }, 0);
+        setTimeout(resetHorizontalPosition, 50);
       },
       () => {
         setNearbyOnly(false);
@@ -267,9 +271,7 @@ export default function CustomerDashboardClient({
     setSortMode((current) => (current === 'nearby' ? 'top' : 'nearby'));
     setVisibleCount(9);
 
-    setTimeout(() => {
-      lockHorizontalScroll();
-    }, 0);
+    setTimeout(resetHorizontalPosition, 50);
   }
 
   const cuisines = useMemo(() => {
@@ -300,21 +302,22 @@ export default function CustomerDashboardClient({
   }, [restaurants, userLocation]);
 
   const filteredRestaurants = useMemo<RestaurantWithDistance[]>(() => {
-    const keyword = query.toLowerCase();
+    const keyword = normalizeSearch(query);
 
     return restaurantsWithDistance
       .filter((item) => {
-        const searchableText = [
-          item.name,
-          getCuisine(item),
-          item.description,
-          item.short_description,
-          item.address,
-          item.city,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
+        const searchableText = normalizeSearch(
+          [
+            item.name,
+            getCuisine(item),
+            item.description,
+            item.short_description,
+            item.address,
+            item.city,
+          ]
+            .filter(Boolean)
+            .join(' '),
+        );
 
         const matchKeyword = !keyword || searchableText.includes(keyword);
         const matchCuisine = !cuisine || getCuisine(item) === cuisine;
@@ -440,7 +443,7 @@ export default function CustomerDashboardClient({
                   onChange={(event) => {
                     setCuisine(event.target.value);
                     setVisibleCount(9);
-                    setTimeout(() => lockHorizontalScroll(), 0);
+                    setTimeout(resetHorizontalPosition, 50);
                   }}
                   className="min-w-0 w-full max-w-full rounded-2xl border border-white/10 bg-white/[0.08] px-5 py-4 text-sm font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
                 >
@@ -464,7 +467,7 @@ export default function CustomerDashboardClient({
                       setSortMode('top');
                       setNearbyOnly(false);
                       setVisibleCount(9);
-                      setTimeout(() => lockHorizontalScroll(), 0);
+                      setTimeout(resetHorizontalPosition, 50);
                     }}
                     className={
                       sortMode === 'top'
@@ -493,7 +496,7 @@ export default function CustomerDashboardClient({
                       setSortMode('popular');
                       setNearbyOnly(false);
                       setVisibleCount(9);
-                      setTimeout(() => lockHorizontalScroll(), 0);
+                      setTimeout(resetHorizontalPosition, 50);
                     }}
                     className={
                       sortMode === 'popular'
@@ -539,7 +542,10 @@ export default function CustomerDashboardClient({
           </div>
         </section>
 
-        <section className="mt-8 w-full max-w-full overflow-x-hidden md:mt-10">
+        <section
+          ref={resultRef}
+          className="mt-8 w-full max-w-full overflow-x-hidden md:mt-10"
+        >
           <div className="flex min-w-0 flex-col justify-between gap-3 md:flex-row md:items-end">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.32em] text-amber-300 md:tracking-[0.45em]">
@@ -583,7 +589,7 @@ export default function CustomerDashboardClient({
                 type="button"
                 onClick={() => {
                   setVisibleCount((current) => current + 9);
-                  setTimeout(() => lockHorizontalScroll(), 0);
+                  setTimeout(resetHorizontalPosition, 50);
                 }}
                 className="rounded-2xl border border-amber-300/40 px-6 py-3 text-sm font-black text-amber-300 transition hover:bg-amber-300 hover:text-slate-950"
               >
