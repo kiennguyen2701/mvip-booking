@@ -375,7 +375,7 @@ export default function CustomerDashboardClient({
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
 
   return (
-    <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#050403] pb-28 text-white md:pb-10">
+    <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#050403] pb-10 text-white md:pb-10">
       <div className="pointer-events-none absolute inset-0 w-full max-w-[100vw] overflow-hidden">
         <div className="absolute left-1/2 top-0 h-[420px] w-[420px] max-w-[100vw] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
         <div className="absolute right-[-180px] top-40 h-[360px] w-[360px] rounded-full bg-orange-900/20 blur-3xl md:right-0 md:h-[440px] md:w-[440px]" />
@@ -600,40 +600,7 @@ export default function CustomerDashboardClient({
         </section>
       </div>
 
-      <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-[1.5rem] border border-white/10 bg-black/80 px-3 py-3 shadow-2xl shadow-black/60 backdrop-blur-xl md:hidden">
-        <Link
-          href="/dashboard/customer"
-          className="text-center text-xs font-black text-amber-300"
-        >
-          <div className="text-lg">🏠</div>
-          Home
-        </Link>
-
-        <Link
-          href="/dashboard/customer/bookings"
-          className="text-center text-xs font-black text-slate-400"
-        >
-          <div className="text-lg">📅</div>
-          Bookings
-        </Link>
-
-        <button
-          type="button"
-          onClick={requestLocation}
-          className="text-center text-xs font-black text-slate-400"
-        >
-          <div className="text-lg">📍</div>
-          Nearby
-        </button>
-
-        <Link
-          href="/dashboard/customer/profile"
-          className="text-center text-xs font-black text-slate-400"
-        >
-          <div className="text-lg">👤</div>
-          Profile
-        </Link>
-      </nav>
+      
     </main>
   );
 }
