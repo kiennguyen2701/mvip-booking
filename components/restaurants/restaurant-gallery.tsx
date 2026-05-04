@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import Image from 'next/image';
-import { getRestaurantImageUrl } from '@/lib/restaurants/images';
+import Image from "next/image";
+import { useMemo, useState } from "react";
+import { getRestaurantImageUrl } from "@/lib/restaurants/images";
 
 type Props = {
   name: string;
@@ -20,27 +20,28 @@ export default function RestaurantGallery({
       .map((item) => getRestaurantImageUrl(item))
       .filter(Boolean);
 
-    return [...new Set(merged)];
+    return Array.from(new Set(merged)).slice(0, 8);
   }, [coverImage, galleryImages]);
 
   const [activeIndex, setActiveIndex] = useState(0);
 
   if (!images.length) {
     return (
-      <div className="h-[240px] w-full max-w-full rounded-[24px] bg-white/10 sm:h-[320px] md:h-[460px]" />
+      <div className="h-[240px] w-full rounded-[24px] bg-white/10 sm:h-[320px] md:h-[460px]" />
     );
   }
 
-  const activeImage = images[activeIndex];
+  const activeImage = images[activeIndex] || images[0];
 
   return (
-    <section className="w-full max-w-full overflow-hidden rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/30 md:p-4">
+    <section className="w-full overflow-hidden rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/30 md:p-4">
       <div className="relative h-[250px] w-full overflow-hidden rounded-[22px] bg-[#19150f] sm:h-[340px] md:h-[500px]">
         <Image
           src={activeImage}
           alt={name}
           fill
           sizes="(max-width: 768px) 100vw, 780px"
+          quality={76}
           priority={activeIndex === 0}
           className="object-cover"
         />
@@ -53,7 +54,7 @@ export default function RestaurantGallery({
       </div>
 
       {images.length > 1 && (
-        <div className="mt-3 flex max-w-full gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-3">
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-3">
           {images.map((image, index) => {
             const active = index === activeIndex;
 
@@ -64,8 +65,8 @@ export default function RestaurantGallery({
                 onClick={() => setActiveIndex(index)}
                 className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-2xl border-2 transition sm:h-20 sm:w-28 md:h-24 md:w-32 ${
                   active
-                    ? 'border-amber-300 opacity-100'
-                    : 'border-transparent opacity-70 hover:opacity-100'
+                    ? "border-amber-300 opacity-100"
+                    : "border-transparent opacity-70 hover:opacity-100"
                 }`}
               >
                 <Image
@@ -73,6 +74,7 @@ export default function RestaurantGallery({
                   alt={`${name} ${index + 1}`}
                   fill
                   sizes="128px"
+                  quality={55}
                   className="object-cover"
                 />
               </button>

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getRestaurantImageUrl } from "@/lib/restaurants/images";
 
@@ -31,38 +32,39 @@ export default function RestaurantCard({ restaurant }: Props) {
   return (
     <Link
       href={restaurant.slug ? `/restaurants/${restaurant.slug}` : "/restaurants"}
-      className="group overflow-hidden rounded-3xl border border-white/80 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+      prefetch={false}
+      className="group block overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
     >
-      <div className="relative h-56 w-full overflow-hidden bg-amber-50">
+      <div className="relative h-48 w-full overflow-hidden bg-amber-50 sm:h-52 md:h-56">
         {image ? (
-          <img
+          <Image
             src={image}
             alt={restaurant.name || "Restaurant"}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+            quality={72}
+            className="object-cover transition duration-500 group-hover:scale-[1.03]"
             loading="lazy"
-            referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-6xl">
-            🏪
-          </div>
+          <div className="flex h-full items-center justify-center text-5xl">🏪</div>
         )}
 
-        <div className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-amber-700 shadow-sm">
+        <div className="absolute left-3 top-3 max-w-[70%] truncate rounded-full bg-white/95 px-3 py-1 text-xs font-black text-amber-700 shadow-sm">
           {cuisine}
         </div>
 
-        <div className="absolute right-4 top-4 rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white shadow-sm">
+        <div className="absolute right-3 top-3 rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white shadow-sm">
           Giảm {discount}%
         </div>
       </div>
 
-      <div className="p-5">
-        <h3 className="text-xl font-black text-slate-950">
+      <div className="p-4 md:p-5">
+        <h3 className="line-clamp-1 text-lg font-black text-slate-950 md:text-xl">
           {restaurant.name || "Restaurant"}
         </h3>
 
-        <p className="mt-2 line-clamp-2 text-sm text-slate-500">
+        <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-slate-500">
           {restaurant.address || "Chưa cập nhật địa chỉ"}
         </p>
 
