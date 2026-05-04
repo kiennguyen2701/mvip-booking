@@ -107,7 +107,6 @@ function luxuryEmail({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>${escapeHtml(title)}</title>
       </head>
-
       <body style="margin:0;padding:0;background:#080704;font-family:Arial,Helvetica,sans-serif;">
         <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
           ${escapeHtml(subtitle)}
@@ -359,6 +358,7 @@ export async function sendBookingConfirmedEmail(payload: {
 export async function sendBookingCompletedEmails(payload: {
   customerEmail?: string | null;
   supplierEmail?: string | null;
+  agentEmail?: string | null;
   adminEmail?: string | null;
   customerName: string;
   restaurantName: string;
@@ -413,6 +413,19 @@ export async function sendBookingCompletedEmails(payload: {
     }),
 
     safeSendEmail({
+      to: payload.agentEmail,
+      subject: `Agent Copy - Booking Completed - ${payload.bookingCode}`,
+      html: luxuryEmail({
+        eyebrow: "Agent Notification",
+        title: "Booking Completed",
+        subtitle:
+          "A booking linked to your referral has been completed. Commission is now ready for payout tracking.",
+        badge: "Agent",
+        body: settlementCard,
+      }),
+    }),
+
+    safeSendEmail({
       to: payload.adminEmail || ADMIN_EMAIL,
       subject: `Admin Copy - Booking Completed - ${payload.bookingCode}`,
       html: luxuryEmail({
@@ -453,7 +466,7 @@ export async function sendBookingCancelledEmails(payload: {
       html: luxuryEmail({
         eyebrow: "Reservation Update",
         title: "Booking Cancelled",
-        subtitle: "Your confirmed booking has been cancelled.",
+        subtitle: "Your booking has been cancelled.",
         badge: "Cancelled",
         body: `
           <p style="margin:0;color:#15110b;font-size:15px;line-height:1.8;">
@@ -473,7 +486,7 @@ export async function sendBookingCancelledEmails(payload: {
       html: luxuryEmail({
         eyebrow: "Supplier Notification",
         title: "Booking Cancelled",
-        subtitle: "A confirmed booking has been cancelled.",
+        subtitle: "A booking has been cancelled.",
         badge: "Supplier",
         body: cancelCard,
       }),
@@ -497,7 +510,7 @@ export async function sendBookingCancelledEmails(payload: {
       html: luxuryEmail({
         eyebrow: "Admin Notification",
         title: "Booking Cancelled",
-        subtitle: "A confirmed booking has been cancelled.",
+        subtitle: "A booking has been cancelled.",
         badge: "Admin",
         body: cancelCard,
       }),

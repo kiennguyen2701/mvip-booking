@@ -6,6 +6,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentSupplier } from "@/lib/suppliers/get-current-supplier";
 import {
+  sendBookingCancelledEmails,
   sendBookingCompletedEmails,
   sendBookingConfirmedEmail,
 } from "@/lib/email/send-booking-emails";
@@ -138,6 +139,7 @@ export async function updateSupplierBookingStatus(
           email,
           service_name,
           supplier_id,
+          agent_id,
           booking_date,
           booking_time,
           guests,
@@ -223,11 +225,25 @@ export async function updateSupplierBookingStatus(
       created_at: now,
     });
 
-    const { data: supplierEmailRow } = await adminClient
-      .from("suppliers")
-      .select("id, email")
-      .eq("id", supplier.id)
-      .maybeSingle();
+    const [{ data: supplierEmailRow }, { data: agentRow }] = await Promise.all([
+      adminClient
+        .from("suppliers")
+        .select("id, email, login_email")
+        .eq("id", supplier.id)
+        .maybeSingle(),
+
+      currentBooking.agent_id
+        ? adminClient
+            .from("agents")
+            .select("id, email")
+            .eq("id", currentBooking.agent_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const supplierEmail =
+      supplierEmailRow?.email || supplierEmailRow?.login_email || null;
+    const agentEmail = agentRow?.email || null;
 
     if (oldStatus !== status && status === "confirmed") {
       sendBookingConfirmedEmail({
@@ -237,13 +253,16 @@ export async function updateSupplierBookingStatus(
         bookingCode: currentBooking.booking_code || bookingId,
         bookingDate: currentBooking.booking_date || "",
         bookingTime: currentBooking.booking_time || "",
-      }).catch(console.error);
+      }).catch((error) => {
+        console.error("SEND_CONFIRMED_EMAIL_ERROR:", error);
+      });
     }
 
     if (oldStatus !== status && status === "completed") {
       sendBookingCompletedEmails({
         customerEmail: currentBooking.email,
-        supplierEmail: supplierEmailRow?.email || null,
+        supplierEmail,
+        agentEmail,
         customerName: currentBooking.customer_name || "Customer",
         restaurantName: currentBooking.service_name || "Restaurant",
         bookingCode: currentBooking.booking_code || bookingId,
@@ -252,7 +271,25 @@ export async function updateSupplierBookingStatus(
         platformCommissionAmount: amountFields.platform_commission_amount,
         agentCommissionAmount: amountFields.agent_commission_amount,
         platformNetAmount: amountFields.platform_net_amount,
-      }).catch(console.error);
+      }).catch((error) => {
+        console.error("SEND_COMPLETED_EMAILS_ERROR:", error);
+      });
+    }
+
+    if (oldStatus !== status && status === "cancelled") {
+      sendBookingCancelledEmails({
+        customerEmail: currentBooking.email,
+        supplierEmail,
+        agentEmail,
+        customerName: currentBooking.customer_name || "Customer",
+        restaurantName: currentBooking.service_name || "Restaurant",
+        bookingCode: currentBooking.booking_code || bookingId,
+        bookingDate: currentBooking.booking_date || "",
+        bookingTime: currentBooking.booking_time || "",
+        cancellationReason,
+      }).catch((error) => {
+        console.error("SEND_CANCELLED_EMAILS_ERROR:", error);
+      });
     }
 
     revalidatePath("/dashboard/supplier/bookings");

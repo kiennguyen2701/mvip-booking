@@ -5,14 +5,6 @@ import { sendBookingCreatedEmails } from "@/lib/email/send-booking-emails";
 
 export const dynamic = "force-dynamic";
 
-type AgentRow = {
-  id: string;
-  referral_code?: string | null;
-  ref_code?: string | null;
-  agent_code?: string | null;
-  code?: string | null;
-};
-
 function generateBookingCode() {
   const date = new Date();
   const ymd = date.toISOString().slice(0, 10).replaceAll("-", "");
@@ -20,14 +12,37 @@ function generateBookingCode() {
   return `MVIP-${ymd}-${random}`;
 }
 
-function getAgentCode(agent: AgentRow) {
-  return (
-    agent.referral_code ||
-    agent.ref_code ||
-    agent.agent_code ||
-    agent.code ||
-    ""
-  );
+async function getCustomerAgent(userId: string) {
+  const { data: userRow } = await adminClient
+    .from("users")
+    .select("agent_id, ref_code")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (userRow?.agent_id) {
+    return {
+      agentId: String(userRow.agent_id),
+      refCode: String(userRow.ref_code || ""),
+    };
+  }
+
+  const { data: profileRow } = await adminClient
+    .from("profiles")
+    .select("referred_by_agent_id, referred_by_ref_code")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileRow?.referred_by_agent_id) {
+    return {
+      agentId: String(profileRow.referred_by_agent_id),
+      refCode: String(profileRow.referred_by_ref_code || ""),
+    };
+  }
+
+  return {
+    agentId: null as string | null,
+    refCode: "",
+  };
 }
 
 export async function POST(request: Request) {
@@ -48,8 +63,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     const restaurantId = String(body.restaurantId || "").trim();
-    const restaurantName = String(body.restaurantName || "Restaurant").trim();
-    const supplierId = String(body.supplierId || "").trim();
+    const supplierIdFromBody = String(body.supplierId || "").trim();
 
     const customerName = String(body.customerName || "").trim();
     const phone = String(body.phone || "").trim();
@@ -58,7 +72,6 @@ export async function POST(request: Request) {
     const guests = Number(body.guests || 1);
     const bookingDate = String(body.bookingDate || "").trim();
     const bookingTime = String(body.bookingTime || "").trim();
-    const agentRef = String(body.agentRef || "").trim();
 
     if (!restaurantId || !customerName || !phone || !bookingDate || !bookingTime) {
       return NextResponse.json(
@@ -67,73 +80,56 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!Number.isFinite(guests) || guests < 1) {
-      return NextResponse.json(
-        { error: "Invalid number of guests." },
-        { status: 400 },
-      );
-    }
+    const { data: restaurant } = await adminClient
+      .from("restaurants")
+      .select("id, name, supplier_id")
+      .eq("id", restaurantId)
+      .maybeSingle();
 
-    let agentId: string | null = null;
-
-    if (agentRef) {
-      const { data: agents, error: agentsError } = await adminClient
-        .from("agents")
-        .select("id, referral_code, ref_code, agent_code, code");
-
-      if (agentsError) {
-        return NextResponse.json(
-          { error: agentsError.message },
-          { status: 400 },
-        );
-      }
-
-      const matchedAgent = (agents || []).find((agent) => {
-        return getAgentCode(agent as AgentRow) === agentRef;
-      }) as AgentRow | undefined;
-
-      agentId = matchedAgent?.id || null;
-    }
-
-    const bookingCode = generateBookingCode();
-    const now = new Date().toISOString();
+    const supplierId =
+      supplierIdFromBody || String(restaurant?.supplier_id || "").trim();
 
     const { data: supplier } = supplierId
       ? await adminClient
           .from("suppliers")
-          .select("id, name, email")
+          .select("id, name, company_name, email, login_email")
           .eq("id", supplierId)
           .maybeSingle()
       : { data: null };
+
+    const { agentId, refCode } = await getCustomerAgent(user.id);
+
+    const bookingCode = generateBookingCode();
+    const now = new Date().toISOString();
+
+    const restaurantName =
+      restaurant?.name ||
+      supplier?.company_name ||
+      supplier?.name ||
+      String(body.restaurantName || "Restaurant");
 
     const { data: booking, error: bookingError } = await adminClient
       .from("bookings")
       .insert({
         booking_code: bookingCode,
-
         customer_name: customerName,
         phone,
         whatsapp: whatsapp || null,
         email: user.email || null,
-
         restaurant_id: restaurantId,
         service_name: restaurantName,
         supplier_id: supplierId || null,
         agent_id: agentId,
-
         booking_date: bookingDate,
         booking_time: bookingTime,
         guests,
-
         status: "pending",
-
         total_bill: 0,
         customer_discount_amount: 0,
         platform_commission_amount: 0,
         agent_commission_amount: 0,
         platform_net_amount: 0,
-
-        supplier_note: agentRef ? `Agent ref: ${agentRef}` : null,
+        supplier_note: refCode ? `Agent ref: ${refCode}` : null,
         created_at: now,
       })
       .select("id")
@@ -146,24 +142,29 @@ export async function POST(request: Request) {
       );
     }
 
-    const { error: logError } = await adminClient
-      .from("booking_status_logs")
-      .insert({
-        booking_id: booking.id,
-        old_status: null,
-        new_status: "pending",
-        note: "Customer created restaurant booking.",
-        created_at: now,
-      });
+    await adminClient.from("booking_status_logs").insert({
+      booking_id: booking.id,
+      old_status: null,
+      new_status: "pending",
+      changed_by_role: "customer",
+      note: "Customer created restaurant booking.",
+      created_at: now,
+    });
 
-    if (logError) {
-      console.error("BOOKING_STATUS_LOG_ERROR:", logError.message);
-    }
+    const supplierEmail = supplier?.email || supplier?.login_email || null;
 
-    sendBookingCreatedEmails({
-      customerEmail: user.email,
+    console.log("BOOKING_EMAIL_RECIPIENTS:", {
+      customerEmail: user.email || null,
+      supplierEmail,
+      adminEmail: process.env.ADMIN_EMAIL || null,
+      bookingCode,
+    });
+
+    await sendBookingCreatedEmails({
+      customerEmail: user.email || null,
       customerName,
-      supplierEmail: supplier?.email || null,
+      supplierEmail,
+      adminEmail: process.env.ADMIN_EMAIL || null,
       restaurantName,
       bookingCode,
       bookingDate,
@@ -171,13 +172,12 @@ export async function POST(request: Request) {
       guests,
       phone,
       whatsapp,
-    }).catch((error) => {
-      console.error("SEND_BOOKING_CREATED_EMAILS_ERROR:", error);
     });
 
     return NextResponse.json({
       success: true,
       bookingId: booking.id,
+      bookingCode,
     });
   } catch (error) {
     console.error("CREATE_BOOKING_ERROR:", error);
