@@ -139,7 +139,7 @@ export default async function AdminSuppliersPage() {
           </div>
         </div>
 
-        <section className="grid gap-3 rounded-[28px] border border-slate-200 bg-white p-3 shadow-sm md:grid-cols-4">
+        <section className="sticky top-[76px] z-[60] grid gap-3 rounded-[28px] border border-slate-200 bg-white/95 p-3 shadow-2xl shadow-black/10 backdrop-blur md:grid-cols-4">
           <a
             href="#create-supplier"
             className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
