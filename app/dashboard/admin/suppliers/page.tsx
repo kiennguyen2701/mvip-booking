@@ -19,14 +19,56 @@ type SupplierRow = {
   restaurants?: { id: string; is_active: boolean | null }[];
 };
 
+type RestaurantRow = {
+  id: string;
+  supplier_id: string | null;
+  name: string | null;
+  slug: string | null;
+  city: string | null;
+  district: string | null;
+  address: string | null;
+  phone: string | null;
+  status: string | null;
+  is_active: boolean | null;
+  created_at: string | null;
+};
+
 function getSupplierName(supplier: SupplierRow) {
   return supplier.company_name || supplier.name || supplier.email || 'Supplier';
+}
+
+function isPendingRestaurant(restaurant: RestaurantRow) {
+  return (
+    restaurant.status === 'pending_review' ||
+    restaurant.status === 'pending' ||
+    (!restaurant.is_active &&
+      restaurant.status !== 'approved' &&
+      restaurant.status !== 'rejected')
+  );
+}
+
+function getRestaurantStatusLabel(restaurant: RestaurantRow) {
+  if (restaurant.is_active || restaurant.status === 'approved') return 'Active';
+  if (restaurant.status === 'rejected') return 'Rejected';
+  return 'Pending / Inactive';
+}
+
+function getRestaurantStatusClass(restaurant: RestaurantRow) {
+  if (restaurant.is_active || restaurant.status === 'approved') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  }
+
+  if (restaurant.status === 'rejected') {
+    return 'border-red-200 bg-red-50 text-red-700';
+  }
+
+  return 'border-amber-200 bg-amber-50 text-amber-700';
 }
 
 export default async function AdminSuppliersPage() {
   await requireAdmin();
 
-  const [{ data: suppliers, error }, { count: pendingRequests }] =
+  const [{ data: suppliers, error }, { data: restaurants, error: restaurantsError }] =
     await Promise.all([
       adminClient
         .from('suppliers')
@@ -47,15 +89,38 @@ export default async function AdminSuppliersPage() {
 
       adminClient
         .from('restaurants')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending_review'),
+        .select(`
+          id,
+          supplier_id,
+          name,
+          slug,
+          city,
+          district,
+          address,
+          phone,
+          status,
+          is_active,
+          created_at
+        `)
+        .order('created_at', { ascending: false }),
     ]);
 
   if (error) {
     throw new Error(error.message);
   }
 
+  if (restaurantsError) {
+    throw new Error(restaurantsError.message);
+  }
+
   const supplierRows = (suppliers || []) as SupplierRow[];
+  const restaurantRows = (restaurants || []) as RestaurantRow[];
+
+  const pendingRequests = restaurantRows.filter(isPendingRestaurant).length;
+
+  const supplierNameMap = new Map(
+    supplierRows.map((supplier) => [supplier.id, getSupplierName(supplier)]),
+  );
 
   return (
     <main className="min-h-screen bg-[#fbf7ef] px-4 py-8 md:px-6">
@@ -69,27 +134,56 @@ export default async function AdminSuppliersPage() {
               Supplier Management
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              Chỉ hiển thị Supplier đang active. Supplier inactive sẽ bị ẩn khỏi danh sách chính.
+              Quản lý Supplier, Restaurant và các request đang chờ duyệt.
             </p>
           </div>
+        </div>
+
+        <section className="grid gap-3 rounded-[28px] border border-slate-200 bg-white p-3 shadow-sm md:grid-cols-4">
+          <a
+            href="#create-supplier"
+            className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
+          >
+            Create Supplier
+          </a>
+
+          <a
+            href="#list-restaurants"
+            className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-center text-sm font-black text-slate-800 transition hover:bg-slate-50"
+          >
+            List Restaurants
+          </a>
+
+          <a
+            href="#list-suppliers"
+            className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-center text-sm font-black text-slate-800 transition hover:bg-slate-50"
+          >
+            List Suppliers
+          </a>
 
           <Link
             href="/dashboard/admin/supplier-requests"
-            className="relative rounded-2xl border border-amber-200 bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 shadow-sm transition hover:bg-amber-200"
+            className="relative rounded-2xl bg-amber-300 px-5 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-amber-200"
           >
-            Supplier Requests
-            {(pendingRequests || 0) > 0 && (
+            List Request
+            {pendingRequests > 0 && (
               <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-2 text-xs font-black text-white">
                 {pendingRequests}
               </span>
             )}
           </Link>
-        </div>
+        </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section
+          id="create-supplier"
+          className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+        >
           <h2 className="text-lg font-black text-slate-950">
-            Thêm Supplier mới
+            Create Supplier
           </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Tạo tài khoản Supplier mới để đăng nhập và quản lý restaurants.
+          </p>
 
           <form action={createSupplierAction} className="mt-5 grid gap-4 md:grid-cols-2">
             <input
@@ -135,10 +229,129 @@ export default async function AdminSuppliersPage() {
           </form>
         </section>
 
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <section
+          id="list-restaurants"
+          className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+        >
+          <div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-lg font-black text-slate-950">
+                List Restaurants
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Toàn bộ restaurants trong hệ thống, bao gồm active và pending.
+              </p>
+            </div>
+
+            <Link
+              href="/dashboard/admin/supplier-requests"
+              className="w-fit rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
+            >
+              View Requests
+            </Link>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1050px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-5 py-3">Restaurant</th>
+                  <th className="px-5 py-3">Supplier</th>
+                  <th className="px-5 py-3">Location</th>
+                  <th className="px-5 py-3">Phone</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {restaurantRows.map((restaurant) => (
+                  <tr key={restaurant.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-4">
+                      <p className="font-bold text-slate-950">
+                        {restaurant.name || 'Restaurant'}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {restaurant.slug || '-'}
+                      </p>
+                    </td>
+
+                    <td className="px-5 py-4 text-slate-600">
+                      {restaurant.supplier_id
+                        ? supplierNameMap.get(restaurant.supplier_id) || 'Supplier'
+                        : '-'}
+                    </td>
+
+                    <td className="max-w-[260px] px-5 py-4 text-slate-600">
+                      <p className="line-clamp-2">
+                        {restaurant.address ||
+                          restaurant.district ||
+                          restaurant.city ||
+                          '-'}
+                      </p>
+                    </td>
+
+                    <td className="px-5 py-4 text-slate-600">
+                      {restaurant.phone || '-'}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-black ${getRestaurantStatusClass(
+                          restaurant,
+                        )}`}
+                      >
+                        {getRestaurantStatusLabel(restaurant)}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        {restaurant.slug && (
+                          <Link
+                            href={`/restaurants/${restaurant.slug}`}
+                            target="_blank"
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100"
+                          >
+                            View
+                          </Link>
+                        )}
+
+                        {isPendingRestaurant(restaurant) && (
+                          <Link
+                            href="/dashboard/admin/supplier-requests"
+                            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-black text-amber-700 transition hover:bg-amber-100"
+                          >
+                            Review
+                          </Link>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {!restaurantRows.length && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-5 py-12 text-center text-slate-500"
+                    >
+                      Chưa có restaurant nào.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          id="list-suppliers"
+          className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+        >
           <div className="border-b border-slate-100 p-5">
             <h2 className="text-lg font-black text-slate-950">
-              Danh sách Supplier Active
+              List Suppliers
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               Danh sách này chỉ show Supplier có status active.
