@@ -20,12 +20,20 @@ type RestaurantRequest = {
   updated_at: string | null;
 };
 
+function isPendingRequest(restaurant: RestaurantRequest) {
+  return (
+    restaurant.status === "pending_review" ||
+    restaurant.status === "pending" ||
+    (!restaurant.is_active &&
+      restaurant.status !== "approved" &&
+      restaurant.status !== "rejected")
+  );
+}
+
 function getStatusLabel(status: string | null, isActive: boolean | null) {
-  if (status === "approved") return "Approved";
+  if (status === "approved" || isActive) return "Approved";
   if (status === "rejected") return "Rejected";
-  if (status === "pending_review") return "Pending Review";
-  if (isActive) return "Active";
-  return "Draft / Inactive";
+  return "Pending Review";
 }
 
 function getStatusClass(status: string | null, isActive: boolean | null) {
@@ -87,8 +95,8 @@ function EmptyState() {
         Không có request đang chờ duyệt
       </h3>
       <p className="mt-2 text-sm leading-6 text-slate-500">
-        Khi supplier tạo restaurant mới, request sẽ xuất hiện tại đây để Admin
-        approve hoặc reject.
+        Khi supplier tạo restaurant mới hoặc restaurant đang inactive, request sẽ
+        xuất hiện tại đây.
       </p>
     </div>
   );
@@ -191,25 +199,19 @@ function RequestCard({ restaurant }: { restaurant: RestaurantRequest }) {
               </Link>
             </div>
 
-            {restaurant.status === "pending_review" ? (
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <form action={rejectRestaurant.bind(null, restaurant.id)}>
-                  <button className="w-full rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-black text-red-700 transition hover:bg-red-100 sm:w-auto">
-                    Reject
-                  </button>
-                </form>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <form action={rejectRestaurant.bind(null, restaurant.id)}>
+                <button className="w-full rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-black text-red-700 transition hover:bg-red-100 sm:w-auto">
+                  Reject
+                </button>
+              </form>
 
-                <form action={approveRestaurant.bind(null, restaurant.id)}>
-                  <button className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800 sm:w-auto">
-                    Approve & Publish
-                  </button>
-                </form>
-              </div>
-            ) : (
-              <div className="text-sm font-bold text-slate-400">
-                No action required
-              </div>
-            )}
+              <form action={approveRestaurant.bind(null, restaurant.id)}>
+                <button className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800 sm:w-auto">
+                  Approve & Publish
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
@@ -272,19 +274,19 @@ export default async function SupplierRequestsPage() {
 
   const restaurants = (data || []) as RestaurantRequest[];
 
-  const pending = restaurants.filter(
-    (restaurant) => restaurant.status === "pending_review",
-  );
+  const pending = restaurants.filter(isPendingRequest);
 
   const approved = restaurants.filter(
-    (restaurant) => restaurant.status === "approved",
+    (restaurant) => restaurant.status === "approved" || restaurant.is_active,
   );
 
   const rejected = restaurants.filter(
     (restaurant) => restaurant.status === "rejected",
   );
 
-  const reviewed = [...approved, ...rejected].slice(0, 12);
+  const reviewed = restaurants
+    .filter((restaurant) => !isPendingRequest(restaurant))
+    .slice(0, 12);
 
   return (
     <main className="min-h-screen bg-[#f8f3ea] px-4 py-7 md:px-6 md:py-10">
@@ -300,8 +302,8 @@ export default async function SupplierRequestsPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">
-              Duyệt các restaurant do supplier tạo. Khi approve, restaurant sẽ
-              active và hiển thị public cho customer.
+              Duyệt các restaurant do supplier tạo. Restaurant inactive hoặc
+              pending sẽ được đưa vào danh sách chờ duyệt.
             </p>
           </div>
 
@@ -326,7 +328,7 @@ export default async function SupplierRequestsPage() {
           <StatCard
             title="Pending"
             value={pending.length}
-            description="Restaurant đang chờ Admin duyệt."
+            description="Restaurant inactive hoặc đang chờ Admin duyệt."
           />
           <StatCard
             title="Approved"
