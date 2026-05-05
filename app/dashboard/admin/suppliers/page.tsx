@@ -124,7 +124,7 @@ export default async function AdminSuppliersPage() {
 
   return (
     <main className="min-h-screen bg-[#fbf7ef]">
-      <div className="fixed left-0 right-0 top-[68px] z-[9990] border-y border-slate-200 bg-[#fbf7ef]/95 px-3 py-2 shadow-xl shadow-black/10 backdrop-blur md:top-[76px] md:px-6 md:py-3">
+      <div className="fixed left-0 right-0 top-0 z-[2147483647] border-b border-slate-200 bg-[#fbf7ef]/95 px-3 py-2 shadow-2xl shadow-black/15 backdrop-blur md:px-6 md:py-3">
         <section className="mx-auto grid max-w-7xl grid-cols-2 gap-2 rounded-[22px] border border-slate-200 bg-white/95 p-2 shadow-sm md:grid-cols-4 md:gap-3 md:rounded-[28px] md:p-3">
           <a
             href="#create-supplier"
@@ -161,7 +161,7 @@ export default async function AdminSuppliersPage() {
         </section>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 pb-6 pt-[165px] md:px-6 md:pt-[160px]">
+      <div className="mx-auto max-w-7xl px-4 pb-6 pt-[132px] md:px-6 md:pt-[126px]">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-700">
@@ -180,7 +180,7 @@ export default async function AdminSuppliersPage() {
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-6">
         <section
           id="create-supplier"
-          className="scroll-mt-[180px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="scroll-mt-[132px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:scroll-mt-[126px]"
         >
           <h2 className="text-lg font-black text-slate-950">
             Create Supplier
@@ -191,9 +191,13 @@ export default async function AdminSuppliersPage() {
 
           <form action={createSupplierAction} className="mt-5 grid gap-4 md:grid-cols-2">
             <input name="company_name" required placeholder="Tên Supplier" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100" />
+
             <input name="email" required type="email" placeholder="Email đăng nhập" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100" />
+
             <input name="password" required type="password" placeholder="Mật khẩu" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100" />
+
             <input name="phone" placeholder="Số điện thoại" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100" />
+
             <input name="address" placeholder="Địa chỉ Supplier" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100 md:col-span-2" />
 
             <div className="md:col-span-2">
@@ -206,7 +210,7 @@ export default async function AdminSuppliersPage() {
 
         <section
           id="list-restaurants"
-          className="scroll-mt-[180px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+          className="scroll-mt-[132px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm md:scroll-mt-[126px]"
         >
           <div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row md:items-end md:justify-between">
             <div>
@@ -305,7 +309,7 @@ export default async function AdminSuppliersPage() {
 
         <section
           id="list-suppliers"
-          className="scroll-mt-[180px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+          className="scroll-mt-[132px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm md:scroll-mt-[126px]"
         >
           <div className="border-b border-slate-100 p-5">
             <h2 className="text-lg font-black text-slate-950">
