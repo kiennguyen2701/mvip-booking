@@ -82,13 +82,23 @@ export default function HeaderMobileMenu({
               </Link>
 
               {isCustomer && (
-                <Link
-                  href="/dashboard/customer/profile"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-2xl bg-amber-300 px-4 py-4 text-base font-black text-slate-950"
-                >
-                  My Profile
-                </Link>
+                <>
+                  <Link
+                    href="/dashboard/customer/bookings"
+                    onClick={() => setOpen(false)}
+                    className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
+                  >
+                    My Bookings
+                  </Link>
+
+                  <Link
+                    href="/dashboard/customer/profile"
+                    onClick={() => setOpen(false)}
+                    className="block rounded-2xl bg-amber-300 px-4 py-4 text-base font-black text-slate-950"
+                  >
+                    My Profile
+                  </Link>
+                </>
               )}
 
               <div className="rounded-2xl bg-red-500 text-center text-base font-black text-white">

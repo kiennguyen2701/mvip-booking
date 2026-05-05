@@ -69,16 +69,47 @@ export default async function Header() {
               )}
 
               {isCustomer && (
-                <Link
-                  href="/dashboard/customer/profile"
-                  prefetch
-                  className="rounded-2xl border border-amber-300/40 px-4 py-2 text-sm font-black text-amber-200"
-                >
-                  My Profile
-                </Link>
+                <div className="group relative">
+                  <button
+                    type="button"
+                    className="rounded-2xl border border-amber-300/40 px-4 py-2 text-sm font-black text-amber-200 transition hover:bg-amber-300 hover:text-slate-950"
+                  >
+                    Menu
+                  </button>
+
+                  <div className="invisible absolute right-0 top-full z-[100] mt-3 w-56 translate-y-1 overflow-hidden rounded-2xl border border-white/10 bg-[#11100c] opacity-0 shadow-2xl shadow-black/50 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                    <Link
+                      href="/dashboard/customer"
+                      prefetch
+                      className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
+                    >
+                      Dashboard
+                    </Link>
+
+                    <Link
+                      href="/dashboard/customer/bookings"
+                      prefetch
+                      className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
+                    >
+                      My Bookings
+                    </Link>
+
+                    <Link
+                      href="/dashboard/customer/profile"
+                      prefetch
+                      className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
+                    >
+                      My Profile
+                    </Link>
+
+                    <div className="border-t border-white/10 p-2">
+                      <LogoutButton />
+                    </div>
+                  </div>
+                </div>
               )}
 
-              <LogoutButton />
+              {!isCustomer && <LogoutButton />}
             </>
           ) : (
             <Link
