@@ -50,7 +50,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
         <section className="relative mb-5 overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.055] p-4 shadow-2xl shadow-black/35 backdrop-blur-2xl md:rounded-[34px] md:p-6">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-300/10 via-transparent to-orange-800/20" />
 
-          <div className="relative grid min-w-0 gap-4 md:grid-cols-[1fr_260px] md:items-center lg:grid-cols-[1fr_310px]">
+          <div className="relative grid min-w-0 gap-4 md:grid-cols-[1fr_220px] md:items-center lg:grid-cols-[1fr_260px]">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300 md:text-xs md:tracking-[0.28em]">
                 Luxury Dining Partner
@@ -59,32 +59,18 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
               <h1 className="mt-3 max-w-full break-words text-4xl font-black leading-[0.98] tracking-tight text-white drop-shadow-[0_8px_28px_rgba(0,0,0,0.7)] md:text-5xl lg:text-6xl">
                 {restaurant.name}
               </h1>
-
-              <div className="mt-4 flex max-w-full flex-wrap gap-2">
-                <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-amber-200 md:text-xs">
-                  Premium Selection
-                </span>
-
-                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-300 md:text-xs">
-                  Instant Booking
-                </span>
-
-                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-300 md:text-xs">
-                  Fine Dining
-                </span>
-              </div>
             </div>
 
-            <div className="max-w-full rounded-[22px] border border-amber-300/20 bg-gradient-to-br from-amber-300/20 to-yellow-700/10 p-4 text-center shadow-xl shadow-amber-900/15 backdrop-blur-xl md:rounded-[24px] md:p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-200">
+            <div className="max-w-full rounded-[18px] border border-amber-300/20 bg-gradient-to-br from-amber-300/16 to-yellow-700/10 px-4 py-3 text-center shadow-xl shadow-amber-900/10 backdrop-blur-xl md:rounded-[22px] md:px-5 md:py-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-200 md:text-[10px]">
                 Exclusive Offer
               </p>
 
-              <p className="mt-1 text-4xl font-black text-amber-300 md:text-5xl">
+              <p className="mt-1 text-3xl font-black leading-none text-amber-300 md:text-4xl">
                 -5%
               </p>
 
-              <p className="mt-1 text-xs font-bold leading-5 text-slate-300">
+              <p className="mt-1 text-[11px] font-bold leading-5 text-slate-300 md:text-xs">
                 Instant customer discount
               </p>
             </div>
