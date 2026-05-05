@@ -123,8 +123,8 @@ export default async function AdminSuppliersPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#fbf7ef] px-4 py-8 md:px-6">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <main className="min-h-screen bg-[#fbf7ef]">
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-700">
@@ -138,8 +138,10 @@ export default async function AdminSuppliersPage() {
             </p>
           </div>
         </div>
+      </div>
 
-        <section className="sticky top-[76px] z-[60] grid gap-3 rounded-[28px] border border-slate-200 bg-white/95 p-3 shadow-2xl shadow-black/10 backdrop-blur md:grid-cols-4">
+      <div className="sticky top-0 z-[70] border-y border-slate-200 bg-[#fbf7ef]/95 px-4 py-3 shadow-xl shadow-black/10 backdrop-blur md:px-6">
+        <section className="mx-auto grid max-w-7xl gap-3 rounded-[28px] border border-slate-200 bg-white/95 p-3 shadow-sm md:grid-cols-4">
           <a
             href="#create-supplier"
             className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
@@ -173,10 +175,12 @@ export default async function AdminSuppliersPage() {
             )}
           </Link>
         </section>
+      </div>
 
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-6">
         <section
           id="create-supplier"
-          className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="scroll-mt-[140px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
         >
           <h2 className="text-lg font-black text-slate-950">
             Create Supplier
@@ -186,40 +190,11 @@ export default async function AdminSuppliersPage() {
           </p>
 
           <form action={createSupplierAction} className="mt-5 grid gap-4 md:grid-cols-2">
-            <input
-              name="company_name"
-              required
-              placeholder="Tên Supplier"
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100"
-            />
-
-            <input
-              name="email"
-              required
-              type="email"
-              placeholder="Email đăng nhập"
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100"
-            />
-
-            <input
-              name="password"
-              required
-              type="password"
-              placeholder="Mật khẩu"
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100"
-            />
-
-            <input
-              name="phone"
-              placeholder="Số điện thoại"
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100"
-            />
-
-            <input
-              name="address"
-              placeholder="Địa chỉ Supplier"
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100 md:col-span-2"
-            />
+            <input name="company_name" required placeholder="Tên Supplier" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100" />
+            <input name="email" required type="email" placeholder="Email đăng nhập" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100" />
+            <input name="password" required type="password" placeholder="Mật khẩu" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100" />
+            <input name="phone" placeholder="Số điện thoại" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100" />
+            <input name="address" placeholder="Địa chỉ Supplier" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100 md:col-span-2" />
 
             <div className="md:col-span-2">
               <button className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800">
@@ -231,7 +206,7 @@ export default async function AdminSuppliersPage() {
 
         <section
           id="list-restaurants"
-          className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+          className="scroll-mt-[140px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
         >
           <div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row md:items-end md:justify-between">
             <div>
@@ -243,10 +218,7 @@ export default async function AdminSuppliersPage() {
               </p>
             </div>
 
-            <Link
-              href="/dashboard/admin/supplier-requests"
-              className="w-fit rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
-            >
+            <Link href="/dashboard/admin/supplier-requests" className="w-fit rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200">
               View Requests
             </Link>
           </div>
@@ -296,11 +268,7 @@ export default async function AdminSuppliersPage() {
                     </td>
 
                     <td className="px-5 py-4">
-                      <span
-                        className={`rounded-full border px-3 py-1 text-xs font-black ${getRestaurantStatusClass(
-                          restaurant,
-                        )}`}
-                      >
+                      <span className={`rounded-full border px-3 py-1 text-xs font-black ${getRestaurantStatusClass(restaurant)}`}>
                         {getRestaurantStatusLabel(restaurant)}
                       </span>
                     </td>
@@ -308,20 +276,13 @@ export default async function AdminSuppliersPage() {
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
                         {restaurant.slug && (
-                          <Link
-                            href={`/restaurants/${restaurant.slug}`}
-                            target="_blank"
-                            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100"
-                          >
+                          <Link href={`/restaurants/${restaurant.slug}`} target="_blank" className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100">
                             View
                           </Link>
                         )}
 
                         {isPendingRestaurant(restaurant) && (
-                          <Link
-                            href="/dashboard/admin/supplier-requests"
-                            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-black text-amber-700 transition hover:bg-amber-100"
-                          >
+                          <Link href="/dashboard/admin/supplier-requests" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-black text-amber-700 transition hover:bg-amber-100">
                             Review
                           </Link>
                         )}
@@ -332,10 +293,7 @@ export default async function AdminSuppliersPage() {
 
                 {!restaurantRows.length && (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-5 py-12 text-center text-slate-500"
-                    >
+                    <td colSpan={6} className="px-5 py-12 text-center text-slate-500">
                       Chưa có restaurant nào.
                     </td>
                   </tr>
@@ -347,7 +305,7 @@ export default async function AdminSuppliersPage() {
 
         <section
           id="list-suppliers"
-          className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+          className="scroll-mt-[140px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
         >
           <div className="border-b border-slate-100 p-5">
             <h2 className="text-lg font-black text-slate-950">
@@ -411,10 +369,7 @@ export default async function AdminSuppliersPage() {
 
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
-                          <Link
-                            href={`/dashboard/admin/suppliers/${supplier.id}`}
-                            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100"
-                          >
+                          <Link href={`/dashboard/admin/suppliers/${supplier.id}`} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100">
                             View
                           </Link>
 
@@ -432,10 +387,7 @@ export default async function AdminSuppliersPage() {
 
                 {!supplierRows.length && (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-5 py-12 text-center text-slate-500"
-                    >
+                    <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
                       Chưa có Supplier active nào.
                     </td>
                   </tr>
