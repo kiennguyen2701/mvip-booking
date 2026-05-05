@@ -34,7 +34,7 @@ export default async function Header() {
   const dashboardHref = getDashboardHref(role);
 
   return (
-    <header className="sticky top-0 z-50 w-full max-w-[100vw] overflow-x-hidden border-b border-white/10 bg-[#080704]/95 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
+    <header className="sticky top-0 z-[9999] w-full max-w-[100vw] border-b border-white/10 bg-[#080704]/95 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4">
         <Link
           href={dashboardHref}
@@ -69,15 +69,16 @@ export default async function Header() {
               )}
 
               {isCustomer && (
-                <div className="group relative">
+                <div className="group relative z-[10000]">
                   <button
                     type="button"
-                    className="rounded-2xl border border-amber-300/40 px-4 py-2 text-sm font-black text-amber-200 transition hover:bg-amber-300 hover:text-slate-950"
+                    className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] text-xl font-black text-white shadow-xl shadow-black/30 transition hover:border-amber-300/50 hover:bg-amber-300 hover:text-slate-950"
+                    aria-label="Open customer menu"
                   >
-                    Menu
+                    ☰
                   </button>
 
-                  <div className="invisible absolute right-0 top-full z-[100] mt-3 w-56 translate-y-1 overflow-hidden rounded-2xl border border-white/10 bg-[#11100c] opacity-0 shadow-2xl shadow-black/50 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                  <div className="invisible absolute right-0 top-full z-[10001] mt-3 w-60 translate-y-1 overflow-hidden rounded-2xl border border-white/10 bg-[#11100c] opacity-0 shadow-2xl shadow-black/70 ring-1 ring-amber-300/10 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
                     <Link
                       href="/dashboard/customer"
                       prefetch
