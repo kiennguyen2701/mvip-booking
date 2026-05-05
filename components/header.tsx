@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/logout-button";
 import HeaderMobileMenu from "@/components/header-mobile-menu";
+import CustomerHeaderMenu from "@/components/customer-header-menu";
 
 function getDashboardHref(role: string | null) {
   if (role === "admin") return "/dashboard/admin";
@@ -68,47 +69,7 @@ export default async function Header() {
                 </Link>
               )}
 
-              {isCustomer && (
-                <div className="group relative z-[10000]">
-                  <button
-                    type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] text-xl font-black text-white shadow-xl shadow-black/30 transition hover:border-amber-300/50 hover:bg-amber-300 hover:text-slate-950"
-                    aria-label="Open customer menu"
-                  >
-                    ☰
-                  </button>
-
-                  <div className="invisible absolute right-0 top-full z-[10001] mt-3 w-60 translate-y-1 overflow-hidden rounded-2xl border border-white/10 bg-[#11100c] opacity-0 shadow-2xl shadow-black/70 ring-1 ring-amber-300/10 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
-                    <Link
-                      href="/dashboard/customer"
-                      prefetch
-                      className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
-                    >
-                      Dashboard
-                    </Link>
-
-                    <Link
-                      href="/dashboard/customer/bookings"
-                      prefetch
-                      className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
-                    >
-                      My Bookings
-                    </Link>
-
-                    <Link
-                      href="/dashboard/customer/profile"
-                      prefetch
-                      className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
-                    >
-                      My Profile
-                    </Link>
-
-                    <div className="border-t border-white/10 p-2">
-                      <LogoutButton />
-                    </div>
-                  </div>
-                </div>
-              )}
+              {isCustomer && <CustomerHeaderMenu />}
 
               {!isCustomer && <LogoutButton />}
             </>
