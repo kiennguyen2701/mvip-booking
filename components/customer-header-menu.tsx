@@ -38,14 +38,7 @@ export default function CustomerHeaderMenu() {
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
-      <Link
-        href="/dashboard/customer"
-        prefetch
-        className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
-      >
-        Dashboard
-      </Link>
-
+      
       <Link
         href="/dashboard/customer/bookings"
         prefetch
