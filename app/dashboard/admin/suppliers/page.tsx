@@ -124,7 +124,44 @@ export default async function AdminSuppliersPage() {
 
   return (
     <main className="min-h-screen bg-[#fbf7ef]">
-      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+      <div className="fixed left-0 right-0 top-[68px] z-[9990] border-y border-slate-200 bg-[#fbf7ef]/95 px-3 py-2 shadow-xl shadow-black/10 backdrop-blur md:top-[76px] md:px-6 md:py-3">
+        <section className="mx-auto grid max-w-7xl grid-cols-2 gap-2 rounded-[22px] border border-slate-200 bg-white/95 p-2 shadow-sm md:grid-cols-4 md:gap-3 md:rounded-[28px] md:p-3">
+          <a
+            href="#create-supplier"
+            className="rounded-2xl bg-slate-950 px-3 py-3 text-center text-xs font-black text-white transition hover:bg-slate-800 md:px-5 md:py-4 md:text-sm"
+          >
+            Create Supplier
+          </a>
+
+          <a
+            href="#list-restaurants"
+            className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-center text-xs font-black text-slate-800 transition hover:bg-slate-50 md:px-5 md:py-4 md:text-sm"
+          >
+            List Restaurants
+          </a>
+
+          <a
+            href="#list-suppliers"
+            className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-center text-xs font-black text-slate-800 transition hover:bg-slate-50 md:px-5 md:py-4 md:text-sm"
+          >
+            List Suppliers
+          </a>
+
+          <Link
+            href="/dashboard/admin/supplier-requests"
+            className="relative rounded-2xl bg-amber-300 px-3 py-3 text-center text-xs font-black text-slate-950 transition hover:bg-amber-200 md:px-5 md:py-4 md:text-sm"
+          >
+            List Request
+            {pendingRequests > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-2 text-xs font-black text-white">
+                {pendingRequests}
+              </span>
+            )}
+          </Link>
+        </section>
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 pb-6 pt-[165px] md:px-6 md:pt-[160px]">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-700">
@@ -140,47 +177,10 @@ export default async function AdminSuppliersPage() {
         </div>
       </div>
 
-      <div className="sticky top-0 z-[70] border-y border-slate-200 bg-[#fbf7ef]/95 px-4 py-3 shadow-xl shadow-black/10 backdrop-blur md:px-6">
-        <section className="mx-auto grid max-w-7xl gap-3 rounded-[28px] border border-slate-200 bg-white/95 p-3 shadow-sm md:grid-cols-4">
-          <a
-            href="#create-supplier"
-            className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
-          >
-            Create Supplier
-          </a>
-
-          <a
-            href="#list-restaurants"
-            className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-center text-sm font-black text-slate-800 transition hover:bg-slate-50"
-          >
-            List Restaurants
-          </a>
-
-          <a
-            href="#list-suppliers"
-            className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-center text-sm font-black text-slate-800 transition hover:bg-slate-50"
-          >
-            List Suppliers
-          </a>
-
-          <Link
-            href="/dashboard/admin/supplier-requests"
-            className="relative rounded-2xl bg-amber-300 px-5 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-amber-200"
-          >
-            List Request
-            {pendingRequests > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-2 text-xs font-black text-white">
-                {pendingRequests}
-              </span>
-            )}
-          </Link>
-        </section>
-      </div>
-
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-6">
         <section
           id="create-supplier"
-          className="scroll-mt-[140px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="scroll-mt-[180px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
         >
           <h2 className="text-lg font-black text-slate-950">
             Create Supplier
@@ -206,7 +206,7 @@ export default async function AdminSuppliersPage() {
 
         <section
           id="list-restaurants"
-          className="scroll-mt-[140px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+          className="scroll-mt-[180px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
         >
           <div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row md:items-end md:justify-between">
             <div>
@@ -305,7 +305,7 @@ export default async function AdminSuppliersPage() {
 
         <section
           id="list-suppliers"
-          className="scroll-mt-[140px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+          className="scroll-mt-[180px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
         >
           <div className="border-b border-slate-100 p-5">
             <h2 className="text-lg font-black text-slate-950">
