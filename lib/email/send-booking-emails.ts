@@ -47,23 +47,27 @@ function escapeHtml(value: string | number | null | undefined) {
 function infoRow(label: string, value?: string | number | null) {
   return `
     <tr>
-      <td style="padding:12px 0;color:#7c6f5a;font-size:13px;font-weight:700;border-bottom:1px solid #eee6d8;">
+      <td style="padding:14px 0;color:#7a6a55;font-size:14px;font-weight:700;border-bottom:1px solid #eadfce;">
         ${escapeHtml(label)}
       </td>
-      <td align="right" style="padding:12px 0;color:#15110b;font-size:13px;font-weight:900;border-bottom:1px solid #eee6d8;">
+      <td align="right" style="padding:14px 0;color:#17120b;font-size:14px;font-weight:900;border-bottom:1px solid #eadfce;">
         ${escapeHtml(value || "-")}
       </td>
     </tr>
   `;
 }
 
-function moneyRow(label: string, value: number | null | undefined, tone = "#15110b") {
+function moneyRow(
+  label: string,
+  value: number | null | undefined,
+  tone = "#17120b",
+) {
   return `
     <tr>
-      <td style="padding:12px 0;color:#7c6f5a;font-size:13px;font-weight:700;border-bottom:1px solid #eee6d8;">
+      <td style="padding:14px 0;color:#7a6a55;font-size:14px;font-weight:700;border-bottom:1px solid #eadfce;">
         ${escapeHtml(label)}
       </td>
-      <td align="right" style="padding:12px 0;color:${tone};font-size:14px;font-weight:900;border-bottom:1px solid #eee6d8;">
+      <td align="right" style="padding:14px 0;color:${tone};font-size:15px;font-weight:900;border-bottom:1px solid #eadfce;">
         ${formatMoney(value)}
       </td>
     </tr>
@@ -72,15 +76,45 @@ function moneyRow(label: string, value: number | null | undefined, tone = "#1511
 
 function detailCard(rows: string) {
   return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border-collapse:collapse;background:#fffaf1;border:1px solid #eee0c8;border-radius:18px;overflow:hidden;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;border-collapse:separate;border-spacing:0;background:#fffdf8;border:1px solid #eadfce;border-radius:20px;overflow:hidden;">
       <tr>
-        <td style="padding:20px;">
+        <td style="padding:22px 24px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
             ${rows}
           </table>
         </td>
       </tr>
     </table>
+  `;
+}
+
+function premiumNotice({
+  title,
+  value,
+  description,
+  color = "#166534",
+  background = "#ecfdf3",
+  border = "#bbf7d0",
+}: {
+  title: string;
+  value: string;
+  description: string;
+  color?: string;
+  background?: string;
+  border?: string;
+}) {
+  return `
+    <div style="margin-top:22px;background:${background};border:1px solid ${border};border-radius:18px;padding:18px 20px;">
+      <p style="margin:0;color:${color};font-size:13px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;">
+        ${escapeHtml(title)}
+      </p>
+      <p style="margin:7px 0 0;color:${color};font-size:24px;line-height:1.1;font-weight:900;">
+        ${escapeHtml(value)}
+      </p>
+      <p style="margin:9px 0 0;color:${color};font-size:13px;line-height:1.7;">
+        ${escapeHtml(description)}
+      </p>
+    </div>
   `;
 }
 
@@ -105,33 +139,36 @@ function luxuryEmail({
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="color-scheme" content="light" />
+        <meta name="supported-color-schemes" content="light" />
         <title>${escapeHtml(title)}</title>
       </head>
-      <body style="margin:0;padding:0;background:#080704;font-family:Arial,Helvetica,sans-serif;">
-        <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
+
+      <body style="margin:0;padding:0;background:#f4efe6;font-family:Arial,Helvetica,sans-serif;color:#17120b;">
+        <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
           ${escapeHtml(subtitle)}
         </div>
 
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#080704;padding:32px 12px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4efe6;padding:24px 10px;">
           <tr>
             <td align="center">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;border-collapse:collapse;">
                 <tr>
-                  <td style="padding:1px;border-radius:30px;background:linear-gradient(135deg,#f7d58b,#6f4a13,#19110a);">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:29px;overflow:hidden;background:#fffaf1;">
+                  <td style="padding:0;border-radius:28px;background:#ffffff;border:1px solid #e6d8c3;box-shadow:0 18px 50px rgba(72,50,20,.14);overflow:hidden;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#ffffff;">
                       <tr>
-                        <td style="background:linear-gradient(135deg,#100d09 0%,#1b1208 58%,#6f4a13 100%);padding:34px 28px;color:#ffffff;">
+                        <td style="background:#fff8ea;padding:28px 26px 24px;border-bottom:1px solid #eadfce;">
                           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                             <tr>
-                              <td>
-                                <div style="display:inline-block;background:#f6c85f;color:#15110b;border-radius:16px;width:48px;height:48px;line-height:48px;text-align:center;font-size:24px;font-weight:900;">
+                              <td style="vertical-align:top;">
+                                <div style="display:inline-block;background:linear-gradient(135deg,#ffd95a,#c99116);color:#17120b;border-radius:18px;width:54px;height:54px;line-height:54px;text-align:center;font-size:25px;font-weight:900;">
                                   ♛
                                 </div>
                               </td>
                               <td align="right" style="vertical-align:top;">
                                 ${
                                   badge
-                                    ? `<span style="display:inline-block;border:1px solid rgba(246,200,95,.45);background:rgba(246,200,95,.12);color:#ffe7a6;border-radius:999px;padding:9px 13px;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;">${escapeHtml(
+                                    ? `<span style="display:inline-block;border:1px solid #e0bd62;background:#fff3c4;color:#7a4a00;border-radius:999px;padding:9px 14px;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;">${escapeHtml(
                                         badge,
                                       )}</span>`
                                     : ""
@@ -140,36 +177,36 @@ function luxuryEmail({
                             </tr>
                           </table>
 
-                          <p style="margin:26px 0 0;color:#f6c85f;font-size:11px;font-weight:900;letter-spacing:.28em;text-transform:uppercase;">
+                          <p style="margin:24px 0 0;color:#b07a00;font-size:12px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;">
                             ${escapeHtml(eyebrow)}
                           </p>
 
-                          <h1 style="margin:10px 0 0;color:#ffffff;font-size:34px;line-height:1.08;font-weight:900;letter-spacing:-.03em;">
+                          <h1 style="margin:10px 0 0;color:#17120b;font-size:34px;line-height:1.08;font-weight:900;letter-spacing:-.03em;">
                             ${escapeHtml(title)}
                           </h1>
 
-                          <p style="margin:14px 0 0;color:#d8c8ad;font-size:15px;line-height:1.7;">
+                          <p style="margin:14px 0 0;color:#5f5446;font-size:16px;line-height:1.7;font-weight:600;">
                             ${escapeHtml(subtitle)}
                           </p>
                         </td>
                       </tr>
 
                       <tr>
-                        <td style="padding:30px 28px 26px;color:#15110b;">
+                        <td style="padding:28px 26px 28px;color:#17120b;background:#ffffff;">
                           ${body}
                         </td>
                       </tr>
 
                       <tr>
-                        <td style="padding:22px 28px;background:#f3eadb;border-top:1px solid #eadcc5;">
-                          <p style="margin:0;color:#7c6f5a;font-size:12px;line-height:1.6;">
+                        <td style="padding:22px 26px;background:#fbf7ef;border-top:1px solid #eadfce;">
+                          <p style="margin:0;color:#6f6253;font-size:12px;line-height:1.6;">
                             ${escapeHtml(
                               footerNote ||
                                 "This is an automated notification from Mvip Booking. Please do not reply directly to this email.",
                             )}
                           </p>
 
-                          <p style="margin:12px 0 0;color:#15110b;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;">
+                          <p style="margin:13px 0 0;color:#17120b;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;">
                             Mvip Booking · Premium Booking Platform
                           </p>
                         </td>
@@ -179,7 +216,7 @@ function luxuryEmail({
                 </tr>
 
                 <tr>
-                  <td align="center" style="padding:18px 8px 0;color:#6b6254;font-size:11px;">
+                  <td align="center" style="padding:18px 8px 0;color:#8a7d6c;font-size:11px;line-height:1.6;">
                     © 2026 Mvip Booking. All rights reserved.
                   </td>
                 </tr>
@@ -265,20 +302,19 @@ export async function sendBookingCreatedEmails(payload: {
           "Your reservation request has been submitted. The restaurant will review and confirm your booking shortly.",
         badge: "Customer",
         body: `
-          <p style="margin:0;color:#15110b;font-size:15px;line-height:1.8;">
+          <p style="margin:0;color:#17120b;font-size:15px;line-height:1.8;">
             Hello <strong>${escapeHtml(payload.customerName)}</strong>,
           </p>
-          <p style="margin:12px 0 0;color:#4b4033;font-size:15px;line-height:1.8;">
+          <p style="margin:12px 0 0;color:#4f4538;font-size:15px;line-height:1.8;">
             Thank you for booking with Mvip Booking. Your request has been received successfully.
           </p>
           ${commonCard}
-          <div style="margin-top:20px;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:18px;padding:18px;">
-            <p style="margin:0;color:#047857;font-size:14px;font-weight:900;">Customer Benefit</p>
-            <p style="margin:6px 0 0;color:#065f46;font-size:24px;font-weight:900;">Instant 5% Discount</p>
-            <p style="margin:8px 0 0;color:#047857;font-size:13px;line-height:1.7;">
-              This discount will be applied directly to your bill according to Mvip Booking policy.
-            </p>
-          </div>
+          ${premiumNotice({
+            title: "Customer Benefit",
+            value: "Instant 5% Discount",
+            description:
+              "This discount will be applied directly to your bill according to Mvip Booking policy.",
+          })}
         `,
       }),
     }),
@@ -293,10 +329,19 @@ export async function sendBookingCreatedEmails(payload: {
           "A customer has submitted a new reservation. Please review and update the booking status in your dashboard.",
         badge: "Supplier",
         body: `
-          <p style="margin:0;color:#4b4033;font-size:15px;line-height:1.8;">
+          <p style="margin:0;color:#4f4538;font-size:15px;line-height:1.8;">
             A new customer booking request has been created for your restaurant.
           </p>
           ${commonCard}
+          ${premiumNotice({
+            title: "Action Required",
+            value: "Pending Confirmation",
+            description:
+              "Please confirm or update this booking from your supplier dashboard.",
+            color: "#92400e",
+            background: "#fffbeb",
+            border: "#fde68a",
+          })}
         `,
       }),
     }),
@@ -310,7 +355,18 @@ export async function sendBookingCreatedEmails(payload: {
         subtitle:
           "A new booking has been created on Mvip Booking and is now pending confirmation.",
         badge: "Admin",
-        body: commonCard,
+        body: `
+          ${commonCard}
+          ${premiumNotice({
+            title: "System Status",
+            value: "Pending Confirmation",
+            description:
+              "The supplier should review and confirm this reservation request.",
+            color: "#92400e",
+            background: "#fffbeb",
+            border: "#fde68a",
+          })}
+        `,
       }),
     }),
   ]);
@@ -340,16 +396,22 @@ export async function sendBookingConfirmedEmail(payload: {
       subtitle: "Your reservation has been confirmed by the restaurant.",
       badge: "Confirmed",
       body: `
-        <p style="margin:0;color:#15110b;font-size:15px;line-height:1.8;">
+        <p style="margin:0;color:#17120b;font-size:15px;line-height:1.8;">
           Hello <strong>${escapeHtml(payload.customerName)}</strong>,
         </p>
-        <p style="margin:12px 0 0;color:#4b4033;font-size:15px;line-height:1.8;">
+        <p style="margin:12px 0 0;color:#4f4538;font-size:15px;line-height:1.8;">
           Your booking at <strong>${escapeHtml(payload.restaurantName)}</strong> is now confirmed.
         </p>
         ${card}
-        <p style="margin:18px 0 0;color:#7c6f5a;font-size:13px;line-height:1.7;">
-          Please show your booking code upon arrival if requested.
-        </p>
+        ${premiumNotice({
+          title: "Please Note",
+          value: "Show Your Booking Code",
+          description:
+            "Please show your booking code upon arrival if requested by the restaurant.",
+          color: "#1d4ed8",
+          background: "#eff6ff",
+          border: "#bfdbfe",
+        })}
       `,
     }),
   });
@@ -389,10 +451,10 @@ export async function sendBookingCompletedEmails(payload: {
         subtitle: "Your booking has been completed successfully.",
         badge: "Customer",
         body: `
-          <p style="margin:0;color:#15110b;font-size:15px;line-height:1.8;">
+          <p style="margin:0;color:#17120b;font-size:15px;line-height:1.8;">
             Hello <strong>${escapeHtml(payload.customerName)}</strong>,
           </p>
-          <p style="margin:12px 0 0;color:#4b4033;font-size:15px;line-height:1.8;">
+          <p style="margin:12px 0 0;color:#4f4538;font-size:15px;line-height:1.8;">
             Thank you for using Mvip Booking. Below is your completed booking summary.
           </p>
           ${settlementCard}
@@ -469,10 +531,10 @@ export async function sendBookingCancelledEmails(payload: {
         subtitle: "Your booking has been cancelled.",
         badge: "Cancelled",
         body: `
-          <p style="margin:0;color:#15110b;font-size:15px;line-height:1.8;">
+          <p style="margin:0;color:#17120b;font-size:15px;line-height:1.8;">
             Hello <strong>${escapeHtml(payload.customerName)}</strong>,
           </p>
-          <p style="margin:12px 0 0;color:#4b4033;font-size:15px;line-height:1.8;">
+          <p style="margin:12px 0 0;color:#4f4538;font-size:15px;line-height:1.8;">
             Your booking at <strong>${escapeHtml(payload.restaurantName)}</strong> has been cancelled.
           </p>
           ${cancelCard}
