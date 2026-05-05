@@ -18,7 +18,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
   if (!restaurant) notFound();
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#070604] text-white">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#070604] pb-24 text-white">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-1/2 top-[-220px] h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-amber-400/20 blur-3xl" />
         <div className="absolute -left-44 top-40 h-[420px] w-[420px] rounded-full bg-orange-800/20 blur-3xl" />
@@ -28,10 +28,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
 
       <section className="relative mx-auto w-full max-w-7xl overflow-hidden px-4 py-4 md:px-6 md:py-6">
         <div className="mb-4 flex min-w-0 items-center gap-2 text-xs text-slate-400 md:text-sm">
-          <Link
-            href="/restaurants"
-            className="shrink-0 font-bold hover:text-amber-200"
-          >
+          <Link href="/restaurants" className="shrink-0 font-bold hover:text-amber-200">
             Restaurants
           </Link>
           <span className="shrink-0">/</span>
@@ -42,26 +39,25 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
 
         {!restaurant.is_active && (
           <div className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
-            Preview Mode — this restaurant is currently inactive and only
-            visible to owner/admin.
+            Preview Mode — this restaurant is currently inactive and only visible to owner/admin.
           </div>
         )}
 
         <section className="relative mb-5 overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.055] p-4 shadow-2xl shadow-black/35 backdrop-blur-2xl md:rounded-[34px] md:p-6">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-300/10 via-transparent to-orange-800/20" />
 
-          <div className="relative grid min-w-0 gap-4 md:grid-cols-[1fr_220px] md:items-center lg:grid-cols-[1fr_260px]">
+          <div className="relative grid min-w-0 gap-3 md:grid-cols-[1fr_220px] md:items-center lg:grid-cols-[1fr_260px]">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300 md:text-xs md:tracking-[0.28em]">
                 Luxury Dining Partner
               </p>
 
-              <h1 className="mt-3 max-w-full break-words text-4xl font-black leading-[0.98] tracking-tight text-white drop-shadow-[0_8px_28px_rgba(0,0,0,0.7)] md:text-5xl lg:text-6xl">
+              <h1 className="mt-3 max-w-full break-words text-[2.55rem] font-black leading-[1] tracking-tight text-white drop-shadow-[0_8px_28px_rgba(0,0,0,0.7)] md:text-5xl lg:text-6xl">
                 {restaurant.name}
               </h1>
             </div>
 
-            <div className="max-w-full rounded-[18px] border border-amber-300/20 bg-gradient-to-br from-amber-300/16 to-yellow-700/10 px-4 py-3 text-center shadow-xl shadow-amber-900/10 backdrop-blur-xl md:rounded-[22px] md:px-5 md:py-4">
+            <div className="-mt-1 max-w-full rounded-[18px] border border-amber-300/20 bg-gradient-to-br from-amber-300/16 to-yellow-700/10 px-4 py-3 text-center shadow-xl shadow-amber-900/10 backdrop-blur-xl md:mt-0 md:rounded-[22px] md:px-5 md:py-4">
               <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-200 md:text-[10px]">
                 Exclusive Offer
               </p>
@@ -99,7 +95,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
             />
           </div>
 
-          <div className="min-w-0">
+          <div id="booking-form" className="min-w-0 scroll-mt-28">
             {restaurant.is_active ? (
               <RestaurantBookingForm
                 restaurantId={restaurant.id}
@@ -115,14 +111,24 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
                   Booking Disabled
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-400">
-                  This restaurant is inactive. Customers cannot book until Admin
-                  approves and activates it.
+                  This restaurant is inactive. Customers cannot book until Admin approves and activates it.
                 </p>
               </aside>
             )}
           </div>
         </div>
       </section>
+
+      {restaurant.is_active && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070604]/92 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur-xl md:hidden">
+          <a
+            href="#booking-form"
+            className="flex h-14 w-full items-center justify-center rounded-2xl bg-amber-300 text-base font-black text-slate-950 shadow-2xl shadow-amber-950/30 active:scale-[0.99]"
+          >
+            Book Now
+          </a>
+        </div>
+      )}
     </main>
   );
 }
