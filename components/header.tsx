@@ -1,88 +1,102 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { LogoutButton } from "@/components/logout-button";
+import HeaderMobileMenu from "@/components/header-mobile-menu";
 
-export default function Header() {
-  const [open, setOpen] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
+function getDashboardHref(role: string | null) {
+  if (role === "admin") return "/dashboard/admin";
+  if (role === "supplier") return "/dashboard/supplier";
+  if (role === "agent") return "/dashboard/agent";
+  if (role === "customer") return "/dashboard/customer";
+  return "/login";
+}
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  };
+export default async function Header() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let role: string | null = null;
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    role = profile?.role || user.user_metadata?.role || null;
+  }
+
+  const isCustomer = role === "customer";
+  const dashboardHref = getDashboardHref(role);
 
   return (
-    <>
-      {/* HEADER */}
-      <header className="fixed top-0 left-0 z-50 w-screen max-w-[100vw] bg-[#050403] border-b border-white/10">
-        <div className="flex items-center justify-between px-4 py-3">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl bg-amber-300 flex items-center justify-center font-black text-black">
-              👑
-            </div>
-            <div>
-              <p className="text-white font-bold">Mvip Booking</p>
-              <p className="text-xs text-slate-400">
-                Premium booking platform
-              </p>
-            </div>
-          </Link>
-
-          {/* HAMBURGER */}
-          <button
-            onClick={() => setOpen(true)}
-            className="h-10 w-10 rounded-xl border border-white/10 flex items-center justify-center text-white"
-          >
-            ☰
-          </button>
-        </div>
-      </header>
-
-      {/* SPACER (TRÁNH BỊ ĐÈ) */}
-      <div className="h-[64px]" />
-
-      {/* MOBILE MENU FIX CỨNG */}
-      {open && (
-        <div className="fixed inset-0 z-[999] w-screen h-screen max-w-[100vw] bg-black/80 backdrop-blur">
-          <div className="absolute right-0 top-0 h-full w-[85%] max-w-[320px] bg-[#11100c] border-l border-white/10 p-5 overflow-y-auto">
-            {/* CLOSE */}
-            <div className="flex justify-end">
-              <button
-                onClick={() => setOpen(false)}
-                className="h-10 w-10 rounded-xl border border-white/10 text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* MENU */}
-            <div className="mt-6 flex flex-col gap-4 text-white font-bold">
-              <Link href="/dashboard/customer" onClick={() => setOpen(false)}>
-                Dashboard
-              </Link>
-
-              <Link href="/restaurants" onClick={() => setOpen(false)}>
-                Restaurants
-              </Link>
-
-              <Link href="/profile" onClick={() => setOpen(false)}>
-                My Profile
-              </Link>
-
-              <button
-                onClick={handleLogout}
-                className="text-left text-red-400"
-              >
-                Logout
-              </button>
-            </div>
+    <header className="sticky top-0 z-50 w-full max-w-[100vw] overflow-x-hidden border-b border-white/10 bg-[#080704]/95 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4">
+        <Link
+          href={dashboardHref}
+          prefetch
+          className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden"
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-slate-950">
+            ♛
           </div>
-        </div>
-      )}
-    </>
+
+          <div className="min-w-0 overflow-hidden">
+            <p className="truncate text-lg font-black text-white md:text-xl">
+              Mvip Booking
+            </p>
+            <p className="truncate text-xs font-medium text-slate-500">
+              Premium booking platform
+            </p>
+          </div>
+        </Link>
+
+        <nav className="hidden shrink-0 items-center gap-3 md:flex">
+          {user ? (
+            <>
+              {!isCustomer && (
+                <Link
+                  href={dashboardHref}
+                  prefetch
+                  className="rounded-2xl px-4 py-2 text-sm font-black text-slate-300 hover:bg-white/10"
+                >
+                  Dashboard
+                </Link>
+              )}
+
+              {isCustomer && (
+                <Link
+                  href="/dashboard/customer/profile"
+                  prefetch
+                  className="rounded-2xl border border-amber-300/40 px-4 py-2 text-sm font-black text-amber-200"
+                >
+                  My Profile
+                </Link>
+              )}
+
+              <LogoutButton />
+            </>
+          ) : (
+            <Link
+              href="/login?mode=register"
+              prefetch
+              className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950"
+            >
+              Register
+            </Link>
+          )}
+        </nav>
+
+        {user && (
+          <div className="shrink-0 md:hidden">
+            <HeaderMobileMenu isLoggedIn={!!user} role={role} />
+          </div>
+        )}
+      </div>
+    </header>
   );
 }

@@ -51,7 +51,6 @@ function normalizeSearch(value: string) {
 function hardLockViewport() {
   document.documentElement.scrollLeft = 0;
   document.body.scrollLeft = 0;
-  window.scrollTo({ left: 0, top: window.scrollY, behavior: "auto" });
 }
 
 function getCuisine(item: Restaurant) {
@@ -107,7 +106,7 @@ const RestaurantCard = memo(function RestaurantCard({
     <Link
       href={href}
       prefetch={false}
-      className="group block w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-white/10 bg-[#11100c]/95 shadow-xl shadow-black/25 transition hover:border-amber-300/40"
+      className="group block w-full max-w-full overflow-hidden rounded-3xl border border-white/10 bg-[#11100c]/95 shadow-xl shadow-black/25 transition hover:border-amber-300/40"
     >
       <div className="relative h-44 w-full overflow-hidden bg-[#12100b] sm:h-56">
         {image ? (
@@ -130,7 +129,7 @@ const RestaurantCard = memo(function RestaurantCard({
         </div>
 
         <div className="absolute bottom-4 left-4 right-4 min-w-0">
-          <p className="line-clamp-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+          <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
             {cuisine}
           </p>
 
@@ -140,7 +139,7 @@ const RestaurantCard = memo(function RestaurantCard({
         </div>
       </div>
 
-      <div className="min-w-0 p-4">
+      <div className="w-full max-w-full overflow-hidden p-4">
         <p className="line-clamp-2 break-words text-sm leading-6 text-slate-400">
           {restaurant.short_description ||
             restaurant.description ||
@@ -148,8 +147,8 @@ const RestaurantCard = memo(function RestaurantCard({
             "Premium dining partner available for booking."}
         </p>
 
-        <div className="mt-5 flex min-w-0 items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
+        <div className="mt-5 flex w-full max-w-full items-center justify-between gap-3 overflow-hidden">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <p className="truncate text-sm font-bold text-slate-300">
               📍 {restaurant.city || restaurant.address || "Vietnam"}
             </p>
@@ -361,15 +360,15 @@ export default function CustomerDashboardClient({
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
 
   return (
-    <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#050403] pb-10 text-white">
-      <div className="pointer-events-none absolute inset-0 max-w-[100vw] overflow-hidden">
+    <main className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[#050403] pb-10 text-white">
+      <div className="pointer-events-none absolute inset-0 w-full max-w-full overflow-hidden">
         <div className="absolute left-1/2 top-0 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
         <div className="absolute right-0 top-40 h-[220px] w-[220px] rounded-full bg-orange-900/20 blur-3xl md:h-[440px] md:w-[440px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.12)_1px,transparent_0)] [background-size:28px_28px]" />
       </div>
 
       <div className="relative mx-auto w-full max-w-7xl overflow-x-hidden px-3 py-5 sm:px-4 md:px-6 md:py-8">
-        <section className="relative mx-auto w-full max-w-[calc(100vw-24px)] overflow-hidden rounded-[1.5rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] sm:max-w-full md:rounded-[2.4rem] md:p-8">
+        <section className="relative mx-auto w-full max-w-full overflow-hidden rounded-[1.5rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] md:rounded-[2.4rem] md:p-8">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -left-20 -top-24 h-60 w-60 rounded-full bg-amber-400/10 blur-3xl md:h-72 md:w-72" />
             <div className="absolute right-0 top-8 h-64 w-64 rounded-full bg-orange-700/10 blur-3xl md:h-80 md:w-80" />
@@ -382,7 +381,7 @@ export default function CustomerDashboardClient({
                   Customer Dashboard
                 </p>
 
-                <h1 className="mt-3 max-w-full break-words text-[2.35rem] font-black leading-[1.05] tracking-tight text-white md:mt-4 md:text-6xl">
+                <h1 className="mt-3 max-w-full break-words text-[2rem] font-black leading-[1.05] tracking-tight text-white md:mt-4 md:text-6xl">
                   Welcome, {profile.fullName || "Customer"}
                 </h1>
 
@@ -498,7 +497,7 @@ export default function CustomerDashboardClient({
           </div>
         </section>
 
-        <section className="mx-auto mt-8 w-full max-w-[calc(100vw-24px)] overflow-x-hidden md:mt-10 md:max-w-full">
+        <section className="mx-auto mt-8 w-full max-w-full overflow-x-hidden md:mt-10">
           <div className="flex min-w-0 flex-col justify-between gap-3 md:flex-row md:items-end">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300 md:tracking-[0.45em]">
