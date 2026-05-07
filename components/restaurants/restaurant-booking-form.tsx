@@ -1,11 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   restaurantId: string;
   restaurantName: string;
   supplierId?: string | null;
+};
+
+type CustomerProfile = {
+  full_name?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
 };
 
 export default function RestaurantBookingForm({
@@ -14,6 +21,47 @@ export default function RestaurantBookingForm({
   supplierId,
 }: Props) {
   const [loading, setLoading] = useState(false);
+
+  const [customerName, setCustomerName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profile, setProfile] = useState<CustomerProfile | null>(null);
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        setProfileLoading(true);
+
+        const response = await fetch("/api/customer/profile", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        if (!data?.profile) return;
+
+        setProfile(data.profile);
+      } catch (error) {
+        console.error("LOAD_PROFILE_ERROR:", error);
+      } finally {
+        setProfileLoading(false);
+      }
+    }
+
+    loadProfile();
+  }, []);
+
+  function applyProfile() {
+    if (!profile) return;
+
+    setCustomerName(profile.full_name || "");
+    setPhone(profile.phone || "");
+    setWhatsapp(profile.whatsapp || "");
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,12 +157,25 @@ export default function RestaurantBookingForm({
             </div>
           </div>
 
+          {profile && (
+            <button
+              type="button"
+              onClick={applyProfile}
+              disabled={profileLoading}
+              className="mt-5 flex w-full items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-300/20"
+            >
+              Use My Profile Information
+            </button>
+          )}
+
           <form onSubmit={handleSubmit} className="mt-7 space-y-4">
             <Field label="Full Name">
               <input
                 name="customer_name"
                 placeholder="Your name"
                 required
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
                 className="booking-input"
               />
             </Field>
@@ -124,6 +185,8 @@ export default function RestaurantBookingForm({
                 name="phone"
                 placeholder="090..."
                 required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 className="booking-input"
               />
             </Field>
@@ -132,6 +195,8 @@ export default function RestaurantBookingForm({
               <input
                 name="whatsapp"
                 placeholder="+84..."
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
                 className="booking-input"
               />
             </Field>
