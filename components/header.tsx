@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
-
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/logout-button";
 import HeaderMobileMenu from "@/components/header-mobile-menu";
@@ -11,53 +9,30 @@ function getDashboardHref(role: string | null) {
   if (role === "supplier") return "/dashboard/supplier";
   if (role === "agent") return "/dashboard/agent";
   if (role === "customer") return "/dashboard/customer";
-
   return "/login";
 }
 
-function hasSupabaseAuthCookie(
-  cookieList: Awaited<ReturnType<typeof cookies>>,
-) {
-  return cookieList
-    .getAll()
-    .some(
-      (cookie) =>
-        cookie.name.startsWith("sb-") &&
-        (cookie.name.includes("auth-token") ||
-          cookie.name.includes("access-token") ||
-          cookie.name.includes("refresh-token")),
-    );
-}
-
 export default async function Header() {
-  const cookieStore = await cookies();
-  const hasAuthCookie = hasSupabaseAuthCookie(cookieStore);
+  const supabase = await createClient();
 
-  let user = null;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   let role: string | null = null;
 
-  if (hasAuthCookie) {
-    const supabase = await createClient();
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-
-    user = authUser;
-
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      role = profile?.role || user.user_metadata?.role || null;
-    }
+    role = profile?.role || user.user_metadata?.role || null;
   }
 
-  const dashboardHref = getDashboardHref(role);
   const isCustomer = role === "customer";
+  const dashboardHref = getDashboardHref(role);
 
   return (
     <header className="sticky top-0 z-[9999] w-full max-w-[100vw] overflow-x-clip border-b border-white/10 bg-[#080704]/95 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
@@ -72,7 +47,7 @@ export default async function Header() {
           </div>
 
           <div className="min-w-0 overflow-hidden">
-            <p className="truncate text-lg font-black leading-tight text-white md:text-xl">
+            <p className="truncate text-lg font-black text-white md:text-xl">
               Mvip Booking
             </p>
             <p className="truncate text-xs font-medium text-slate-500">
@@ -88,7 +63,7 @@ export default async function Header() {
                 <Link
                   href={dashboardHref}
                   prefetch
-                  className="rounded-2xl px-4 py-2 text-sm font-black text-slate-300 transition hover:bg-white/10 hover:text-white"
+                  className="rounded-2xl px-4 py-2 text-sm font-black text-slate-300 hover:bg-white/10"
                 >
                   Dashboard
                 </Link>
@@ -102,7 +77,7 @@ export default async function Header() {
             <Link
               href="/login?mode=register"
               prefetch
-              className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
+              className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950"
             >
               Register
             </Link>
