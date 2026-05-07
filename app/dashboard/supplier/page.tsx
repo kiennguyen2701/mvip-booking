@@ -177,12 +177,7 @@ export default async function SupplierDashboardPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <ActionCard
-              title="My Profile"
-              description="Cập nhật thông tin Supplier, hồ sơ doanh nghiệp và thông tin liên hệ."
-              href="/dashboard/supplier/profile"
-              icon="🏢"
-            />
+           
 
             <ActionCard
               title="My Restaurants"
