@@ -26,6 +26,7 @@ type Restaurant = {
   longitude?: number | null;
   price_range?: string | null;
   discount_percent?: number | null;
+  average_rating?: number | null;
 };
 
 type RestaurantWithDistance = Restaurant & {
@@ -51,15 +52,6 @@ function normalizeSearch(value: string) {
 function hardLockViewport() {
   document.documentElement.scrollLeft = 0;
   document.body.scrollLeft = 0;
-
-  document.documentElement.style.width = "100%";
-  document.body.style.width = "100%";
-
-  document.documentElement.style.maxWidth = "100%";
-  document.body.style.maxWidth = "100%";
-
-  document.documentElement.style.overflowX = "clip";
-  document.body.style.overflowX = "clip";
 }
 
 function getCuisine(item: Restaurant) {
@@ -78,6 +70,10 @@ function getDiscount(item: Restaurant) {
   return Number(item.discount_percent ?? 5);
 }
 
+function getAverageRating(item: Restaurant) {
+  return Number(item.average_rating ?? 4.8).toFixed(1);
+}
+
 function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const r = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -92,12 +88,6 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function formatDistance(distance: number | null) {
-  if (distance === null) return "Location unavailable";
-  if (distance < 1) return `${Math.round(distance * 1000)}m away`;
-  return `${distance.toFixed(1)}km away`;
-}
-
 const RestaurantCard = memo(function RestaurantCard({
   restaurant,
 }: {
@@ -106,6 +96,7 @@ const RestaurantCard = memo(function RestaurantCard({
   const image = getImage(restaurant);
   const cuisine = getCuisine(restaurant);
   const discount = getDiscount(restaurant);
+  const rating = getAverageRating(restaurant);
 
   const href = restaurant.slug
     ? `/restaurants/${restaurant.slug}`
@@ -120,10 +111,10 @@ const RestaurantCard = memo(function RestaurantCard({
       <div className="relative h-44 w-full overflow-hidden bg-[#12100b] sm:h-56">
         {image ? (
           <img
-            decoding="async"
             src={image}
             alt={restaurant.name || "Restaurant"}
             loading="lazy"
+            decoding="async"
             className="block h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
           />
         ) : (
@@ -158,18 +149,12 @@ const RestaurantCard = memo(function RestaurantCard({
         </p>
 
         <div className="mt-5 flex w-full max-w-full items-center justify-between gap-3 overflow-hidden">
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <p className="truncate text-sm font-bold text-slate-300">
-              📍 {restaurant.city || restaurant.address || "Vietnam"}
-            </p>
+          <p className="min-w-0 flex-1 truncate text-sm font-bold text-slate-300">
+            📍 {restaurant.city || "Vietnam"}
+          </p>
 
-            <p className="mt-1 truncate text-xs font-semibold text-slate-500">
-              {restaurant.price_range || formatDistance(restaurant.distance)}
-            </p>
-          </div>
-
-          <span className="shrink-0 rounded-2xl bg-amber-300 px-4 py-2 text-sm font-black text-slate-950 transition group-hover:bg-amber-200">
-            View
+          <span className="shrink-0 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-300">
+            {rating} ★
           </span>
         </div>
       </div>
@@ -197,12 +182,6 @@ export default function CustomerDashboardClient({
 
   useEffect(() => {
     hardLockViewport();
-
-    const timeout = setTimeout(() => {
-      hardLockViewport();
-    }, 120);
-
-    return () => clearTimeout(timeout);
   }, [query, cuisine, sortMode, nearbyOnly, visibleCount]);
 
   function handleSearch() {
@@ -376,14 +355,14 @@ export default function CustomerDashboardClient({
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
 
   return (
-    <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-clip bg-[#050403] pb-10 text-white">
+    <main className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[#050403] pb-10 text-white">
       <div className="pointer-events-none absolute inset-0 w-full max-w-full overflow-hidden">
         <div className="absolute left-1/2 top-0 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
         <div className="absolute right-0 top-40 h-[220px] w-[220px] rounded-full bg-orange-900/20 blur-3xl md:h-[440px] md:w-[440px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.12)_1px,transparent_0)] [background-size:28px_28px]" />
       </div>
 
-      <div className="relative mx-auto w-full max-w-7xl overflow-x-clip px-3 py-5 sm:px-4 md:px-6 md:py-8">
+      <div className="relative mx-auto w-full max-w-7xl overflow-x-hidden px-3 py-5 sm:px-4 md:px-6 md:py-8">
         <section className="relative mx-auto w-full max-w-full overflow-hidden rounded-[1.5rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] md:rounded-[2.4rem] md:p-8">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -left-20 -top-24 h-60 w-60 rounded-full bg-amber-400/10 blur-3xl md:h-72 md:w-72" />
@@ -544,7 +523,7 @@ export default function CustomerDashboardClient({
               top picks ✨
             </div>
           ) : (
-            <div className="mt-6 grid w-full min-w-0 grid-cols-1 gap-5 overflow-x-clip md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-6 grid w-full min-w-0 grid-cols-1 gap-5 overflow-hidden md:grid-cols-2 xl:grid-cols-3">
               {visibleRestaurants.map((restaurant) => (
                 <RestaurantCard key={restaurant.id} restaurant={restaurant} />
               ))}
