@@ -13,12 +13,16 @@ const nextConfig = {
     ],
   },
 
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
+
   typescript: {
-    ignoreBuildErrors: true, // ✅ tránh fail build
+    ignoreBuildErrors: true,
   },
 
   eslint: {
-    ignoreDuringBuilds: true, // ✅ tránh fail do lint
+    ignoreDuringBuilds: true,
   },
 };
 

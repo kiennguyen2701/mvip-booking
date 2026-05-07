@@ -3,10 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 export async function getPublicRestaurantDetail(slug: string) {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   // Lấy restaurant trước (KHÔNG filter is_active)
   const { data: restaurant, error } = await supabase
     .from("restaurants")
@@ -16,8 +12,12 @@ export async function getPublicRestaurantDetail(slug: string) {
 
   if (error || !restaurant) return null;
 
-  // Nếu active → cho xem luôn
+  // Nếu active → cho xem luôn, không cần gọi auth
   if (restaurant.is_active) return restaurant;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Nếu chưa login → không cho xem
   if (!user) return null;

@@ -50,7 +50,10 @@ export async function getPublicRestaurants({
 }: GetPublicRestaurantsParams = {}) {
   const supabase = await createClient();
 
-  const safeLimit = Math.min(Math.max(limit, 1), 120);
+  const hasClientSideFilter = Boolean(query || city || tag);
+  const safeLimit = hasClientSideFilter
+    ? Math.min(Math.max(limit * 4, 120), 300)
+    : Math.min(Math.max(limit, 1), 120);
 
   let request = supabase
     .from("restaurants")
@@ -92,29 +95,31 @@ export async function getPublicRestaurants({
   const normalizedCity = normalizeText(city);
   const normalizedTag = normalizeText(tag);
 
-  return (data || []).filter((restaurant) => {
-    const tags = Array.isArray(restaurant.tags) ? restaurant.tags : [];
+  return (data || [])
+    .filter((restaurant) => {
+      const tags = Array.isArray(restaurant.tags) ? restaurant.tags : [];
 
-    const matchQuery =
-      !normalizedQuery ||
-      includesNormalized(restaurant.name, normalizedQuery) ||
-      includesNormalized(restaurant.address, normalizedQuery) ||
-      includesNormalized(restaurant.city, normalizedQuery) ||
-      includesNormalized(restaurant.cuisine_type, normalizedQuery) ||
-      includesNormalized(restaurant.cuisine, normalizedQuery) ||
-      includesNormalized(restaurant.category, normalizedQuery) ||
-      tags.some((item) => includesNormalized(item, normalizedQuery));
+      const matchQuery =
+        !normalizedQuery ||
+        includesNormalized(restaurant.name, normalizedQuery) ||
+        includesNormalized(restaurant.address, normalizedQuery) ||
+        includesNormalized(restaurant.city, normalizedQuery) ||
+        includesNormalized(restaurant.cuisine_type, normalizedQuery) ||
+        includesNormalized(restaurant.cuisine, normalizedQuery) ||
+        includesNormalized(restaurant.category, normalizedQuery) ||
+        tags.some((item) => includesNormalized(item, normalizedQuery));
 
-    const matchCity =
-      !normalizedCity || includesNormalized(restaurant.city, normalizedCity);
+      const matchCity =
+        !normalizedCity || includesNormalized(restaurant.city, normalizedCity);
 
-    const matchTag =
-      !normalizedTag ||
-      tags.some((item) => includesNormalized(item, normalizedTag)) ||
-      includesNormalized(restaurant.cuisine_type, normalizedTag) ||
-      includesNormalized(restaurant.cuisine, normalizedTag) ||
-      includesNormalized(restaurant.category, normalizedTag);
+      const matchTag =
+        !normalizedTag ||
+        tags.some((item) => includesNormalized(item, normalizedTag)) ||
+        includesNormalized(restaurant.cuisine_type, normalizedTag) ||
+        includesNormalized(restaurant.cuisine, normalizedTag) ||
+        includesNormalized(restaurant.category, normalizedTag);
 
-    return matchQuery && matchCity && matchTag;
-  });
+      return matchQuery && matchCity && matchTag;
+    })
+    .slice(0, limit);
 }

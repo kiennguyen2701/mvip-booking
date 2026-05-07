@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/logout-button";
 import HeaderMobileMenu from "@/components/header-mobile-menu";
@@ -12,23 +13,43 @@ function getDashboardHref(role: string | null) {
   return "/login";
 }
 
+function hasSupabaseAuthCookie(cookieList: Awaited<ReturnType<typeof cookies>>) {
+  return cookieList
+    .getAll()
+    .some(
+      (cookie) =>
+        cookie.name.startsWith("sb-") &&
+        (cookie.name.includes("auth-token") ||
+          cookie.name.includes("access-token") ||
+          cookie.name.includes("refresh-token"))
+    );
+}
+
 export default async function Header() {
-  const supabase = await createClient();
+  const cookieStore = await cookies();
+  const hasAuthCookie = hasSupabaseAuthCookie(cookieStore);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  let user = null;
   let role: string | null = null;
 
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
+  if (hasAuthCookie) {
+    const supabase = await createClient();
 
-    role = profile?.role || user.user_metadata?.role || null;
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    user = authUser;
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      role = profile?.role || user.user_metadata?.role || null;
+    }
   }
 
   const isCustomer = role === "customer";
