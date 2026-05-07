@@ -11,6 +11,7 @@ function getDashboardHref(role: string | null) {
   if (role === "supplier") return "/dashboard/supplier";
   if (role === "agent") return "/dashboard/agent";
   if (role === "customer") return "/dashboard/customer";
+
   return "/login";
 }
 
@@ -59,43 +60,39 @@ export default async function Header() {
   const isCustomer = role === "customer";
 
   return (
-    <header className="sticky top-0 z-[9999] w-full max-w-[100vw] overflow-x-clip border-b border-white/10 bg-[#080704]/95 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
+    <header className="sticky top-0 z-[9999] border-b border-white/10 bg-[#080704]/95 text-white backdrop-blur-xl">
       <div className="mx-auto flex h-[92px] w-full max-w-7xl items-center justify-between gap-4 px-4 md:h-[96px] md:px-6">
+        {/* LOGO */}
         <Link
           href={dashboardHref}
           prefetch
-          className="flex min-w-0 shrink-0 items-center gap-3 overflow-hidden md:w-[320px]"
+          className="flex min-w-0 items-center gap-3"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-xl text-slate-950 shadow-xl shadow-amber-950/20">
             ♛
           </div>
 
-          <div className="min-w-0 overflow-hidden">
+          <div className="min-w-0">
             <p className="truncate text-xl font-black leading-tight text-white">
               Mvip Booking
             </p>
+
             <p className="truncate text-xs font-semibold text-slate-500">
               Premium booking platform
             </p>
           </div>
         </Link>
 
-        <nav className="hidden flex-1 items-center justify-end gap-3 md:flex">
+        {/* DESKTOP */}
+        <div className="hidden items-center gap-3 md:flex">
           {user ? (
-            isCustomer ? (
-              <CustomerHeaderMenu />
-            ) : (
-              <>
-                <Link
-                  href={dashboardHref}
-                  prefetch
-                  className="rounded-2xl px-4 py-2 text-sm font-black text-slate-300 transition hover:bg-white/10 hover:text-white"
-                >
-                  Dashboard
-                </Link>
+            <>
+              {isCustomer ? (
+                <CustomerHeaderMenu />
+              ) : (
                 <LogoutButton />
-              </>
-            )
+              )}
+            </>
           ) : (
             <Link
               href="/login?mode=register"
@@ -105,10 +102,11 @@ export default async function Header() {
               Register
             </Link>
           )}
-        </nav>
+        </div>
 
+        {/* MOBILE */}
         {user && (
-          <div className="shrink-0 md:hidden">
+          <div className="md:hidden">
             <HeaderMobileMenu isLoggedIn={!!user} role={role} />
           </div>
         )}
