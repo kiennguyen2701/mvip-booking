@@ -46,7 +46,7 @@ function getText(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
 }
 
-async function getSupplierId() {
+async function getSupplierContext() {
   const supabase = await createClient();
 
   const {
@@ -63,7 +63,10 @@ async function getSupplierId() {
 
   if (!supplier) throw new Error("Supplier profile not found");
 
-  return supplier.id as string;
+  return {
+    userId: user.id,
+    supplierId: supplier.id as string,
+  };
 }
 
 async function uploadRestaurantImage(file: File, supplierId: string) {
@@ -177,7 +180,6 @@ async function buildPayload(formData: FormData, supplierId: string) {
       discount_percent: discountPercent,
       tags: parseCommaList(formData.get("tags")),
       amenities: parseCommaList(formData.get("amenities")),
-      is_active: false,
       updated_at: new Date().toISOString(),
     },
   };
@@ -188,7 +190,7 @@ export async function createRestaurant(
   formData: FormData,
 ): Promise<RestaurantManagerState> {
   try {
-    const supplierId = await getSupplierId();
+    const { supplierId } = await getSupplierContext();
     const { errors, payload } = await buildPayload(formData, supplierId);
 
     if (Object.keys(errors).length > 0) {
@@ -201,6 +203,8 @@ export async function createRestaurant(
 
     const { error } = await adminClient.from("restaurants").insert({
       ...payload,
+      status: "pending_review",
+      is_active: false,
       created_at: new Date().toISOString(),
     });
 
@@ -212,13 +216,14 @@ export async function createRestaurant(
     }
 
     revalidatePath("/dashboard/supplier/restaurants");
+    revalidatePath("/dashboard/admin/supplier-requests");
     revalidatePath("/dashboard/customer");
     revalidatePath("/restaurants");
 
     return {
       success: true,
       message:
-        "Đã tạo restaurant. Trạng thái mặc định là Inactive, chờ Admin duyệt.",
+        "Đã gửi restaurant mới lên Admin duyệt. Nhà hàng sẽ hiển thị sau khi được approve.",
     };
   } catch (error) {
     return {
@@ -234,13 +239,27 @@ export async function updateRestaurant(
   formData: FormData,
 ): Promise<RestaurantManagerState> {
   try {
-    const supplierId = await getSupplierId();
+    const { supplierId, userId } = await getSupplierContext();
     const restaurantId = getText(formData, "restaurant_id");
 
     if (!restaurantId) {
       return {
         success: false,
         message: "Missing restaurant id.",
+      };
+    }
+
+    const { data: currentRestaurant, error: currentError } = await adminClient
+      .from("restaurants")
+      .select("*")
+      .eq("id", restaurantId)
+      .eq("supplier_id", supplierId)
+      .maybeSingle();
+
+    if (currentError || !currentRestaurant) {
+      return {
+        success: false,
+        message: "Không tìm thấy restaurant thuộc supplier này.",
       };
     }
 
@@ -254,27 +273,42 @@ export async function updateRestaurant(
       };
     }
 
-    const { error } = await adminClient
-      .from("restaurants")
-      .update(payload)
-      .eq("id", restaurantId)
-      .eq("supplier_id", supplierId);
+    const { error: requestError } = await adminClient
+      .from("restaurant_change_requests")
+      .insert({
+        restaurant_id: restaurantId,
+        supplier_id: supplierId,
+        status: "pending_review",
+        old_data: currentRestaurant,
+        new_data: payload,
+        requested_by: userId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
 
-    if (error) {
+    if (requestError) {
       return {
         success: false,
-        message: error.message,
+        message: requestError.message,
       };
     }
 
+    await adminClient
+      .from("restaurants")
+      .update({
+        status: "pending_review",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", restaurantId)
+      .eq("supplier_id", supplierId);
+
     revalidatePath("/dashboard/supplier/restaurants");
-    revalidatePath("/dashboard/customer");
-    revalidatePath("/restaurants");
-    revalidatePath(`/restaurants/${payload.slug}`);
+    revalidatePath("/dashboard/admin/supplier-requests");
 
     return {
       success: true,
-      message: "Đã cập nhật restaurant.",
+      message:
+        "Đã gửi yêu cầu thay đổi lên Admin duyệt. Dữ liệu public cũ vẫn được giữ nguyên cho đến khi Admin approve.",
     };
   } catch (error) {
     return {
