@@ -18,6 +18,7 @@ type RestaurantItem = {
   full_description?: string | null;
   cover_image?: string | null;
   gallery_images?: string[] | null;
+  menu_images?: string[] | null;
   address?: string | null;
   city?: string | null;
   latitude?: number | null;
@@ -619,6 +620,140 @@ function ImageUploader({ restaurant }: { restaurant?: RestaurantItem | null }) {
   );
 }
 
+function MenuImageUploader({
+  restaurant,
+}: {
+  restaurant?: RestaurantItem | null;
+}) {
+  const initialMenuImages = restaurant?.menu_images || [];
+  const [existingMenuImages, setExistingMenuImages] =
+    useState<string[]>(initialMenuImages);
+  const [menuPreview, setMenuPreview] = useState<string[]>([]);
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="text-lg font-black text-slate-950">Hình ảnh Menu</h2>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Upload nhiều ảnh menu hoặc dán link ảnh menu. Ảnh upload cũng sẽ được
+        nén trước khi lưu.
+      </p>
+
+      <input
+        type="hidden"
+        name="existing_menu_images"
+        value={existingMenuImages.join("\n")}
+      />
+
+      <div className="mt-4 grid gap-4">
+        <TextArea
+          label="Thêm ảnh Menu mới, mỗi dòng 1 link"
+          name="menu_images"
+          defaultValue=""
+          rows={5}
+          placeholder={`https://menu-1.jpg\nhttps://menu-2.jpg`}
+        />
+
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-slate-800">
+            Upload ảnh menu
+          </label>
+
+          <input
+            name="menu_image_files"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm"
+            onChange={(event) => {
+              const files = Array.from(event.target.files || []);
+              setMenuPreview(files.map((file) => URL.createObjectURL(file)));
+            }}
+          />
+
+          <p className="text-xs font-semibold text-slate-500">
+            Có thể chọn nhiều ảnh menu cùng lúc.
+          </p>
+        </div>
+
+        {!!menuPreview.length && (
+          <div>
+            <p className="mb-2 text-sm font-bold text-slate-800">
+              Menu preview mới
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              {menuPreview.map((img) => (
+                <div
+                  key={img}
+                  className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                >
+                  <img
+                    src={img}
+                    alt="Menu preview"
+                    className="h-40 w-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {existingMenuImages.length > 0 && (
+          <div>
+            <p className="mb-2 text-sm font-bold text-slate-800">
+              Menu hiện tại
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              {existingMenuImages.map((img) => {
+                const url = getRestaurantImageUrl(img) || img;
+
+                return (
+                  <div
+                    key={img}
+                    className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                  >
+                    <img
+                      src={url}
+                      alt="Menu"
+                      className="h-40 w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExistingMenuImages((current) =>
+                          current.filter((item) => item !== img),
+                        );
+                      }}
+                      className="absolute right-2 top-2 rounded-full bg-red-600 px-2 py-1 text-[10px] font-black text-white shadow hover:bg-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-2 text-xs font-semibold text-slate-500">
+              Những ảnh menu đã remove sẽ bị xóa khỏi menu sau khi bấm lưu cập
+              nhật.
+            </p>
+          </div>
+        )}
+
+        {!existingMenuImages.length && restaurant?.menu_images?.length ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            All current menu images will be removed after saving.
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function RestaurantForm({
   mode,
   restaurant,
@@ -665,6 +800,21 @@ function RestaurantForm({
           });
 
           formData.append("gallery_image_files", compressedGallery);
+        }
+      }
+
+      const menuFiles = formData.getAll("menu_image_files");
+      formData.delete("menu_image_files");
+
+      for (const item of menuFiles) {
+        if (item instanceof File && item.size > 0) {
+          const compressedMenu = await compressImageFile(item, {
+            maxWidth: 1600,
+            maxHeight: 2200,
+            targetKb: 750,
+          });
+
+          formData.append("menu_image_files", compressedMenu);
         }
       }
 
@@ -790,6 +940,8 @@ function RestaurantForm({
       </section>
 
       <ImageUploader restaurant={restaurant} />
+
+      <MenuImageUploader restaurant={restaurant} />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-black text-slate-950">Giờ mở cửa</h2>
