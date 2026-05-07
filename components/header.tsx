@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/logout-button";
 import HeaderMobileMenu from "@/components/header-mobile-menu";
@@ -10,10 +11,13 @@ function getDashboardHref(role: string | null) {
   if (role === "supplier") return "/dashboard/supplier";
   if (role === "agent") return "/dashboard/agent";
   if (role === "customer") return "/dashboard/customer";
+
   return "/login";
 }
 
-function hasSupabaseAuthCookie(cookieList: Awaited<ReturnType<typeof cookies>>) {
+function hasSupabaseAuthCookie(
+  cookieList: Awaited<ReturnType<typeof cookies>>
+) {
   return cookieList
     .getAll()
     .some(
@@ -27,6 +31,7 @@ function hasSupabaseAuthCookie(cookieList: Awaited<ReturnType<typeof cookies>>) 
 
 export default async function Header() {
   const cookieStore = await cookies();
+
   const hasAuthCookie = hasSupabaseAuthCookie(cookieStore);
 
   let user = null;
@@ -52,39 +57,41 @@ export default async function Header() {
     }
   }
 
-  const isCustomer = role === "customer";
   const dashboardHref = getDashboardHref(role);
 
+  const isCustomer = role === "customer";
+
   return (
-    <header className="sticky top-0 z-[9999] w-full max-w-[100vw] border-b border-white/10 bg-[#080704]/95 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4">
+    <header className="sticky top-0 z-[9999] w-full overflow-x-hidden border-b border-white/10 bg-[#080704]/95 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 overflow-hidden px-3 py-3 md:px-6 md:py-4">
         <Link
           href={dashboardHref}
           prefetch
-          className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden"
+          className="flex min-w-0 max-w-full flex-1 items-center gap-3 overflow-hidden"
         >
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-slate-950">
             ♛
           </div>
 
           <div className="min-w-0 overflow-hidden">
-            <p className="truncate text-lg font-black text-white md:text-xl">
+            <p className="truncate text-lg font-black leading-none text-white md:text-xl">
               Mvip Booking
             </p>
-            <p className="truncate text-xs font-medium text-slate-500">
+
+            <p className="mt-1 truncate text-xs font-medium text-slate-500">
               Premium booking platform
             </p>
           </div>
         </Link>
 
-        <nav className="hidden shrink-0 items-center gap-3 md:flex">
+        <nav className="hidden shrink-0 items-center gap-2 lg:flex">
           {user ? (
             <>
               {!isCustomer && (
                 <Link
                   href={dashboardHref}
                   prefetch
-                  className="rounded-2xl px-4 py-2 text-sm font-black text-slate-300 hover:bg-white/10"
+                  className="rounded-2xl px-4 py-2 text-sm font-black text-slate-300 transition hover:bg-white/10"
                 >
                   Dashboard
                 </Link>
@@ -98,7 +105,7 @@ export default async function Header() {
             <Link
               href="/login?mode=register"
               prefetch
-              className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950"
+              className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:opacity-90"
             >
               Register
             </Link>
@@ -106,7 +113,7 @@ export default async function Header() {
         </nav>
 
         {user && (
-          <div className="shrink-0 md:hidden">
+          <div className="shrink-0 lg:hidden">
             <HeaderMobileMenu isLoggedIn={!!user} role={role} />
           </div>
         )}
