@@ -28,7 +28,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
 
       <section className="relative mx-auto w-full max-w-7xl overflow-hidden px-4 py-4 md:px-6 md:py-6">
         <div className="mb-4 flex min-w-0 items-center gap-2 text-xs text-slate-400 md:text-sm">
-          <Link href="/restaurants" className="shrink-0 font-bold hover:text-amber-200">
+          <Link href="/dashboard/customer" className="shrink-0 font-bold hover:text-amber-200">
             Restaurants
           </Link>
           <span className="shrink-0">/</span>
