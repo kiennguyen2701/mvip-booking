@@ -165,12 +165,7 @@ export default async function CustomerProfilePage({
                     </p>
                   </div>
 
-                  <div className="rounded-2xl bg-black/30 p-4">
-                    <p className="font-bold text-slate-500">Referral Code</p>
-                    <p className="mt-1 font-black text-amber-300">
-                      {profile?.referred_by_ref_code || 'No referral'}
-                    </p>
-                  </div>
+                 
                 </div>
               </div>
 
