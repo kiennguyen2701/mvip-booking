@@ -21,28 +21,30 @@ type RestaurantRequest = {
 };
 
 function isPendingRequest(restaurant: RestaurantRequest) {
-  return (
-    restaurant.status === "pending_review" ||
-    restaurant.status === "pending" ||
-    (!restaurant.is_active &&
-      restaurant.status !== "approved" &&
-      restaurant.status !== "rejected")
-  );
+  return !restaurant.is_active;
+}
+
+function isApprovedRequest(restaurant: RestaurantRequest) {
+  return !!restaurant.is_active;
+}
+
+function isRejectedRequest(restaurant: RestaurantRequest) {
+  return restaurant.status === "rejected";
 }
 
 function getStatusLabel(status: string | null, isActive: boolean | null) {
-  if (status === "approved" || isActive) return "Approved";
   if (status === "rejected") return "Rejected";
+  if (isActive) return "Approved";
   return "Pending Review";
 }
 
 function getStatusClass(status: string | null, isActive: boolean | null) {
-  if (status === "approved" || isActive) {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  }
-
   if (status === "rejected") {
     return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  if (isActive) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
 
   return "border-amber-200 bg-amber-50 text-amber-700";
@@ -95,8 +97,8 @@ function EmptyState() {
         Không có request đang chờ duyệt
       </h3>
       <p className="mt-2 text-sm leading-6 text-slate-500">
-        Khi supplier tạo restaurant mới hoặc restaurant đang inactive, request sẽ
-        xuất hiện tại đây.
+        Khi supplier tạo restaurant mới hoặc restaurant đang inactive, request
+        sẽ xuất hiện tại đây.
       </p>
     </div>
   );
@@ -265,7 +267,9 @@ export default async function SupplierRequestsPage() {
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-8">
         <div className="mx-auto max-w-6xl rounded-3xl border border-red-200 bg-white p-6 text-red-700 shadow-sm">
-          <h1 className="text-xl font-black">Không tải được Supplier Requests</h1>
+          <h1 className="text-xl font-black">
+            Không tải được Supplier Requests
+          </h1>
           <p className="mt-2 text-sm">{error.message}</p>
         </div>
       </main>
@@ -275,14 +279,8 @@ export default async function SupplierRequestsPage() {
   const restaurants = (data || []) as RestaurantRequest[];
 
   const pending = restaurants.filter(isPendingRequest);
-
-  const approved = restaurants.filter(
-    (restaurant) => restaurant.status === "approved" || restaurant.is_active,
-  );
-
-  const rejected = restaurants.filter(
-    (restaurant) => restaurant.status === "rejected",
-  );
+  const approved = restaurants.filter(isApprovedRequest);
+  const rejected = restaurants.filter(isRejectedRequest);
 
   const reviewed = restaurants
     .filter((restaurant) => !isPendingRequest(restaurant))
