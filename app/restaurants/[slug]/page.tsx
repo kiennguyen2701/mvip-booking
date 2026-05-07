@@ -92,6 +92,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
               tags={restaurant.tags}
               amenities={restaurant.amenities}
               priceRange={restaurant.price_range}
+              menuImages={restaurant.menu_images || []}
             />
           </div>
 

@@ -1,48 +1,20 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import RestaurantManager from "@/app/dashboard/supplier/restaurants/restaurant-manager";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-export const dynamic = "force-dynamic";
-
-type RestaurantRow = {
-  id: string;
-  supplier_id: string;
-  name: string;
-  slug: string;
-  short_description: string | null;
-  full_description: string | null;
-  cover_image: string | null;
-  gallery_images: string[] | null;
-  address: string | null;
-  city: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  phone: string | null;
-  whatsapp: string | null;
-  opening_hours: Record<string, string> | null;
-  price_range: string | null;
-  discount_percent: number | null;
-  tags: string[] | null;
-  amenities: string[] | null;
-  is_active: boolean;
-  is_featured: boolean;
-  created_at: string | null;
-  updated_at: string | null;
+type PageProps = {
+  searchParams: Promise<{
+    edit?: string;
+  }>;
 };
-
-type SearchParams = Promise<{
-  edit?: string;
-}>;
 
 export default async function SupplierRestaurantsPage({
   searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const params = await searchParams;
-  const editId = params.edit ?? "";
-
+}: PageProps) {
   const supabase = await createClient();
+  const adminClient = createAdminClient();
+  const { edit } = await searchParams;
 
   const {
     data: { user },
@@ -50,23 +22,27 @@ export default async function SupplierRestaurantsPage({
 
   if (!user) redirect("/login");
 
-  const { data: supplier, error: supplierError } = await supabase
-    .from("suppliers")
-    .select("id, company_name")
-    .eq("user_id", user.id)
-    .single();
+  const { data: profile } = await adminClient
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
 
-  if (supplierError || !supplier) {
-    return (
-      <div className="mx-auto max-w-6xl p-4 md:p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          Không tìm thấy supplier gắn với tài khoản hiện tại.
-        </div>
-      </div>
-    );
+  if (profile?.role !== "supplier") {
+    redirect("/dashboard");
   }
 
-  const { data: restaurants, error: restaurantsError } = await supabase
+  const { data: supplier } = await adminClient
+    .from("suppliers")
+    .select("id, business_name")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!supplier) {
+    redirect("/dashboard/supplier");
+  }
+
+  const { data: restaurants } = await adminClient
     .from("restaurants")
     .select(
       `
@@ -78,6 +54,7 @@ export default async function SupplierRestaurantsPage({
       full_description,
       cover_image,
       gallery_images,
+      menu_images,
       address,
       city,
       latitude,
@@ -96,48 +73,34 @@ export default async function SupplierRestaurantsPage({
     `,
     )
     .eq("supplier_id", supplier.id)
-    .order("updated_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .order("created_at", { ascending: false });
 
-  if (restaurantsError) {
-    return (
-      <div className="mx-auto max-w-6xl p-4 md:p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          Không tải được danh sách nhà hàng: {restaurantsError.message}
-        </div>
-      </div>
-    );
-  }
-
-  const restaurantList = (restaurants ?? []) as RestaurantRow[];
   const editingRestaurant =
-    restaurantList.find((item) => item.id === editId) ?? null;
+    restaurants?.find((restaurant) => restaurant.id === edit) || null;
 
   return (
-    <div className="mx-auto max-w-7xl p-4 md:p-6">
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Quản lý nhà hàng
+    <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-950 md:px-6">
+      <section className="mx-auto max-w-7xl">
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-500">
+            Supplier Dashboard
+          </p>
+
+          <h1 className="mt-2 text-3xl font-black text-slate-950">
+            Restaurants
           </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Supplier có thể tạo nhiều nhà hàng, chỉnh nội dung và bật/tắt hiển thị.
+
+          <p className="mt-2 text-sm text-slate-500">
+            Quản lý nhà hàng, hình ảnh, menu, vị trí, giờ mở cửa và nội dung
+            hiển thị trên trang detail.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
-          <div className="font-medium text-slate-900">Supplier</div>
-          <div className="text-slate-600">
-            {supplier.company_name || "Unnamed Supplier"}
-          </div>
-        </div>
-      </div>
-
-      <RestaurantManager
-        restaurants={restaurantList}
-        editingRestaurant={editingRestaurant}
-      />
-    </div>
+        <RestaurantManager
+          restaurants={restaurants || []}
+          editingRestaurant={editingRestaurant}
+        />
+      </section>
+    </main>
   );
 }

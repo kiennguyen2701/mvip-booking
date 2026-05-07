@@ -82,17 +82,27 @@ async function uploadRestaurantImage(file: File, supplierId: string) {
       upsert: false,
     });
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
   return filePath;
+}
+
+async function uploadMany(files: File[], supplierId: string) {
+  const uploaded: string[] = [];
+
+  for (const file of files) {
+    if (file && file.size > 0) {
+      uploaded.push(await uploadRestaurantImage(file, supplierId));
+    }
+  }
+
+  return uploaded;
 }
 
 async function buildPayload(formData: FormData, supplierId: string) {
   const name = getText(formData, "name");
   const manualSlug = getText(formData, "slug");
-  const slug = manualSlug || slugify(name);
+  const slug = manualSlug ? slugify(manualSlug) : slugify(name);
 
   const coverImageUrl = getText(formData, "cover_image");
   const existingCoverImage = getText(formData, "existing_cover_image");
@@ -109,15 +119,7 @@ async function buildPayload(formData: FormData, supplierId: string) {
     formData.get("existing_gallery_images"),
   );
   const galleryFiles = formData.getAll("gallery_image_files") as File[];
-
-  const uploadedGalleryImages: string[] = [];
-
-  for (const file of galleryFiles) {
-    if (file && file.size > 0) {
-      const uploadedPath = await uploadRestaurantImage(file, supplierId);
-      uploadedGalleryImages.push(uploadedPath);
-    }
-  }
+  const uploadedGalleryImages = await uploadMany(galleryFiles, supplierId);
 
   const galleryImages = Array.from(
     new Set([
@@ -125,6 +127,15 @@ async function buildPayload(formData: FormData, supplierId: string) {
       ...galleryTextImages,
       ...uploadedGalleryImages,
     ]),
+  );
+
+  const menuTextImages = parseLines(formData.get("menu_images"));
+  const existingMenuImages = parseLines(formData.get("existing_menu_images"));
+  const menuFiles = formData.getAll("menu_image_files") as File[];
+  const uploadedMenuImages = await uploadMany(menuFiles, supplierId);
+
+  const menuImages = Array.from(
+    new Set([...existingMenuImages, ...menuTextImages, ...uploadedMenuImages]),
   );
 
   const discountPercent = toNullableNumber(formData.get("discount_percent")) ?? 5;
@@ -160,6 +171,7 @@ async function buildPayload(formData: FormData, supplierId: string) {
       full_description: getText(formData, "full_description") || null,
       cover_image: coverImage || null,
       gallery_images: galleryImages,
+      menu_images: menuImages,
       opening_hours: openingHours,
       price_range: getText(formData, "price_range") || null,
       discount_percent: discountPercent,
@@ -201,6 +213,7 @@ export async function createRestaurant(
 
     revalidatePath("/dashboard/supplier/restaurants");
     revalidatePath("/dashboard/customer");
+    revalidatePath("/restaurants");
 
     return {
       success: true,
@@ -256,6 +269,8 @@ export async function updateRestaurant(
 
     revalidatePath("/dashboard/supplier/restaurants");
     revalidatePath("/dashboard/customer");
+    revalidatePath("/restaurants");
+    revalidatePath(`/restaurants/${payload.slug}`);
 
     return {
       success: true,
