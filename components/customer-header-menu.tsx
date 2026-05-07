@@ -19,38 +19,47 @@ export default function CustomerHeaderMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[calc(100%+12px)] z-[9999] w-60 overflow-hidden rounded-2xl border border-white/10 bg-[#11100c] text-white shadow-2xl shadow-black/80 ring-1 ring-amber-300/10">
-          <Link
-            href="/dashboard/customer"
-            prefetch
+        <>
+          <button
+            type="button"
+            aria-label="Close customer menu"
             onClick={() => setOpen(false)}
-            className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
-          >
-            Dashboard
-          </Link>
+            className="fixed inset-0 z-[9998] cursor-default bg-transparent"
+          />
 
-          <Link
-            href="/dashboard/customer/bookings"
-            prefetch
-            onClick={() => setOpen(false)}
-            className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
-          >
-            My Bookings
-          </Link>
+          <div className="fixed right-6 top-[92px] z-[9999] w-64 overflow-hidden rounded-2xl border border-white/10 bg-[#11100c] text-white shadow-2xl shadow-black/80 ring-1 ring-amber-300/10">
+            <Link
+              href="/dashboard/customer"
+              prefetch
+              onClick={() => setOpen(false)}
+              className="block whitespace-nowrap px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white"
+            >
+              Dashboard
+            </Link>
 
-          <Link
-            href="/dashboard/customer/profile"
-            prefetch
-            onClick={() => setOpen(false)}
-            className="block px-4 py-3 text-sm font-black text-slate-200 hover:bg-white/10"
-          >
-            My Profile
-          </Link>
+            <Link
+              href="/dashboard/customer/bookings"
+              prefetch
+              onClick={() => setOpen(false)}
+              className="block whitespace-nowrap px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white"
+            >
+              My Bookings
+            </Link>
 
-          <div className="border-t border-white/10 p-2">
-            <LogoutButton />
+            <Link
+              href="/dashboard/customer/profile"
+              prefetch
+              onClick={() => setOpen(false)}
+              className="block whitespace-nowrap px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white"
+            >
+              My Profile
+            </Link>
+
+            <div className="border-t border-white/10 p-3">
+              <LogoutButton />
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
