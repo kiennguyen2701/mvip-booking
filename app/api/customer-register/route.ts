@@ -122,9 +122,12 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
+      autoLogin: true,
       userId: authUser.user.id,
       refCode: agent?.ref_code || null,
       agentId: agent?.id || null,
+      email,
+      password,
     });
 
     if (agent?.ref_code) {

@@ -3,12 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { createClient } from "@/lib/supabase/client";
+
 export default function CustomerRegisterForm({
   initialRefCode,
 }: {
   initialRefCode?: string;
 }) {
   const router = useRouter();
+  const supabase = createClient();
+
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -31,6 +35,7 @@ export default function CustomerRegisterForm({
 
   function saveRefCode(refCode: string) {
     const cleanRef = refCode.trim().toUpperCase();
+
     if (!cleanRef) return;
 
     localStorage.setItem("agent_ref", cleanRef);
@@ -47,33 +52,55 @@ export default function CustomerRegisterForm({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setError("");
     setSuccess("");
 
     startTransition(async () => {
-      saveRefCode(form.refCode);
+      try {
+        saveRefCode(form.refCode);
 
-      const response = await fetch("/api/customer-register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
+        const response = await fetch("/api/customer-register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(form),
+        });
 
-      const result = await response.json();
+        const result = await response.json();
 
-      if (!response.ok) {
-        setError(result.error || "Registration failed.");
-        return;
+        if (!response.ok) {
+          setError(result.error || "Registration failed.");
+          return;
+        }
+
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: form.email,
+          password: form.password,
+        });
+
+        if (loginError) {
+          setSuccess(
+            "Account created successfully. Please login to continue.",
+          );
+
+          router.replace(
+            `/login?registered=1&email=${encodeURIComponent(form.email)}`,
+          );
+
+          router.refresh();
+          return;
+        }
+
+        setSuccess("Account created successfully. Redirecting...");
+
+        router.replace("/dashboard/customer");
+        router.refresh();
+      } catch (err) {
+        console.error(err);
+        setError("Registration failed.");
       }
-
-      setSuccess("Account created successfully. Please login.");
-
-      router.replace(
-        `/login?registered=1&email=${encodeURIComponent(form.email)}`,
-      );
-      router.refresh();
     });
   }
 
@@ -147,13 +174,19 @@ export default function CustomerRegisterForm({
           className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
         />
 
-        <input type="hidden" name="refCode" value={form.refCode} />
+        <input
+          value={form.refCode}
+          onChange={(event) => updateField("refCode", event.target.value)}
+          placeholder="Referral code (optional)"
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm font-semibold uppercase text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+        />
 
         <button
+          type="submit"
           disabled={pending}
-          className="w-full rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950 shadow-xl shadow-amber-900/20 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-500 text-base font-black text-slate-950 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {pending ? "Creating account..." : "Create Account"}
+          {pending ? "Creating account..." : "Create account"}
         </button>
       </form>
     </section>
