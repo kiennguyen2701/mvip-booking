@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { adminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentSupplier } from "@/lib/suppliers/get-current-supplier";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { BookingStatusTimeline } from "@/components/dashboard/booking-status-timeline";
@@ -39,6 +38,7 @@ type BookingLog = {
 type RestaurantInfo = {
   id?: string;
   name?: string;
+  slug?: string;
   city?: string;
   address?: string;
 };
@@ -46,33 +46,45 @@ type RestaurantInfo = {
 type BookingRow = {
   id: string;
   booking_code?: string | null;
+
   customer_full_name?: string | null;
   customer_name?: string | null;
   name?: string | null;
+
   customer_email?: string | null;
   email?: string | null;
+
   customer_phone?: string | null;
   phone?: string | null;
+
   customer_whatsapp?: string | null;
   whatsapp?: string | null;
+
   restaurant_id?: string | null;
   supplier_id?: string | null;
   service_name?: string | null;
   agent_id?: string | null;
+
   booking_date?: string | null;
   booking_time?: string | null;
   guest_count?: number | null;
   guests?: number | null;
+
   note?: string | null;
   supplier_note?: string | null;
   cancellation_reason?: string | null;
+
   status?: string | null;
+
   total_bill?: number | null;
   customer_discount_amount?: number | null;
   platform_commission_amount?: number | null;
   agent_commission_amount?: number | null;
   platform_net_amount?: number | null;
+
   created_at?: string | null;
+  updated_at?: string | null;
+
   restaurants?: unknown;
   booking_status_logs?: unknown;
 };
@@ -115,9 +127,7 @@ function getAllowedNextStatuses(status?: string | null): BookingStatus[] {
 }
 
 function isValidTransition(oldStatus: string, newStatus: string) {
-  return getAllowedNextStatuses(oldStatus).includes(
-    newStatus as BookingStatus,
-  );
+  return getAllowedNextStatuses(oldStatus).includes(newStatus as BookingStatus);
 }
 
 function isLockedStatus(status?: string | null) {
@@ -135,7 +145,7 @@ function calculateCommission(totalBill: number) {
 }
 
 function formatMoney(value?: number | null) {
-  return Number(value || 0).toLocaleString("vi-VN");
+  return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 }
 
 function getFilterHref(status: FilterStatus) {
@@ -143,7 +153,7 @@ function getFilterHref(status: FilterStatus) {
   return `/dashboard/supplier/bookings?status=${status}`;
 }
 
-function getDetailHref(status: FilterStatus, bookingId: string) {
+function getBookingHref(status: FilterStatus, bookingId: string) {
   const params = new URLSearchParams();
 
   if (status !== "all") params.set("status", status);
@@ -152,11 +162,16 @@ function getDetailHref(status: FilterStatus, bookingId: string) {
   return `/dashboard/supplier/bookings?${params.toString()}`;
 }
 
-function getRestaurant(booking: { restaurants?: unknown }) {
+function getCloseHref(status: FilterStatus) {
+  if (status === "all") return "/dashboard/supplier/bookings";
+  return `/dashboard/supplier/bookings?status=${status}`;
+}
+
+function getRestaurant(booking: BookingRow) {
   return booking.restaurants as RestaurantInfo | null;
 }
 
-function getLogs(booking: { booking_status_logs?: unknown }) {
+function getLogs(booking: BookingRow) {
   return (((booking.booking_status_logs as BookingLog[] | null) ?? []) || [])
     .slice()
     .sort(
@@ -192,6 +207,9 @@ function getGuestCount(booking: BookingRow) {
 
 async function getRestaurantName(booking: BookingRow) {
   if (booking.service_name) return booking.service_name;
+
+  const restaurant = getRestaurant(booking);
+  if (restaurant?.name) return restaurant.name;
 
   if (!booking.restaurant_id) return "Restaurant";
 
@@ -229,10 +247,10 @@ async function updateSupplierBookingStatus(formData: FormData) {
     formData.get("cancellation_reason") || "",
   ).trim();
 
-  const redirectBase = `/dashboard/supplier/bookings?status=${currentStatusFilter}`;
+  const redirectBase = `/dashboard/supplier/bookings?status=${currentStatusFilter}&booking=${id}`;
 
   if (!id) {
-    redirect(`${redirectBase}&error=missing_id`);
+    redirect(`/dashboard/supplier/bookings?error=missing_id`);
   }
 
   const { data: currentBooking, error: currentBookingError } = await adminClient
@@ -393,30 +411,12 @@ export default async function SupplierBookingsPage({
   const selectedBookingId = resolvedSearchParams?.booking;
 
   const { supplier } = await getCurrentSupplier();
-  const supabase = await createClient();
 
-  const { data: bookingsData, error } = await supabase
+  const { data: bookingsData, error } = await adminClient
     .from("bookings")
     .select(`
-      id,
-      booking_code,
-      customer_full_name,
-      customer_email,
-      customer_phone,
-      customer_whatsapp,
-      booking_date,
-      booking_time,
-      guest_count,
-      note,
-      supplier_note,
-      cancellation_reason,
-      status,
-      total_bill,
-      customer_discount_amount,
-      platform_commission_amount,
-      agent_commission_amount,
-      platform_net_amount,
-      restaurants(id,name,city,address),
+      *,
+      restaurants(id,name,slug,city,address),
       booking_status_logs(
         id,
         old_status,
@@ -453,9 +453,7 @@ export default async function SupplierBookingsPage({
         );
 
   const selectedBooking =
-    filteredBookings.find((booking) => booking.id === selectedBookingId) ||
-    filteredBookings[0] ||
-    null;
+    allBookings.find((booking) => booking.id === selectedBookingId) || null;
 
   const counts = {
     all: allBookings.length,
@@ -487,11 +485,14 @@ export default async function SupplierBookingsPage({
             <p className="text-xs font-black uppercase tracking-wide text-amber-700">
               Supplier Dashboard
             </p>
+
             <h1 className="mt-1 text-2xl font-black text-slate-950">
               Quản lý booking
             </h1>
+
             <p className="mt-1 text-sm text-slate-500">
-              Pending chỉ được confirm/cancel. Confirmed chỉ được completed/cancel.
+              Pending chỉ được confirm/cancel. Confirmed chỉ được
+              completed/cancel.
             </p>
           </div>
 
@@ -507,8 +508,9 @@ export default async function SupplierBookingsPage({
           <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
             <div>
               <p className="text-sm font-black text-slate-950">
-                Doanh thu completed: {formatMoney(totalCompletedRevenue)}đ
+                Doanh thu completed: {formatMoney(totalCompletedRevenue)}
               </p>
+
               <p className="mt-1 text-xs text-slate-500">
                 Dữ liệu cập nhật theo trạng thái hiện tại.
               </p>
@@ -565,121 +567,125 @@ export default async function SupplierBookingsPage({
           </div>
         )}
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <section className="overflow-hidden rounded-3xl border border-white/80 bg-white/95 shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Booking</th>
-                    <th className="px-4 py-3">Khách</th>
-                    <th className="px-4 py-3">Nhà hàng</th>
-                    <th className="px-4 py-3">Thời gian</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
+        <section className="overflow-hidden rounded-3xl border border-white/80 bg-white/95 shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Booking</th>
+                  <th className="px-4 py-3">Khách</th>
+                  <th className="px-4 py-3">Nhà hàng</th>
+                  <th className="px-4 py-3">Thời gian</th>
+                  <th className="px-4 py-3">Số khách</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
 
-                <tbody className="divide-y divide-slate-100">
-                  {filteredBookings.map((booking) => {
-                    const restaurant = getRestaurant(booking);
-                    const active = selectedBooking?.id === booking.id;
+              <tbody className="divide-y divide-slate-100">
+                {filteredBookings.map((booking) => {
+                  const restaurant = getRestaurant(booking);
 
-                    return (
-                      <tr
-                        key={booking.id}
-                        className={
-                          active
-                            ? "bg-amber-50/70 align-top"
-                            : "align-top hover:bg-slate-50/70"
-                        }
-                      >
-                        <td className="px-4 py-4">
-                          <p className="font-black text-slate-950">
-                            {booking.booking_code || booking.id.slice(0, 8)}
-                          </p>
-                        </td>
+                  return (
+                    <tr
+                      key={booking.id}
+                      className="align-top transition hover:bg-amber-50/40"
+                    >
+                      <td className="px-4 py-4">
+                        <p className="font-black text-slate-950">
+                          {booking.booking_code || booking.id.slice(0, 8)}
+                        </p>
 
-                        <td className="px-4 py-4">
-                          <p className="font-bold text-slate-950">
-                            {getCustomerName(booking)}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {getCustomerPhone(booking)}
-                          </p>
-                        </td>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {booking.created_at
+                            ? new Date(booking.created_at).toLocaleString(
+                                "vi-VN",
+                              )
+                            : "-"}
+                        </p>
+                      </td>
 
-                        <td className="px-4 py-4">
-                          <p className="font-bold text-slate-950">
-                            {restaurant?.name || "-"}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {restaurant?.city || "-"}
-                          </p>
-                        </td>
+                      <td className="px-4 py-4">
+                        <p className="font-bold text-slate-950">
+                          {getCustomerName(booking)}
+                        </p>
 
-                        <td className="px-4 py-4">
-                          <p className="font-bold text-slate-950">
-                            {booking.booking_date || "-"}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {booking.booking_time || "-"} ·{" "}
-                            {getGuestCount(booking)} khách
-                          </p>
-                        </td>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {getCustomerPhone(booking)}
+                        </p>
 
-                        <td className="px-4 py-4">
-                          <StatusBadge
-                            status={booking.status as BookingStatus}
-                          />
-                        </td>
+                        <p className="mt-1 max-w-[190px] truncate text-xs text-slate-500">
+                          {getCustomerEmail(booking) || "-"}
+                        </p>
+                      </td>
 
-                        <td className="px-4 py-4 text-right">
-                          <Link
-                            href={getDetailHref(activeStatus, booking.id)}
-                            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
-                          >
-                            Chi tiết
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                      <td className="px-4 py-4">
+                        <p className="font-bold text-slate-950">
+                          {restaurant?.name || booking.service_name || "-"}
+                        </p>
 
-                  {!filteredBookings.length && (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-4 py-10 text-center text-sm font-semibold text-slate-500"
-                      >
-                        Không có booking nào ở trạng thái này.
+                        <p className="mt-1 text-xs text-slate-500">
+                          {restaurant?.city || "-"}
+                        </p>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <p className="font-bold text-slate-950">
+                          {booking.booking_date || "-"}
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          {booking.booking_time || "-"}
+                        </p>
+                      </td>
+
+                      <td className="px-4 py-4 font-bold text-slate-700">
+                        {getGuestCount(booking)}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <StatusBadge
+                          status={booking.status as BookingStatus}
+                        />
+                      </td>
+
+                      <td className="px-4 py-4 text-right">
+                        <Link
+                          href={getBookingHref(activeStatus, booking.id)}
+                          scroll={false}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Chi tiết
+                        </Link>
                       </td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                  );
+                })}
 
-          <aside className="xl:sticky xl:top-28 xl:h-fit">
-            {selectedBooking ? (
-              <BookingDetailPanel
-                booking={selectedBooking}
-                activeStatus={activeStatus}
-              />
-            ) : (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-500 shadow-sm">
-                Chọn một booking để xem chi tiết.
-              </div>
-            )}
-          </aside>
-        </div>
+                {!filteredBookings.length && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-4 py-10 text-center text-sm font-semibold text-slate-500"
+                    >
+                      Không có booking nào ở trạng thái này.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
+
+      {selectedBooking ? (
+        <BookingModal booking={selectedBooking} activeStatus={activeStatus} />
+      ) : null}
     </main>
   );
 }
 
-function BookingDetailPanel({
+function BookingModal({
   booking,
   activeStatus,
 }: {
@@ -692,141 +698,225 @@ function BookingDetailPanel({
   const allowedStatuses = getAllowedNextStatuses(booking.status);
 
   return (
-    <div className="space-y-4 rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-        <div>
-          <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-            Booking Detail
-          </p>
-          <h2 className="mt-1 text-xl font-black text-slate-950">
-            {booking.booking_code}
-          </h2>
+    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/60 px-4 py-6 backdrop-blur-sm">
+      <Link
+        href={getCloseHref(activeStatus)}
+        scroll={false}
+        className="fixed inset-0 cursor-default"
+        aria-label="Close booking detail"
+      />
+
+      <section className="relative z-10 mx-auto w-full max-w-5xl overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl">
+        <div className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur md:px-6">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-amber-700">
+              Booking Detail
+            </p>
+
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              {booking.booking_code || booking.id}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <StatusBadge status={booking.status as BookingStatus} />
+
+            <Link
+              href={getCloseHref(activeStatus)}
+              scroll={false}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xl font-black text-slate-500 transition hover:bg-slate-50 hover:text-slate-950"
+              aria-label="Close"
+            >
+              ×
+            </Link>
+          </div>
         </div>
 
-        <StatusBadge status={booking.status as BookingStatus} />
-      </div>
+        <div className="grid gap-5 p-5 md:p-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-5">
+            <section className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">
+                Thông tin booking
+              </h3>
 
-      <div className="grid gap-3">
-        <Info label="Khách hàng" value={getCustomerName(booking)} />
-        <Info label="Email" value={getCustomerEmail(booking) || "-"} />
-        <Info label="Phone" value={getCustomerPhone(booking)} />
-        <Info label="Whatsapp" value={getCustomerWhatsapp(booking)} />
-        <Info label="Nhà hàng" value={restaurant?.name || "-"} />
-        <Info
-          label="Địa điểm"
-          value={
-            [restaurant?.city, restaurant?.address].filter(Boolean).join(" · ") ||
-            "-"
-          }
-        />
-        <Info
-          label="Ngày giờ"
-          value={`${booking.booking_date || "-"} · ${
-            booking.booking_time || "-"
-          }`}
-        />
-        <Info label="Số khách" value={String(getGuestCount(booking))} />
-      </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <Info label="Khách hàng" value={getCustomerName(booking)} />
+                <Info label="Email" value={getCustomerEmail(booking) || "-"} />
+                <Info label="Phone" value={getCustomerPhone(booking)} />
+                <Info label="Whatsapp" value={getCustomerWhatsapp(booking)} />
+                <Info
+                  label="Nhà hàng"
+                  value={restaurant?.name || booking.service_name || "-"}
+                />
+                <Info
+                  label="Địa điểm"
+                  value={
+                    [restaurant?.city, restaurant?.address]
+                      .filter(Boolean)
+                      .join(" · ") || "-"
+                  }
+                />
+                <Info label="Ngày" value={booking.booking_date || "-"} />
+                <Info label="Giờ" value={booking.booking_time || "-"} />
+                <Info label="Số khách" value={String(getGuestCount(booking))} />
+              </div>
+            </section>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <MoneyInfo label="Total bill" value={booking.total_bill} />
-        <MoneyInfo
-          label="Customer off 5%"
-          value={booking.customer_discount_amount}
-        />
-        <MoneyInfo
-          label="Agent payout 5%"
-          value={booking.agent_commission_amount}
-        />
-      </div>
+            <section className="rounded-3xl border border-slate-200 bg-white p-4">
+              <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">
+                Bill & Commission
+              </h3>
 
-      {booking.note ? (
-        <TextBlock label="Ghi chú khách" value={booking.note} />
-      ) : null}
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <MoneyInfo label="Total bill" value={booking.total_bill} />
+                <MoneyInfo
+                  label="Customer off 5%"
+                  value={booking.customer_discount_amount}
+                />
+                <MoneyInfo
+                  label="Agent payout 5%"
+                  value={booking.agent_commission_amount}
+                />
+              </div>
+            </section>
 
-      {booking.supplier_note ? (
-        <TextBlock label="Ghi chú supplier" value={booking.supplier_note} />
-      ) : null}
+            {booking.note ? (
+              <TextBlock label="Ghi chú khách" value={booking.note} />
+            ) : null}
 
-      {booking.cancellation_reason ? (
-        <TextBlock label="Lý do hủy" value={booking.cancellation_reason} />
-      ) : null}
-
-      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-        <h3 className="mb-1 text-sm font-black text-slate-950">
-          Cập nhật trạng thái
-        </h3>
-
-        <p className="mb-4 text-xs leading-5 text-slate-500">
-          Pending chỉ được Confirmed/Cancelled. Confirmed chỉ được
-          Completed/Cancelled.
-        </p>
-
-        {locked ? (
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
-            Booking đã {normalizeStatus(booking.status)} nên không thể cập nhật
-            tiếp.
-          </div>
-        ) : (
-          <form action={updateSupplierBookingStatus} className="grid gap-3">
-            <input type="hidden" name="id" value={booking.id} />
-            <input type="hidden" name="current_status" value={activeStatus} />
-
-            <select
-              name="status"
-              defaultValue=""
-              className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-amber-400"
-              required
-            >
-              <option value="" disabled>
-                Chọn trạng thái tiếp theo
-              </option>
-
-              {allowedStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-
-            {normalizeStatus(booking.status) === "confirmed" && (
-              <input
-                name="total_bill"
-                type="number"
-                min="0"
-                step="1000"
-                defaultValue={booking.total_bill || ""}
-                placeholder="Tổng bill nếu completed"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-amber-400"
+            {booking.supplier_note ? (
+              <TextBlock
+                label="Ghi chú supplier"
+                value={booking.supplier_note}
               />
-            )}
+            ) : null}
 
-            <input
-              name="cancellation_reason"
-              placeholder="Lý do hủy nếu cancelled"
-              defaultValue={booking.cancellation_reason || ""}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-amber-400"
-            />
+            {booking.cancellation_reason ? (
+              <TextBlock
+                label="Lý do hủy"
+                value={booking.cancellation_reason}
+              />
+            ) : null}
 
-            <button className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white hover:bg-slate-800">
-              Cập nhật trạng thái
-            </button>
-          </form>
-        )}
-      </div>
+            <BookingStatusTimeline logs={logs} />
+          </div>
 
-      <BookingStatusTimeline logs={logs} />
+          <aside className="space-y-4">
+            <section className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4">
+              <h3 className="text-base font-black text-slate-950">
+                Cập nhật trạng thái
+              </h3>
+
+              <p className="mt-2 text-xs leading-5 text-slate-600">
+                Pending chỉ được Confirmed/Cancelled. Confirmed chỉ được
+                Completed/Cancelled.
+              </p>
+
+              {locked ? (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
+                  Booking đã {normalizeStatus(booking.status)} nên không thể cập
+                  nhật tiếp.
+                </div>
+              ) : (
+                <form
+                  action={updateSupplierBookingStatus}
+                  className="mt-4 grid gap-3"
+                >
+                  <input type="hidden" name="id" value={booking.id} />
+                  <input
+                    type="hidden"
+                    name="current_status"
+                    value={activeStatus}
+                  />
+
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+                      Trạng thái tiếp theo
+                    </span>
+
+                    <select
+                      name="status"
+                      defaultValue=""
+                      required
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-amber-400"
+                    >
+                      <option value="" disabled>
+                        Chọn trạng thái
+                      </option>
+
+                      {allowedStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {normalizeStatus(booking.status) === "confirmed" && (
+                    <label className="grid gap-2">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+                        Tổng bill khi completed
+                      </span>
+
+                      <input
+                        name="total_bill"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        defaultValue={booking.total_bill || ""}
+                        placeholder="VD: 3200000"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-amber-400"
+                      />
+                    </label>
+                  )}
+
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+                      Lý do hủy nếu cancelled
+                    </span>
+
+                    <input
+                      name="cancellation_reason"
+                      placeholder="Nhập lý do nếu hủy booking"
+                      defaultValue={booking.cancellation_reason || ""}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-amber-400"
+                    />
+                  </label>
+
+                  <button className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800">
+                    Cập nhật trạng thái
+                  </button>
+                </form>
+              )}
+            </section>
+
+            <section className="rounded-3xl border border-slate-200 bg-white p-4">
+              <h3 className="text-sm font-black text-slate-950">Quick Rule</h3>
+
+              <div className="mt-3 space-y-2 text-xs font-semibold leading-5 text-slate-600">
+                <p>• Pending → Confirmed / Cancelled</p>
+                <p>• Confirmed → Completed / Cancelled</p>
+                <p>• Completed / Cancelled → Locked</p>
+                <p>• Completed bắt buộc nhập total bill</p>
+                <p>• Cancelled bắt buộc nhập lý do hủy</p>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
     </div>
   );
 }
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-3">
+    <div className="rounded-2xl bg-white p-3">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 break-words text-sm text-slate-900">{value}</p>
+      <p className="mt-1 break-words text-sm font-semibold text-slate-950">
+        {value}
+      </p>
     </div>
   );
 }
@@ -837,8 +927,8 @@ function MoneyInfo({ label, value }: { label: string; value?: number | null }) {
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-sm font-medium text-slate-900">
-        {formatMoney(value)}đ
+      <p className="mt-1 text-sm font-black text-slate-950">
+        {formatMoney(value)}
       </p>
     </div>
   );
@@ -846,11 +936,11 @@ function MoneyInfo({ label, value }: { label: string; value?: number | null }) {
 
 function TextBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 p-3">
+    <div className="rounded-3xl border border-slate-200 bg-white p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 break-words text-sm text-slate-900">{value}</p>
+      <p className="mt-2 break-words text-sm text-slate-900">{value}</p>
     </div>
   );
 }
