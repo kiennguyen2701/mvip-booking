@@ -1,18 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import SupplierProfileForm from "@/app/dashboard/supplier/profile/supplier-profile-form";
+import SupplierProfileForm from "./supplier-profile-form";
 
 export const dynamic = "force-dynamic";
-
-type OpeningHours = {
-  monday?: string;
-  tuesday?: string;
-  wednesday?: string;
-  thursday?: string;
-  friday?: string;
-  saturday?: string;
-  sunday?: string;
-};
+export const revalidate = 0;
 
 type SupplierRow = {
   id: string;
@@ -21,20 +12,6 @@ type SupplierRow = {
   contact_name: string | null;
   phone: string | null;
   email: string | null;
-  address: string | null;
-  city: string | null;
-  slug: string | null;
-  short_description: string | null;
-  full_description: string | null;
-  cover_image: string | null;
-  gallery_images: string[] | null;
-  whatsapp: string | null;
-  opening_hours: OpeningHours | null;
-  price_range: string | null;
-  amenities: string[] | null;
-  tags: string[] | null;
-  latitude: number | null;
-  longitude: number | null;
   updated_at: string | null;
 };
 
@@ -59,95 +36,69 @@ export default async function SupplierProfilePage() {
         contact_name,
         phone,
         email,
-        address,
-        city,
-        slug,
-        short_description,
-        full_description,
-        cover_image,
-        gallery_images,
-        whatsapp,
-        opening_hours,
-        price_range,
-        amenities,
-        tags,
-        latitude,
-        longitude,
         updated_at
-      `
+      `,
     )
     .eq("user_id", user.id)
     .single<SupplierRow>();
 
   if (error || !supplier) {
     return (
-      <div className="mx-auto max-w-5xl p-4 md:p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          Không tìm thấy hồ sơ supplier của tài khoản này. Anh kiểm tra lại bảng
-          <span className="mx-1 font-semibold">suppliers.user_id</span>
-          đã map đúng với
-          <span className="mx-1 font-semibold">auth.users.id</span>
-          chưa.
+      <main className="relative min-h-screen overflow-hidden bg-[#050403] px-4 py-5 text-white md:px-6">
+        <div className="mx-auto max-w-4xl rounded-[28px] border border-red-400/20 bg-red-500/10 p-5 text-sm font-semibold text-red-200">
+          Không tìm thấy hồ sơ supplier của tài khoản này.
         </div>
-      </div>
+      </main>
     );
   }
 
-  const openingHours = supplier.opening_hours ?? {};
-
   return (
-    <div className="mx-auto max-w-6xl p-4 md:p-6">
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Supplier Profile CMS
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Nhà hàng tự cập nhật bài giới thiệu, hình ảnh, liên hệ và thông tin hiển
-            thị đồng bộ lên hệ thống.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
-          <div className="font-medium text-slate-900">Cập nhật gần nhất</div>
-          <div className="text-slate-600">
-            {supplier.updated_at
-              ? new Date(supplier.updated_at).toLocaleString("vi-VN")
-              : "Chưa có dữ liệu"}
-          </div>
-        </div>
+    <main className="relative min-h-screen overflow-hidden bg-[#050403] px-4 py-5 text-white md:px-6">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-40 top-0 h-[420px] w-[420px] rounded-full bg-amber-400/20 blur-3xl" />
+        <div className="absolute right-0 top-16 h-[520px] w-[520px] rounded-full bg-orange-700/15 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-[360px] w-[360px] rounded-full bg-yellow-500/10 blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.12)_1px,transparent_0)] [background-size:30px_30px]" />
       </div>
 
-      <SupplierProfileForm
-        initialData={{
-          company_name: supplier.company_name ?? "",
-          contact_name: supplier.contact_name ?? "",
-          phone: supplier.phone ?? "",
-          email: supplier.email ?? "",
-          address: supplier.address ?? "",
-          city: supplier.city ?? "",
-          slug: supplier.slug ?? "",
-          short_description: supplier.short_description ?? "",
-          full_description: supplier.full_description ?? "",
-          cover_image: supplier.cover_image ?? "",
-          gallery_images: supplier.gallery_images ?? [],
-          whatsapp: supplier.whatsapp ?? "",
-          opening_hours: {
-            monday: openingHours.monday ?? "",
-            tuesday: openingHours.tuesday ?? "",
-            wednesday: openingHours.wednesday ?? "",
-            thursday: openingHours.thursday ?? "",
-            friday: openingHours.friday ?? "",
-            saturday: openingHours.saturday ?? "",
-            sunday: openingHours.sunday ?? "",
-          },
-          price_range: supplier.price_range ?? "",
-          amenities: supplier.amenities ?? [],
-          tags: supplier.tags ?? [],
-          latitude: supplier.latitude ?? null,
-          longitude: supplier.longitude ?? null,
-        }}
-      />
-    </div>
+      <div className="relative mx-auto max-w-5xl space-y-6">
+        <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[#11100c]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur md:p-7">
+          <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">
+                Supplier Profile
+              </p>
+
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-white md:text-5xl">
+                My Profile
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+                Cập nhật thông tin cơ bản của nhà hàng. Email đang khóa và chỉ
+                dùng để hiển thị.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm">
+              <div className="font-black text-white">Cập nhật gần nhất</div>
+              <div className="mt-1 text-slate-400">
+                {supplier.updated_at
+                  ? new Date(supplier.updated_at).toLocaleString("vi-VN")
+                  : "Chưa có dữ liệu"}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <SupplierProfileForm
+          initialData={{
+            company_name: supplier.company_name ?? "",
+            contact_name: supplier.contact_name ?? "",
+            phone: supplier.phone ?? "",
+            email: supplier.email ?? "",
+          }}
+        />
+      </div>
+    </main>
   );
 }
