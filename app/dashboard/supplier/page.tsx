@@ -3,6 +3,16 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 
+type RestaurantRow = {
+  id: string;
+  is_active: boolean | null;
+};
+
+type BookingSummaryRow = {
+  status: string | null;
+  total_bill: number | null;
+};
+
 function StatCard({
   label,
   value,
@@ -29,6 +39,13 @@ function formatMoney(value?: number | null) {
   return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 }
 
+function normalizeStatus(status?: string | null) {
+  if (status === "confirmed") return "confirmed";
+  if (status === "completed") return "completed";
+  if (status === "cancelled" || status === "canceled") return "cancelled";
+  return "pending";
+}
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -49,71 +66,51 @@ export default async function SupplierDashboardPage() {
 
   if (!supplier) redirect("/dashboard");
 
-  const [
-    restaurantsResult,
-    activeRestaurantsResult,
-    pendingBookingsResult,
-    confirmedBookingsResult,
-    completedBookingsResult,
-    cancelledBookingsResult,
-    completedRevenueResult,
-  ] = await Promise.all([
+  const [restaurantsResult, bookingsSummaryResult] = await Promise.all([
     adminClient
       .from("restaurants")
-      .select("id", { count: "exact", head: true })
+      .select("id,is_active")
       .eq("supplier_id", supplier.id),
 
     adminClient
-      .from("restaurants")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplier.id)
-      .eq("is_active", true),
-
-    adminClient
       .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplier.id)
-      .eq("status", "pending"),
-
-    adminClient
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplier.id)
-      .eq("status", "confirmed"),
-
-    adminClient
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplier.id)
-      .eq("status", "completed"),
-
-    adminClient
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplier.id)
-      .eq("status", "cancelled"),
-
-    adminClient
-      .from("bookings")
-      .select("total_bill")
-      .eq("supplier_id", supplier.id)
-      .eq("status", "completed"),
+      .select("status,total_bill")
+      .eq("supplier_id", supplier.id),
   ]);
 
-  const restaurantsCount = restaurantsResult.count || 0;
-  const activeRestaurantsCount = activeRestaurantsResult.count || 0;
-  const pendingCount = pendingBookingsResult.count || 0;
-  const confirmedCount = confirmedBookingsResult.count || 0;
-  const completedCount = completedBookingsResult.count || 0;
-  const cancelledCount = cancelledBookingsResult.count || 0;
+  const restaurants = (restaurantsResult.data || []) as RestaurantRow[];
+  const bookingsSummary = (bookingsSummaryResult.data ||
+    []) as BookingSummaryRow[];
 
-  const completedRevenue = (completedRevenueResult.data || []).reduce(
-    (sum, item) => sum + Number(item.total_bill || 0),
+  const restaurantsCount = restaurants.length;
+  const activeRestaurantsCount = restaurants.filter(
+    (restaurant) => restaurant.is_active,
+  ).length;
+
+  const pendingCount = bookingsSummary.filter(
+    (booking) => normalizeStatus(booking.status) === "pending",
+  ).length;
+
+  const confirmedCount = bookingsSummary.filter(
+    (booking) => normalizeStatus(booking.status) === "confirmed",
+  ).length;
+
+  const completedBookings = bookingsSummary.filter(
+    (booking) => normalizeStatus(booking.status) === "completed",
+  );
+
+  const completedCount = completedBookings.length;
+
+  const cancelledCount = bookingsSummary.filter(
+    (booking) => normalizeStatus(booking.status) === "cancelled",
+  ).length;
+
+  const completedRevenue = completedBookings.reduce(
+    (sum, booking) => sum + Number(booking.total_bill || 0),
     0,
   );
 
-  const totalBookings =
-    pendingCount + confirmedCount + completedCount + cancelledCount;
+  const totalBookings = bookingsSummary.length;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#070604] px-4 py-5 text-white md:px-6">
@@ -166,16 +163,19 @@ export default async function SupplierDashboardPage() {
               value={restaurantsCount}
               sub={`${activeRestaurantsCount} active`}
             />
+
             <StatCard
               label="Pending / Confirmed"
               value={pendingCount + confirmedCount}
               sub={`${pendingCount} pending · ${confirmedCount} confirmed`}
             />
+
             <StatCard
               label="Completed"
               value={completedCount}
               sub={formatMoney(completedRevenue)}
             />
+
             <StatCard
               label="Total Bookings"
               value={totalBookings}
