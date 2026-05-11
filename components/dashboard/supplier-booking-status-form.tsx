@@ -47,7 +47,10 @@ export function SupplierBookingStatusForm({
   const showCancelReason = status === "cancelled";
 
   return (
-    <form action={formAction} className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+    <form
+      action={formAction}
+      className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4"
+    >
       <input type="hidden" name="bookingId" value={booking.id} />
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -96,7 +99,7 @@ export function SupplierBookingStatusForm({
             className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none"
           />
           <p className="mt-1 text-xs text-gray-500">
-            Hệ thống sẽ tự tính: 5% customer off, 5% agent, 5% platform.
+            Hệ thống sẽ tự tính: 5% customer off và Agent + Platform 10%.
           </p>
         </div>
       ) : (
@@ -120,7 +123,11 @@ export function SupplierBookingStatusForm({
       )}
 
       {state.message ? (
-        <p className={`text-sm ${state.success ? "text-emerald-600" : "text-red-600"}`}>
+        <p
+          className={`text-sm ${
+            state.success ? "text-emerald-600" : "text-red-600"
+          }`}
+        >
           {state.message}
         </p>
       ) : null}

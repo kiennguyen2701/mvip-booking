@@ -205,6 +205,13 @@ function getGuestCount(booking: BookingRow) {
   return booking.guest_count ?? booking.guests ?? 1;
 }
 
+function getAgentPlatformCommissionAmount(booking: BookingRow) {
+  return (
+    Number(booking.platform_commission_amount ?? 0) +
+    Number(booking.agent_commission_amount ?? 0)
+  );
+}
+
 async function getRestaurantName(booking: BookingRow) {
   if (booking.service_name) return booking.service_name;
 
@@ -774,8 +781,8 @@ function BookingModal({
                   value={booking.customer_discount_amount}
                 />
                 <MoneyInfo
-                  label="Agent payout 5%"
-                  value={booking.agent_commission_amount}
+                  label="Agent + Platform 10%"
+                  value={getAgentPlatformCommissionAmount(booking)}
                 />
               </div>
             </section>
