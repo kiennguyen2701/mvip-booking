@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   createRestaurant,
   updateRestaurant,
@@ -42,12 +41,14 @@ type RestaurantManagerProps = {
   editingRestaurant: RestaurantItem | null;
 };
 
+type ModalState =
+  | { mode: "create"; restaurant: null }
+  | { mode: "update"; restaurant: RestaurantItem };
+
 const initialState: RestaurantManagerState = {
   success: false,
   message: "",
 };
-
-const RESTAURANTS_DASHBOARD_PATH = "/dashboard/supplier/restaurants";
 
 function Field({
   label,
@@ -247,16 +248,12 @@ function LocationPicker({ restaurant }: { restaurant?: RestaurantItem | null }) 
     <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
       <h3 className="text-lg font-black text-slate-950">Vị trí nhà hàng</h3>
       <p className="mt-1 text-sm text-slate-500">
-        Điền địa chỉ để lấy tọa độ tự động, hoặc nhập Latitude/Longitude thủ
-        công.
+        Điền địa chỉ để lấy tọa độ tự động, hoặc nhập Latitude/Longitude thủ công.
       </p>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="space-y-2 md:col-span-2">
-          <label
-            htmlFor="address"
-            className="block text-sm font-bold text-slate-800"
-          >
+          <label htmlFor="address" className="block text-sm font-bold text-slate-800">
             Địa chỉ
           </label>
 
@@ -271,10 +268,7 @@ function LocationPicker({ restaurant }: { restaurant?: RestaurantItem | null }) 
         </div>
 
         <div className="space-y-2">
-          <label
-            htmlFor="city"
-            className="block text-sm font-bold text-slate-800"
-          >
+          <label htmlFor="city" className="block text-sm font-bold text-slate-800">
             Thành phố
           </label>
 
@@ -298,23 +292,39 @@ function LocationPicker({ restaurant }: { restaurant?: RestaurantItem | null }) 
           </button>
         </div>
 
-        <Field
-          label="Latitude"
-          name="latitude"
-          type="number"
-          step="any"
-          defaultValue={latitude}
-          placeholder="21.028511"
-        />
+        <div className="space-y-2">
+          <label htmlFor="latitude" className="block text-sm font-bold text-slate-800">
+            Latitude
+          </label>
 
-        <Field
-          label="Longitude"
-          name="longitude"
-          type="number"
-          step="any"
-          defaultValue={longitude}
-          placeholder="105.804817"
-        />
+          <input
+            id="latitude"
+            name="latitude"
+            type="number"
+            step="any"
+            value={latitude}
+            onChange={(event) => setLatitude(event.target.value)}
+            placeholder="21.028511"
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="longitude" className="block text-sm font-bold text-slate-800">
+            Longitude
+          </label>
+
+          <input
+            id="longitude"
+            name="longitude"
+            type="number"
+            step="any"
+            value={longitude}
+            onChange={(event) => setLongitude(event.target.value)}
+            placeholder="105.804817"
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100"
+          />
+        </div>
       </div>
 
       {message && (
@@ -332,8 +342,7 @@ function ImageUploader({ restaurant }: { restaurant?: RestaurantItem | null }) {
 
   const [coverPreview, setCoverPreview] = useState("");
   const [coverRemoved, setCoverRemoved] = useState(false);
-  const [existingGallery, setExistingGallery] =
-    useState<string[]>(initialGallery);
+  const [existingGallery, setExistingGallery] = useState<string[]>(initialGallery);
   const [galleryPreview, setGalleryPreview] = useState<string[]>([]);
 
   const visibleCoverUrl = coverRemoved ? "" : originalCoverUrl;
@@ -394,6 +403,8 @@ function ImageUploader({ restaurant }: { restaurant?: RestaurantItem | null }) {
               alt="Cover preview"
               className="h-56 w-full object-cover"
               referrerPolicy="no-referrer"
+              loading="lazy"
+              decoding="async"
             />
           </div>
         )}
@@ -459,6 +470,8 @@ function ImageUploader({ restaurant }: { restaurant?: RestaurantItem | null }) {
                     src={img}
                     alt="Gallery preview"
                     className="h-24 w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               ))}
@@ -486,6 +499,8 @@ function ImageUploader({ restaurant }: { restaurant?: RestaurantItem | null }) {
                       alt="Gallery"
                       className="h-24 w-full object-cover"
                       referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
                     />
 
                     <button
@@ -505,8 +520,7 @@ function ImageUploader({ restaurant }: { restaurant?: RestaurantItem | null }) {
             </div>
 
             <p className="mt-2 text-xs font-semibold text-slate-500">
-              Những ảnh đã remove sẽ bị xóa khỏi gallery sau khi bấm lưu cập
-              nhật.
+              Những ảnh đã remove sẽ bị xóa khỏi gallery sau khi bấm lưu cập nhật.
             </p>
           </div>
         )}
@@ -536,8 +550,7 @@ function MenuImageUploader({
       <h2 className="text-lg font-black text-slate-950">Hình ảnh Menu</h2>
 
       <p className="mt-1 text-sm text-slate-500">
-        Upload nhiều ảnh menu hoặc dán link ảnh menu. Ảnh upload cũng sẽ được
-        nén trước khi lưu.
+        Upload nhiều ảnh menu hoặc dán link ảnh menu. Ảnh upload cũng sẽ được nén trước khi lưu.
       </p>
 
       <input
@@ -593,6 +606,8 @@ function MenuImageUploader({
                     src={img}
                     alt="Menu preview"
                     className="h-40 w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               ))}
@@ -620,6 +635,8 @@ function MenuImageUploader({
                       alt="Menu"
                       className="h-40 w-full object-cover"
                       referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
                     />
 
                     <button
@@ -639,8 +656,7 @@ function MenuImageUploader({
             </div>
 
             <p className="mt-2 text-xs font-semibold text-slate-500">
-              Những ảnh menu đã remove sẽ bị xóa khỏi menu sau khi bấm lưu cập
-              nhật.
+              Những ảnh menu đã remove sẽ bị xóa khỏi menu sau khi bấm lưu cập nhật.
             </p>
           </div>
         )}
@@ -748,8 +764,7 @@ function RestaurantForm({
         </h2>
 
         <p className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">
-          Nhà hàng Supplier tạo mới mặc định Inactive. Admin sẽ duyệt Active
-          sau.
+          Nhà hàng Supplier tạo mới mặc định Inactive. Admin sẽ duyệt Active sau.
         </p>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -793,10 +808,7 @@ function RestaurantForm({
           />
 
           <div className="space-y-2">
-            <label
-              htmlFor="price_range"
-              className="block text-sm font-bold text-slate-800"
-            >
+            <label htmlFor="price_range" className="block text-sm font-bold text-slate-800">
               Mức giá
             </label>
 
@@ -841,55 +853,19 @@ function RestaurantForm({
       </section>
 
       <ImageUploader restaurant={restaurant} />
-
       <MenuImageUploader restaurant={restaurant} />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-black text-slate-950">Giờ mở cửa</h2>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Field
-            label="Monday"
-            name="opening_hours_monday"
-            defaultValue={openingHours.monday || ""}
-            placeholder="09:00 - 22:00"
-          />
-          <Field
-            label="Tuesday"
-            name="opening_hours_tuesday"
-            defaultValue={openingHours.tuesday || ""}
-            placeholder="09:00 - 22:00"
-          />
-          <Field
-            label="Wednesday"
-            name="opening_hours_wednesday"
-            defaultValue={openingHours.wednesday || ""}
-            placeholder="09:00 - 22:00"
-          />
-          <Field
-            label="Thursday"
-            name="opening_hours_thursday"
-            defaultValue={openingHours.thursday || openingHours.Thursday || ""}
-            placeholder="09:00 - 22:00"
-          />
-          <Field
-            label="Friday"
-            name="opening_hours_friday"
-            defaultValue={openingHours.friday || ""}
-            placeholder="09:00 - 22:00"
-          />
-          <Field
-            label="Saturday"
-            name="opening_hours_saturday"
-            defaultValue={openingHours.saturday || ""}
-            placeholder="09:00 - 22:00"
-          />
-          <Field
-            label="Sunday"
-            name="opening_hours_sunday"
-            defaultValue={openingHours.sunday || ""}
-            placeholder="09:00 - 22:00"
-          />
+          <Field label="Monday" name="opening_hours_monday" defaultValue={openingHours.monday || ""} placeholder="09:00 - 22:00" />
+          <Field label="Tuesday" name="opening_hours_tuesday" defaultValue={openingHours.tuesday || ""} placeholder="09:00 - 22:00" />
+          <Field label="Wednesday" name="opening_hours_wednesday" defaultValue={openingHours.wednesday || ""} placeholder="09:00 - 22:00" />
+          <Field label="Thursday" name="opening_hours_thursday" defaultValue={openingHours.thursday || openingHours.Thursday || ""} placeholder="09:00 - 22:00" />
+          <Field label="Friday" name="opening_hours_friday" defaultValue={openingHours.friday || ""} placeholder="09:00 - 22:00" />
+          <Field label="Saturday" name="opening_hours_saturday" defaultValue={openingHours.saturday || ""} placeholder="09:00 - 22:00" />
+          <Field label="Sunday" name="opening_hours_sunday" defaultValue={openingHours.sunday || ""} placeholder="09:00 - 22:00" />
         </div>
       </section>
 
@@ -943,19 +919,19 @@ function RestaurantForm({
 }
 
 function RestaurantFormModal({
-  mode,
-  restaurant,
+  modal,
+  onClose,
 }: {
-  mode: "create" | "update";
-  restaurant?: RestaurantItem | null;
+  modal: ModalState;
+  onClose: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/60 px-3 py-4 backdrop-blur-sm md:px-6 md:py-8">
-      <Link
-        href={RESTAURANTS_DASHBOARD_PATH}
+      <button
+        type="button"
+        onClick={onClose}
         className="fixed inset-0 cursor-default"
         aria-label="Close restaurant form"
-        scroll={false}
       />
 
       <section className="relative z-10 mx-auto w-full max-w-5xl overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 shadow-2xl">
@@ -966,22 +942,26 @@ function RestaurantFormModal({
             </p>
 
             <h2 className="mt-1 text-2xl font-black text-slate-950">
-              {mode === "create" ? "Tạo nhà hàng mới" : "Chỉnh sửa nhà hàng"}
+              {modal.mode === "create" ? "Tạo nhà hàng mới" : "Chỉnh sửa nhà hàng"}
             </h2>
           </div>
 
-          <Link
-            href={RESTAURANTS_DASHBOARD_PATH}
-            scroll={false}
+          <button
+            type="button"
+            onClick={onClose}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl font-black text-slate-500 transition hover:bg-slate-50 hover:text-slate-950"
             aria-label="Close"
           >
             ×
-          </Link>
+          </button>
         </div>
 
         <div className="p-4 md:p-6">
-          <RestaurantForm mode={mode} restaurant={restaurant} />
+          <RestaurantForm
+            key={modal.mode === "create" ? "create" : modal.restaurant.id}
+            mode={modal.mode}
+            restaurant={modal.restaurant}
+          />
         </div>
       </section>
     </div>
@@ -990,11 +970,10 @@ function RestaurantFormModal({
 
 export default function RestaurantManager({
   restaurants,
-  editingRestaurant,
 }: RestaurantManagerProps) {
-  const searchParams = useSearchParams();
-  const isCreating = searchParams.get("create") === "1";
-  const showModal = isCreating || Boolean(editingRestaurant);
+  const [modal, setModal] = useState<ModalState | null>(null);
+
+  const sortedRestaurants = useMemo(() => restaurants, [restaurants]);
 
   return (
     <>
@@ -1005,21 +984,21 @@ export default function RestaurantManager({
               Danh sách nhà hàng
             </h2>
             <p className="text-sm text-slate-500">
-              Tổng số: {restaurants.length}
+              Tổng số: {sortedRestaurants.length}
             </p>
           </div>
 
-          <Link
-            href={`${RESTAURANTS_DASHBOARD_PATH}?create=1`}
-            scroll={false}
+          <button
+            type="button"
+            onClick={() => setModal({ mode: "create", restaurant: null })}
             className="w-fit rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-slate-800"
           >
             + Tạo mới
-          </Link>
+          </button>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          {restaurants.map((restaurant) => {
+          {sortedRestaurants.map((restaurant) => {
             const coverUrl = getRestaurantImageUrl(restaurant.cover_image);
 
             return (
@@ -1035,6 +1014,8 @@ export default function RestaurantManager({
                         alt={restaurant.name}
                         className="h-full w-full object-cover"
                         referrerPolicy="no-referrer"
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-3xl">
@@ -1076,13 +1057,15 @@ export default function RestaurantManager({
                         Xem chi tiết
                       </Link>
 
-                      <Link
-                        href={`${RESTAURANTS_DASHBOARD_PATH}?edit=${restaurant.id}`}
-                        scroll={false}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setModal({ mode: "update", restaurant })
+                        }
                         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
                       >
                         Chỉnh sửa
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1090,7 +1073,7 @@ export default function RestaurantManager({
             );
           })}
 
-          {!restaurants.length && (
+          {!sortedRestaurants.length && (
             <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 md:col-span-2">
               Chưa có nhà hàng nào.
             </div>
@@ -1098,11 +1081,8 @@ export default function RestaurantManager({
         </div>
       </section>
 
-      {showModal ? (
-        <RestaurantFormModal
-          mode={editingRestaurant ? "update" : "create"}
-          restaurant={editingRestaurant}
-        />
+      {modal ? (
+        <RestaurantFormModal modal={modal} onClose={() => setModal(null)} />
       ) : null}
     </>
   );
