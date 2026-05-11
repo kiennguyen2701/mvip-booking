@@ -142,24 +142,6 @@ export default function HeaderMobileMenu({
                   >
                     Change Password
                   </Link>
-
-                  <Link
-                    href="/dashboard/supplier/reports"
-                    prefetch={false}
-                    onClick={() => setOpen(false)}
-                    className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
-                  >
-                    Reports
-                  </Link>
-
-                  <Link
-                    href="/dashboard/supplier/settlements"
-                    prefetch={false}
-                    onClick={() => setOpen(false)}
-                    className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
-                  >
-                    Settlements
-                  </Link>
                 </>
               )}
 

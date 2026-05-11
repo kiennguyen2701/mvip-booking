@@ -2,105 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
-import { StatusBadge } from "@/components/dashboard/status-badge";
-
-type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
-
-type RestaurantInfo = {
-  id?: string;
-  name?: string | null;
-  city?: string | null;
-  address?: string | null;
-};
-
-type SupplierBooking = {
-  id: string;
-  booking_code?: string | null;
-  customer_full_name?: string | null;
-  customer_name?: string | null;
-  name?: string | null;
-  customer_phone?: string | null;
-  phone?: string | null;
-  customer_email?: string | null;
-  email?: string | null;
-  booking_date?: string | null;
-  booking_time?: string | null;
-  guest_count?: number | null;
-  guests?: number | null;
-  status?: BookingStatus | string | null;
-  total_bill?: number | null;
-  service_name?: string | null;
-  restaurants?: RestaurantInfo | null;
-};
-
-function normalizeStatus(status?: string | null): BookingStatus {
-  if (status === "confirmed") return "confirmed";
-  if (status === "completed") return "completed";
-  if (status === "cancelled" || status === "canceled") return "cancelled";
-  return "pending";
-}
-
-function getCustomerName(booking: SupplierBooking) {
-  return (
-    booking.customer_full_name ||
-    booking.customer_name ||
-    booking.name ||
-    "Customer"
-  );
-}
-
-function getCustomerPhone(booking: SupplierBooking) {
-  return booking.customer_phone || booking.phone || "-";
-}
-
-function getCustomerEmail(booking: SupplierBooking) {
-  return booking.customer_email || booking.email || "-";
-}
-
-function getGuestCount(booking: SupplierBooking) {
-  return booking.guest_count ?? booking.guests ?? 1;
-}
-
-function formatMoney(value?: number | null) {
-  return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
-}
-
-function csvEscape(value: unknown) {
-  return `"${String(value ?? "").replaceAll('"', '""')}"`;
-}
-
-function buildReportCsv(bookings: SupplierBooking[]) {
-  const rows = [
-    [
-      "Booking Code",
-      "Status",
-      "Customer",
-      "Phone",
-      "Email",
-      "Restaurant",
-      "City",
-      "Date",
-      "Time",
-      "Guests",
-      "Total Bill",
-    ],
-    ...bookings.map((booking) => [
-      booking.booking_code || booking.id,
-      normalizeStatus(booking.status),
-      getCustomerName(booking),
-      getCustomerPhone(booking),
-      getCustomerEmail(booking),
-      booking.restaurants?.name || booking.service_name || "-",
-      booking.restaurants?.city || "-",
-      booking.booking_date || "-",
-      booking.booking_time || "-",
-      getGuestCount(booking),
-      Number(booking.total_bill || 0),
-    ]),
-  ];
-
-  return rows.map((row) => row.map(csvEscape).join(",")).join("\n");
-}
 
 function StatCard({
   label,
@@ -122,6 +23,10 @@ function StatCard({
       ) : null}
     </div>
   );
+}
+
+function formatMoney(value?: number | null) {
+  return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 }
 
 export const dynamic = "force-dynamic";
@@ -151,7 +56,7 @@ export default async function SupplierDashboardPage() {
     confirmedBookingsResult,
     completedBookingsResult,
     cancelledBookingsResult,
-    bookingsResult,
+    completedRevenueResult,
   ] = await Promise.all([
     adminClient
       .from("restaurants")
@@ -190,13 +95,9 @@ export default async function SupplierDashboardPage() {
 
     adminClient
       .from("bookings")
-      .select(`
-        *,
-        restaurants(id,name,city,address)
-      `)
+      .select("total_bill")
       .eq("supplier_id", supplier.id)
-      .order("created_at", { ascending: false })
-      .limit(80),
+      .eq("status", "completed"),
   ]);
 
   const restaurantsCount = restaurantsResult.count || 0;
@@ -206,22 +107,13 @@ export default async function SupplierDashboardPage() {
   const completedCount = completedBookingsResult.count || 0;
   const cancelledCount = cancelledBookingsResult.count || 0;
 
-  const bookings = ((bookingsResult.data || []) as SupplierBooking[]).map(
-    (booking) => ({
-      ...booking,
-      status: normalizeStatus(booking.status),
-    }),
+  const completedRevenue = (completedRevenueResult.data || []).reduce(
+    (sum, item) => sum + Number(item.total_bill || 0),
+    0,
   );
 
   const totalBookings =
     pendingCount + confirmedCount + completedCount + cancelledCount;
-
-  const completedRevenue = bookings
-    .filter((booking) => normalizeStatus(booking.status) === "completed")
-    .reduce((sum, booking) => sum + Number(booking.total_bill || 0), 0);
-
-  const csv = buildReportCsv(bookings);
-  const csvHref = `data:text/csv;charset=utf-8,\uFEFF${encodeURIComponent(csv)}`;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#070604] px-4 py-5 text-white md:px-6">
@@ -245,27 +137,25 @@ export default async function SupplierDashboardPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-                Booking List hiển thị trực tiếp trên dashboard.
+                Tổng quan nhanh về nhà hàng, booking và doanh thu completed.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <a
-                href={csvHref}
-                download={`supplier-booking-report-${new Date()
-                  .toISOString()
-                  .slice(0, 10)}.csv`}
-                className="inline-flex items-center justify-center rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
-              >
-                Download Report
-              </a>
-
               <Link
                 href="/dashboard/supplier/bookings"
                 prefetch={false}
+                className="inline-flex items-center justify-center rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
+              >
+                Booking List →
+              </Link>
+
+              <Link
+                href="/dashboard/supplier/restaurants"
+                prefetch={false}
                 className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-black text-white transition hover:bg-white/10"
               >
-                Manage Bookings →
+                My Restaurants →
               </Link>
             </div>
           </div>
@@ -292,130 +182,6 @@ export default async function SupplierDashboardPage() {
               sub={`${cancelledCount} cancelled`}
             />
           </div>
-        </section>
-
-        <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[#11100c]/95 shadow-2xl shadow-black/35 backdrop-blur">
-          <div className="flex flex-col justify-between gap-3 border-b border-white/10 px-5 py-5 md:flex-row md:items-center">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
-                Booking List
-              </p>
-
-              <h2 className="mt-2 text-2xl font-black text-white">
-                Danh sách booking
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-400">
-                Hiển thị trực tiếp trên Supplier Dashboard.
-              </p>
-            </div>
-
-            <Link
-              href="/dashboard/supplier/bookings"
-              prefetch={false}
-              className="w-fit rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-black text-white transition hover:bg-white/10"
-            >
-              Xem đầy đủ →
-            </Link>
-          </div>
-
-          {bookingsResult.error ? (
-            <div className="px-5 py-10 text-center text-sm font-semibold text-red-300">
-              Lỗi tải Booking List: {bookingsResult.error.message}
-            </div>
-          ) : bookings.length === 0 ? (
-            <div className="px-5 py-14 text-center text-sm font-semibold text-slate-400">
-              Hiện chưa có booking nào.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-sm">
-                <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase text-slate-400">
-                  <tr>
-                    <th className="px-5 py-4">Booking</th>
-                    <th className="px-5 py-4">Khách</th>
-                    <th className="px-5 py-4">Nhà hàng</th>
-                    <th className="px-5 py-4">Ngày giờ</th>
-                    <th className="px-5 py-4">Số khách</th>
-                    <th className="px-5 py-4">Bill</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4 text-right">Action</th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-white/10">
-                  {bookings.map((booking) => {
-                    const status = normalizeStatus(booking.status);
-
-                    return (
-                      <tr
-                        key={booking.id}
-                        className="transition hover:bg-white/[0.04]"
-                      >
-                        <td className="px-5 py-4 font-black text-white">
-                          {booking.booking_code || booking.id.slice(0, 8)}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-white">
-                            {getCustomerName(booking)}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-400">
-                            {getCustomerPhone(booking)}
-                          </p>
-                          <p className="mt-1 max-w-[190px] truncate text-xs text-slate-500">
-                            {getCustomerEmail(booking)}
-                          </p>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-white">
-                            {booking.restaurants?.name ||
-                              booking.service_name ||
-                              "-"}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-400">
-                            {booking.restaurants?.city || "-"}
-                          </p>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-white">
-                            {booking.booking_date || "-"}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-400">
-                            {booking.booking_time || "-"}
-                          </p>
-                        </td>
-
-                        <td className="px-5 py-4 font-bold text-slate-200">
-                          {getGuestCount(booking)}
-                        </td>
-
-                        <td className="px-5 py-4 font-black text-amber-300">
-                          {formatMoney(booking.total_bill)}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <StatusBadge status={status} />
-                        </td>
-
-                        <td className="px-5 py-4 text-right">
-                          <Link
-                            href={`/dashboard/supplier/bookings?booking=${booking.id}`}
-                            prefetch={false}
-                            className="rounded-xl bg-amber-300 px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200"
-                          >
-                            Chi tiết
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
         </section>
       </div>
     </main>

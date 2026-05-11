@@ -73,24 +73,6 @@ export default function SupplierHeaderMenu() {
               Change Password
             </Link>
 
-            <Link
-              href="/dashboard/supplier/reports"
-              prefetch={false}
-              onClick={() => setOpen(false)}
-              className="block whitespace-nowrap px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white"
-            >
-              Reports
-            </Link>
-
-            <Link
-              href="/dashboard/supplier/settlements"
-              prefetch={false}
-              onClick={() => setOpen(false)}
-              className="block whitespace-nowrap px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white"
-            >
-              Settlements
-            </Link>
-
             <div className="border-t border-white/10 p-3">
               <LogoutButton />
             </div>
