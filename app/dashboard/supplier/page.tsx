@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { adminClient } from "@/lib/supabase/admin";
 import { SupplierDashboardActionBookings } from "@/components/dashboard/supplier-dashboard-action-bookings";
 
 type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
@@ -169,7 +170,8 @@ function ModuleCard({
   );
 }
 
-export const revalidate = 15;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function SupplierDashboardPage() {
   const supabase = await createClient();
@@ -232,7 +234,7 @@ export default async function SupplierDashboardPage() {
       .eq("supplier_id", supplier.id)
       .eq("status", "completed"),
 
-    supabase
+    adminClient
       .from("bookings")
       .select(
         `
@@ -276,9 +278,9 @@ export default async function SupplierDashboardPage() {
       .in("status", ["pending", "confirmed"])
       .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true })
-      .limit(8),
+      .limit(20),
 
-    supabase
+    adminClient
       .from("bookings")
       .select(
         `
