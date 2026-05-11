@@ -187,11 +187,11 @@ function getStatusMessage(success?: string | null, error?: string | null) {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-white p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
         {label}
       </p>
-      <p className="mt-1 break-words text-sm font-semibold text-slate-950">
+      <p className="mt-2 break-words text-sm font-semibold text-white">
         {value}
       </p>
     </div>
@@ -200,11 +200,11 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function MoneyInfo({ label, value }: { label: string; value?: number | null }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
         {label}
       </p>
-      <p className="mt-1 text-sm font-black text-slate-950">
+      <p className="mt-2 text-sm font-black text-white">
         {formatMoney(value)}
       </p>
     </div>
@@ -213,11 +213,11 @@ function MoneyInfo({ label, value }: { label: string; value?: number | null }) {
 
 function TextBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
         {label}
       </p>
-      <p className="mt-2 break-words text-sm text-slate-900">{value}</p>
+      <p className="mt-2 break-words text-sm text-slate-300">{value}</p>
     </div>
   );
 }
@@ -237,7 +237,7 @@ function BookingModal({
   const allowedStatuses = getAllowedNextStatuses(booking.status);
 
   return (
-    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/60 px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 px-4 py-6 text-white backdrop-blur-sm">
       <button
         type="button"
         onClick={onClose}
@@ -245,14 +245,14 @@ function BookingModal({
         aria-label="Close booking detail"
       />
 
-      <section className="relative z-10 mx-auto w-full max-w-5xl overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl">
-        <div className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur md:px-6">
+      <section className="relative z-10 mx-auto w-full max-w-5xl overflow-hidden rounded-[32px] border border-white/10 bg-[#11100c] shadow-2xl shadow-black/80">
+        <div className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-white/10 bg-[#11100c]/95 px-5 py-4 backdrop-blur md:px-6">
           <div>
-            <p className="text-xs font-black uppercase tracking-wide text-amber-700">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               Booking Detail
             </p>
 
-            <h2 className="mt-1 text-2xl font-black text-slate-950">
+            <h2 className="mt-1 text-2xl font-black text-white">
               {booking.booking_code || booking.id}
             </h2>
           </div>
@@ -263,7 +263,7 @@ function BookingModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xl font-black text-slate-500 transition hover:bg-slate-50 hover:text-slate-950"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xl font-black text-slate-300 transition hover:bg-amber-300 hover:text-slate-950"
               aria-label="Close"
             >
               ×
@@ -273,8 +273,8 @@ function BookingModal({
 
         <div className="grid gap-5 p-5 md:p-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
-            <section className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">
+            <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-amber-300">
                 Thông tin booking
               </h3>
 
@@ -301,8 +301,8 @@ function BookingModal({
               </div>
             </section>
 
-            <section className="rounded-3xl border border-slate-200 bg-white p-4">
-              <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">
+            <section className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-amber-300">
                 Bill & Commission
               </h3>
 
@@ -337,22 +337,24 @@ function BookingModal({
               />
             ) : null}
 
-            <BookingStatusTimeline logs={logs} />
+            <div className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
+              <BookingStatusTimeline logs={logs} />
+            </div>
           </div>
 
           <aside className="space-y-4">
-            <section className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4">
-              <h3 className="text-base font-black text-slate-950">
+            <section className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-4">
+              <h3 className="text-base font-black text-white">
                 Cập nhật trạng thái
               </h3>
 
-              <p className="mt-2 text-xs leading-5 text-slate-600">
+              <p className="mt-2 text-xs leading-5 text-slate-400">
                 Pending chỉ được Confirmed/Cancelled. Confirmed chỉ được
                 Completed/Cancelled.
               </p>
 
               {locked ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-400">
                   Booking đã {normalizeStatus(booking.status)} nên không thể cập
                   nhật tiếp.
                 </div>
@@ -361,7 +363,7 @@ function BookingModal({
                   <input type="hidden" name="id" value={booking.id} />
 
                   <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
                       Trạng thái tiếp theo
                     </span>
 
@@ -369,7 +371,7 @@ function BookingModal({
                       name="status"
                       defaultValue=""
                       required
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-amber-400"
+                      className="rounded-xl border border-white/10 bg-[#070604] px-3 py-3 text-sm font-semibold text-white outline-none focus:border-amber-300"
                     >
                       <option value="" disabled>
                         Chọn trạng thái
@@ -385,7 +387,7 @@ function BookingModal({
 
                   {normalizeStatus(booking.status) === "confirmed" && (
                     <label className="grid gap-2">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+                      <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
                         Tổng bill khi completed
                       </span>
 
@@ -396,13 +398,13 @@ function BookingModal({
                         step="1000"
                         defaultValue={booking.total_bill || ""}
                         placeholder="VD: 3200000"
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-amber-400"
+                        className="rounded-xl border border-white/10 bg-[#070604] px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-amber-300"
                       />
                     </label>
                   )}
 
                   <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
                       Lý do hủy nếu cancelled
                     </span>
 
@@ -410,21 +412,21 @@ function BookingModal({
                       name="cancellation_reason"
                       placeholder="Nhập lý do nếu hủy booking"
                       defaultValue={booking.cancellation_reason || ""}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-amber-400"
+                      className="rounded-xl border border-white/10 bg-[#070604] px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-amber-300"
                     />
                   </label>
 
-                  <button className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800">
+                  <button className="rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200">
                     Cập nhật trạng thái
                   </button>
                 </form>
               )}
             </section>
 
-            <section className="rounded-3xl border border-slate-200 bg-white p-4">
-              <h3 className="text-sm font-black text-slate-950">Quick Rule</h3>
+            <section className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
+              <h3 className="text-sm font-black text-white">Quick Rule</h3>
 
-              <div className="mt-3 space-y-2 text-xs font-semibold leading-5 text-slate-600">
+              <div className="mt-3 space-y-2 text-xs font-semibold leading-5 text-slate-400">
                 <p>• Pending → Confirmed / Cancelled</p>
                 <p>• Confirmed → Completed / Cancelled</p>
                 <p>• Completed / Cancelled → Locked</p>
@@ -512,47 +514,53 @@ export function SupplierBookingsClient({
   );
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#fbf7ef] px-4 py-5 md:px-6">
+    <main className="relative min-h-screen overflow-hidden bg-[#050403] px-4 py-5 text-white md:px-6">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-32 top-0 h-80 w-80 rounded-full bg-amber-200/25 blur-3xl" />
-        <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-orange-100/60 blur-3xl" />
-        <div className="absolute left-0 top-0 h-full w-full bg-[radial-gradient(circle_at_1px_1px,rgba(214,155,56,0.11)_1px,transparent_0)] [background-size:28px_28px]" />
+        <div className="absolute -left-40 top-0 h-[420px] w-[420px] rounded-full bg-amber-400/20 blur-3xl" />
+        <div className="absolute right-0 top-16 h-[520px] w-[520px] rounded-full bg-orange-700/15 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-[360px] w-[360px] rounded-full bg-yellow-500/10 blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.12)_1px,transparent_0)] [background-size:30px_30px]" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl space-y-4">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-          <div>
-            <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-              Supplier Dashboard
-            </p>
-
-            <h1 className="mt-1 text-2xl font-black text-slate-950">
-              Quản lý booking
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Pending chỉ được confirm/cancel. Confirmed chỉ được
-              completed/cancel.
-            </p>
-          </div>
-
-          <Link
-            href="/dashboard/supplier"
-            prefetch={false}
-            className="w-fit rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
-          >
-            Tổng quan
-          </Link>
-        </div>
-
-        <section className="rounded-3xl border border-white/80 bg-white/95 p-4 shadow-sm">
-          <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+      <div className="relative mx-auto max-w-7xl space-y-5">
+        <section className="rounded-[32px] border border-white/10 bg-[#11100c]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur md:p-7">
+          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
             <div>
-              <p className="text-sm font-black text-slate-950">
-                Doanh thu completed: {formatMoney(totalCompletedRevenue)}
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">
+                Supplier Dashboard
               </p>
 
-              <p className="mt-1 text-xs text-slate-500">
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-white md:text-5xl">
+                Quản lý booking
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+                Pending chỉ được confirm/cancel. Confirmed chỉ được
+                completed/cancel.
+              </p>
+            </div>
+
+            <Link
+              href="/dashboard/supplier"
+              prefetch={false}
+              className="inline-flex w-fit items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-black text-white transition hover:border-amber-300/50 hover:bg-white/10"
+            >
+              Tổng quan
+            </Link>
+          </div>
+        </section>
+
+        <section className="rounded-[32px] border border-white/10 bg-[#11100c]/95 p-4 shadow-2xl shadow-black/35 backdrop-blur">
+          <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+            <div>
+              <p className="text-sm font-black text-white">
+                Doanh thu completed:{" "}
+                <span className="text-amber-300">
+                  {formatMoney(totalCompletedRevenue)}
+                </span>
+              </p>
+
+              <p className="mt-1 text-xs font-semibold text-slate-400">
                 {isRefreshing
                   ? "Đang đồng bộ dữ liệu mới..."
                   : "Filter xử lý trực tiếp trên trình duyệt, không reload trang."}
@@ -571,8 +579,8 @@ export function SupplierBookingsClient({
                     onClick={() => setActiveStatus(filter.value)}
                     className={
                       selected
-                        ? "whitespace-nowrap rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition"
-                        : "whitespace-nowrap rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-600 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+                        ? "whitespace-nowrap rounded-full bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 shadow-lg shadow-amber-950/20 transition"
+                        : "whitespace-nowrap rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-black text-slate-300 transition hover:border-amber-300/40 hover:bg-white/10 hover:text-white"
                     }
                   >
                     {filter.label} ({count})
@@ -587,46 +595,46 @@ export function SupplierBookingsClient({
           <div
             className={
               message.type === "success"
-                ? "rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700"
+                ? "rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-4 text-sm font-bold text-emerald-200"
                 : message.type === "warning"
-                  ? "rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-700"
-                  : "rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700"
+                  ? "rounded-2xl border border-amber-300/25 bg-amber-300/10 px-5 py-4 text-sm font-bold text-amber-200"
+                  : "rounded-2xl border border-red-400/20 bg-red-400/10 px-5 py-4 text-sm font-bold text-red-200"
             }
           >
             {message.text}
           </div>
         ) : null}
 
-        <section className="overflow-hidden rounded-3xl border border-white/80 bg-white/95 shadow-sm">
+        <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[#11100c]/95 shadow-2xl shadow-black/35 backdrop-blur">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase text-slate-500">
+              <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-wide text-slate-400">
                 <tr>
-                  <th className="px-4 py-3">Booking</th>
-                  <th className="px-4 py-3">Khách</th>
-                  <th className="px-4 py-3">Nhà hàng</th>
-                  <th className="px-4 py-3">Thời gian</th>
-                  <th className="px-4 py-3">Số khách</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Action</th>
+                  <th className="px-5 py-4 font-black">Booking</th>
+                  <th className="px-5 py-4 font-black">Khách</th>
+                  <th className="px-5 py-4 font-black">Nhà hàng</th>
+                  <th className="px-5 py-4 font-black">Thời gian</th>
+                  <th className="px-5 py-4 font-black">Số khách</th>
+                  <th className="px-5 py-4 font-black">Status</th>
+                  <th className="px-5 py-4 text-right font-black">Action</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-white/10">
                 {filteredBookings.map((booking) => {
                   const restaurant = getRestaurant(booking);
 
                   return (
                     <tr
                       key={booking.id}
-                      className="align-top transition hover:bg-amber-50/40"
+                      className="align-top transition hover:bg-white/[0.04]"
                     >
-                      <td className="px-4 py-4">
-                        <p className="font-black text-slate-950">
+                      <td className="px-5 py-5">
+                        <p className="font-black text-white">
                           {booking.booking_code || booking.id.slice(0, 8)}
                         </p>
 
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs font-medium text-slate-500">
                           {booking.created_at
                             ? new Date(booking.created_at).toLocaleString(
                                 "vi-VN",
@@ -635,12 +643,12 @@ export function SupplierBookingsClient({
                         </p>
                       </td>
 
-                      <td className="px-4 py-4">
-                        <p className="font-bold text-slate-950">
+                      <td className="px-5 py-5">
+                        <p className="font-bold text-white">
                           {getCustomerName(booking)}
                         </p>
 
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-slate-400">
                           {getCustomerPhone(booking)}
                         </p>
 
@@ -649,41 +657,41 @@ export function SupplierBookingsClient({
                         </p>
                       </td>
 
-                      <td className="px-4 py-4">
-                        <p className="font-bold text-slate-950">
+                      <td className="px-5 py-5">
+                        <p className="font-bold text-white">
                           {restaurant?.name || booking.service_name || "-"}
                         </p>
 
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-slate-400">
                           {restaurant?.city || "-"}
                         </p>
                       </td>
 
-                      <td className="px-4 py-4">
-                        <p className="font-bold text-slate-950">
+                      <td className="px-5 py-5">
+                        <p className="font-bold text-white">
                           {booking.booking_date || "-"}
                         </p>
 
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-slate-400">
                           {booking.booking_time || "-"}
                         </p>
                       </td>
 
-                      <td className="px-4 py-4 font-bold text-slate-700">
+                      <td className="px-5 py-5 font-bold text-slate-200">
                         {getGuestCount(booking)}
                       </td>
 
-                      <td className="px-4 py-4">
+                      <td className="px-5 py-5">
                         <StatusBadge
                           status={booking.status as BookingStatus}
                         />
                       </td>
 
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-5 py-5 text-right">
                         <button
                           type="button"
                           onClick={() => setSelectedBooking(booking)}
-                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                          className="rounded-xl bg-amber-300 px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200"
                         >
                           Chi tiết
                         </button>
@@ -696,7 +704,7 @@ export function SupplierBookingsClient({
                   <tr>
                     <td
                       colSpan={7}
-                      className="px-4 py-10 text-center text-sm font-semibold text-slate-500"
+                      className="px-5 py-12 text-center text-sm font-semibold text-slate-400"
                     >
                       Không có booking nào ở trạng thái này.
                     </td>
