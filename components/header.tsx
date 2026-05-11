@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/logout-button";
 import HeaderMobileMenu from "@/components/header-mobile-menu";
 import CustomerHeaderMenu from "@/components/customer-header-menu";
+import SupplierHeaderMenu from "@/components/supplier-header-menu";
 
 function getDashboardHref(role: string | null) {
   if (role === "admin") return "/dashboard/admin";
@@ -58,14 +59,14 @@ export default async function Header() {
 
   const dashboardHref = getDashboardHref(role);
   const isCustomer = role === "customer";
+  const isSupplier = role === "supplier";
 
   return (
     <header className="sticky top-0 z-[9999] border-b border-white/10 bg-[#080704]/95 text-white backdrop-blur-xl">
       <div className="mx-auto flex h-[92px] w-full max-w-7xl items-center justify-between gap-4 px-4 md:h-[96px] md:px-6">
-        {/* LOGO */}
         <Link
           href={dashboardHref}
-          prefetch
+          prefetch={false}
           className="flex min-w-0 items-center gap-3"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-xl text-slate-950 shadow-xl shadow-amber-950/20">
@@ -83,12 +84,13 @@ export default async function Header() {
           </div>
         </Link>
 
-        {/* DESKTOP */}
         <div className="hidden items-center gap-3 md:flex">
           {user ? (
             <>
               {isCustomer ? (
                 <CustomerHeaderMenu />
+              ) : isSupplier ? (
+                <SupplierHeaderMenu />
               ) : (
                 <LogoutButton />
               )}
@@ -96,7 +98,7 @@ export default async function Header() {
           ) : (
             <Link
               href="/login?mode=register"
-              prefetch
+              prefetch={false}
               className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
             >
               Register
@@ -104,7 +106,6 @@ export default async function Header() {
           )}
         </div>
 
-        {/* MOBILE */}
         {user && (
           <div className="md:hidden">
             <HeaderMobileMenu isLoggedIn={!!user} role={role} />

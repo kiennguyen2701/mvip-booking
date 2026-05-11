@@ -25,6 +25,7 @@ export default function HeaderMobileMenu({
 
   const dashboardHref = getDashboardHref(role);
   const isCustomer = role === "customer";
+  const isSupplier = role === "supplier";
 
   useEffect(() => {
     setMounted(true);
@@ -75,6 +76,7 @@ export default function HeaderMobileMenu({
             <>
               <Link
                 href={dashboardHref}
+                prefetch={false}
                 onClick={() => setOpen(false)}
                 className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
               >
@@ -85,6 +87,7 @@ export default function HeaderMobileMenu({
                 <>
                   <Link
                     href="/dashboard/customer/bookings"
+                    prefetch={false}
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
                   >
@@ -93,10 +96,69 @@ export default function HeaderMobileMenu({
 
                   <Link
                     href="/dashboard/customer/profile"
+                    prefetch={false}
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-amber-300 px-4 py-4 text-base font-black text-slate-950"
                   >
                     My Profile
+                  </Link>
+                </>
+              )}
+
+              {isSupplier && (
+                <>
+                  <Link
+                    href="/dashboard/supplier/bookings"
+                    prefetch={false}
+                    onClick={() => setOpen(false)}
+                    className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
+                  >
+                    Booking List
+                  </Link>
+
+                  <Link
+                    href="/dashboard/supplier/restaurants"
+                    prefetch={false}
+                    onClick={() => setOpen(false)}
+                    className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
+                  >
+                    My Restaurants
+                  </Link>
+
+                  <Link
+                    href="/dashboard/supplier/profile"
+                    prefetch={false}
+                    onClick={() => setOpen(false)}
+                    className="block rounded-2xl bg-amber-300 px-4 py-4 text-base font-black text-slate-950"
+                  >
+                    My Profile
+                  </Link>
+
+                  <Link
+                    href="/dashboard/supplier/change-password"
+                    prefetch={false}
+                    onClick={() => setOpen(false)}
+                    className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
+                  >
+                    Change Password
+                  </Link>
+
+                  <Link
+                    href="/dashboard/supplier/reports"
+                    prefetch={false}
+                    onClick={() => setOpen(false)}
+                    className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
+                  >
+                    Reports
+                  </Link>
+
+                  <Link
+                    href="/dashboard/supplier/settlements"
+                    prefetch={false}
+                    onClick={() => setOpen(false)}
+                    className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
+                  >
+                    Settlements
                   </Link>
                 </>
               )}
@@ -109,6 +171,7 @@ export default function HeaderMobileMenu({
             <>
               <Link
                 href="/login"
+                prefetch={false}
                 onClick={() => setOpen(false)}
                 className="block rounded-2xl bg-white/10 px-4 py-4 text-center text-base font-black"
               >
@@ -117,6 +180,7 @@ export default function HeaderMobileMenu({
 
               <Link
                 href="/login?mode=register"
+                prefetch={false}
                 onClick={() => setOpen(false)}
                 className="block rounded-2xl bg-amber-300 px-4 py-4 text-center text-base font-black text-slate-950"
               >
