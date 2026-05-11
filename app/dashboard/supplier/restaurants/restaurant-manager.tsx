@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import {
   createRestaurant,
   updateRestaurant,
@@ -193,22 +193,7 @@ async function compressImageFile(
   });
 }
 
-function longitudeToTileX(longitude: number, zoom: number) {
-  return Math.floor(((longitude + 180) / 360) * Math.pow(2, zoom));
-}
-
-function latitudeToTileY(latitude: number, zoom: number) {
-  const latRad = (latitude * Math.PI) / 180;
-
-  return Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
-      Math.pow(2, zoom),
-  );
-}
-
 function LocationPicker({ restaurant }: { restaurant?: RestaurantItem | null }) {
-  const mapRef = useRef<HTMLDivElement | null>(null);
-
   const [address, setAddress] = useState(restaurant?.address ?? "");
   const [city, setCity] = useState(restaurant?.city ?? "Hà Nội");
   const [latitude, setLatitude] = useState(
@@ -222,25 +207,6 @@ function LocationPicker({ restaurant }: { restaurant?: RestaurantItem | null }) 
       : "",
   );
   const [message, setMessage] = useState("");
-  const [dragging, setDragging] = useState(false);
-  const [pinOffset, setPinOffset] = useState({ x: 0, y: 0 });
-
-  const numericLatitude = Number(latitude);
-  const numericLongitude = Number(longitude);
-
-  const hasCoordinates =
-    Number.isFinite(numericLatitude) && Number.isFinite(numericLongitude);
-
-  const zoom = 16;
-
-  const tileUrl = useMemo(() => {
-    if (!hasCoordinates) return "";
-
-    const x = longitudeToTileX(numericLongitude, zoom);
-    const y = latitudeToTileY(numericLatitude, zoom);
-
-    return `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
-  }, [hasCoordinates, numericLatitude, numericLongitude]);
 
   async function geocodeAddress() {
     if (!address.trim()) {
@@ -248,7 +214,7 @@ function LocationPicker({ restaurant }: { restaurant?: RestaurantItem | null }) 
       return;
     }
 
-    setMessage("Đang tìm vị trí trên bản đồ...");
+    setMessage("Đang tìm tọa độ theo địa chỉ...");
 
     const query = [address, city, "Việt Nam"].filter(Boolean).join(", ");
 
@@ -262,56 +228,24 @@ function LocationPicker({ restaurant }: { restaurant?: RestaurantItem | null }) 
       const result = await response.json();
 
       if (!Array.isArray(result) || !result[0]) {
-        setMessage("Không tìm thấy vị trí. Anh nhập địa chỉ cụ thể hơn.");
+        setMessage("Không tìm thấy tọa độ. Anh nhập địa chỉ cụ thể hơn.");
         return;
       }
 
       setLatitude(String(Number(result[0].lat)));
       setLongitude(String(Number(result[0].lon)));
-      setPinOffset({ x: 0, y: 0 });
-      setMessage("Đã ghim địa chỉ. Anh có thể kéo pin để chỉnh vị trí.");
+      setMessage("Đã lấy tọa độ. Anh có thể chỉnh Latitude/Longitude thủ công.");
     } catch {
-      setMessage("Không thể tìm vị trí. Anh nhập tọa độ thủ công.");
+      setMessage("Không thể tìm tọa độ. Anh nhập Latitude/Longitude thủ công.");
     }
-  }
-
-  function movePin(event: React.PointerEvent<HTMLDivElement>) {
-    if (!dragging || !mapRef.current || !hasCoordinates) return;
-
-    const rect = mapRef.current.getBoundingClientRect();
-
-    setPinOffset({
-      x: event.clientX - rect.left - rect.width / 2,
-      y: event.clientY - rect.top - rect.height / 2,
-    });
-  }
-
-  function endDrag() {
-    if (!dragging || !hasCoordinates) return;
-
-    const metersPerPixel =
-      (156543.03392 * Math.cos((numericLatitude * Math.PI) / 180)) /
-      Math.pow(2, zoom);
-
-    const deltaMetersX = pinOffset.x * metersPerPixel;
-    const deltaMetersY = pinOffset.y * metersPerPixel;
-
-    const deltaLatitude = -deltaMetersY / 111320;
-    const deltaLongitude =
-      deltaMetersX / (111320 * Math.cos((numericLatitude * Math.PI) / 180));
-
-    setLatitude(String(Number((numericLatitude + deltaLatitude).toFixed(14))));
-    setLongitude(String(Number((numericLongitude + deltaLongitude).toFixed(14))));
-    setPinOffset({ x: 0, y: 0 });
-    setDragging(false);
-    setMessage("Đã cập nhật tọa độ theo vị trí pin.");
   }
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
       <h3 className="text-lg font-black text-slate-950">Vị trí nhà hàng</h3>
       <p className="mt-1 text-sm text-slate-500">
-        Điền địa chỉ → ghim map → kéo pin để chỉnh chính xác.
+        Điền địa chỉ để lấy tọa độ tự động, hoặc nhập Latitude/Longitude thủ
+        công.
       </p>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -357,63 +291,49 @@ function LocationPicker({ restaurant }: { restaurant?: RestaurantItem | null }) 
             onClick={geocodeAddress}
             className="h-12 w-full rounded-xl bg-slate-950 text-sm font-black text-white hover:bg-slate-800"
           >
-            Ghim địa chỉ trên map
+            Lấy tọa độ theo địa chỉ
           </button>
         </div>
 
-        <Field
-          label="Latitude"
-          name="latitude"
-          type="number"
-          step="any"
-          defaultValue={latitude}
-          placeholder="21.028511"
-        />
+        <div className="space-y-2">
+          <label
+            htmlFor="latitude"
+            className="block text-sm font-bold text-slate-800"
+          >
+            Latitude
+          </label>
 
-        <Field
-          label="Longitude"
-          name="longitude"
-          type="number"
-          step="any"
-          defaultValue={longitude}
-          placeholder="105.804817"
-        />
-      </div>
+          <input
+            id="latitude"
+            name="latitude"
+            type="number"
+            step="any"
+            value={latitude}
+            onChange={(event) => setLatitude(event.target.value)}
+            placeholder="21.028511"
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100"
+          />
+        </div>
 
-      <div
-        ref={mapRef}
-        onPointerMove={movePin}
-        onPointerUp={endDrag}
-        onPointerLeave={endDrag}
-        className="relative mt-4 h-72 overflow-hidden rounded-2xl border border-slate-300 bg-white"
-      >
-        {hasCoordinates ? (
-          <>
-            <div
-              className="absolute inset-0 scale-[2.05] bg-cover bg-center"
-              style={{ backgroundImage: `url(${tileUrl})` }}
-            />
+        <div className="space-y-2">
+          <label
+            htmlFor="longitude"
+            className="block text-sm font-bold text-slate-800"
+          >
+            Longitude
+          </label>
 
-            <button
-              type="button"
-              onPointerDown={() => setDragging(true)}
-              style={{
-                transform: `translate(calc(-50% + ${pinOffset.x}px), calc(-100% + ${pinOffset.y}px))`,
-              }}
-              className="absolute left-1/2 top-1/2 cursor-grab select-none text-5xl drop-shadow-lg active:cursor-grabbing"
-            >
-              📍
-            </button>
-
-            <div className="absolute bottom-3 left-3 rounded-xl bg-white/95 px-3 py-2 text-xs font-bold text-slate-700">
-              {Number(latitude).toFixed(6)}, {Number(longitude).toFixed(6)}
-            </div>
-          </>
-        ) : (
-          <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">
-            Chưa có tọa độ. Anh nhập địa chỉ rồi bấm “Ghim địa chỉ trên map”.
-          </div>
-        )}
+          <input
+            id="longitude"
+            name="longitude"
+            type="number"
+            step="any"
+            value={longitude}
+            onChange={(event) => setLongitude(event.target.value)}
+            placeholder="105.804817"
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100"
+          />
+        </div>
       </div>
 
       {message && (
@@ -1053,7 +973,9 @@ export default function RestaurantManager({
             <h2 className="text-lg font-black text-slate-950">
               Danh sách nhà hàng
             </h2>
-            <p className="text-sm text-slate-500">Tổng số: {restaurants.length}</p>
+            <p className="text-sm text-slate-500">
+              Tổng số: {restaurants.length}
+            </p>
           </div>
 
           <Link
