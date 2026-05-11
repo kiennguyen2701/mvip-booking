@@ -421,7 +421,17 @@ export default async function SupplierBookingsPage({
 
   const { supplier } = await getCurrentSupplier();
 
-  const { data: bookingsData, error } = await adminClient
+  const { data: countRows } = await adminClient
+    .from("bookings")
+    .select("id,status,total_bill")
+    .eq("supplier_id", supplier.id);
+
+  const countBookings = ((countRows || []) as BookingRow[]).map((booking) => ({
+    ...booking,
+    status: normalizeStatus(booking.status),
+  }));
+
+  let bookingsQuery = adminClient
     .from("bookings")
     .select(`
       *,
@@ -435,8 +445,16 @@ export default async function SupplierBookingsPage({
         created_at
       )
     `)
-    .eq("supplier_id", supplier.id)
-    .order("created_at", { ascending: false });
+    .eq("supplier_id", supplier.id);
+
+  if (activeStatus !== "all") {
+    bookingsQuery = bookingsQuery.eq("status", activeStatus);
+  }
+
+  const { data: bookingsData, error } = await bookingsQuery.order(
+    "created_at",
+    { ascending: false },
+  );
 
   if (error) {
     return (
@@ -449,34 +467,62 @@ export default async function SupplierBookingsPage({
     );
   }
 
-  const allBookings = ((bookingsData || []) as BookingRow[]).map((booking) => ({
+  let allBookings = ((bookingsData || []) as BookingRow[]).map((booking) => ({
     ...booking,
     status: normalizeStatus(booking.status),
   }));
 
-  const filteredBookings =
-    activeStatus === "all"
-      ? allBookings
-      : allBookings.filter(
-          (booking) => normalizeStatus(booking.status) === activeStatus,
-        );
+  if (
+    selectedBookingId &&
+    !allBookings.some((booking) => booking.id === selectedBookingId)
+  ) {
+    const { data: selectedBookingData } = await adminClient
+      .from("bookings")
+      .select(`
+        *,
+        restaurants(id,name,slug,city,address),
+        booking_status_logs(
+          id,
+          old_status,
+          new_status,
+          changed_by_role,
+          note,
+          created_at
+        )
+      `)
+      .eq("supplier_id", supplier.id)
+      .eq("id", selectedBookingId)
+      .maybeSingle();
+
+    if (selectedBookingData) {
+      allBookings = [
+        {
+          ...(selectedBookingData as BookingRow),
+          status: normalizeStatus((selectedBookingData as BookingRow).status),
+        },
+        ...allBookings,
+      ];
+    }
+  }
+
+  const filteredBookings = allBookings;
 
   const selectedBooking =
     allBookings.find((booking) => booking.id === selectedBookingId) || null;
 
   const counts = {
-    all: allBookings.length,
-    pending: allBookings.filter((booking) => booking.status === "pending")
+    all: countBookings.length,
+    pending: countBookings.filter((booking) => booking.status === "pending")
       .length,
-    confirmed: allBookings.filter((booking) => booking.status === "confirmed")
+    confirmed: countBookings.filter((booking) => booking.status === "confirmed")
       .length,
-    completed: allBookings.filter((booking) => booking.status === "completed")
+    completed: countBookings.filter((booking) => booking.status === "completed")
       .length,
-    cancelled: allBookings.filter((booking) => booking.status === "cancelled")
+    cancelled: countBookings.filter((booking) => booking.status === "cancelled")
       .length,
   };
 
-  const totalCompletedRevenue = allBookings
+  const totalCompletedRevenue = countBookings
     .filter((booking) => booking.status === "completed")
     .reduce((sum, booking) => sum + Number(booking.total_bill ?? 0), 0);
 
@@ -507,6 +553,7 @@ export default async function SupplierBookingsPage({
 
           <Link
             href="/dashboard/supplier"
+            prefetch={false}
             className="w-fit rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
           >
             Tổng quan
@@ -662,6 +709,7 @@ export default async function SupplierBookingsPage({
                         <Link
                           href={getBookingHref(activeStatus, booking.id)}
                           scroll={false}
+                          prefetch={false}
                           className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
                         >
                           Chi tiết
@@ -711,6 +759,7 @@ function BookingModal({
       <Link
         href={getCloseHref(activeStatus)}
         scroll={false}
+        prefetch={false}
         className="fixed inset-0 cursor-default"
         aria-label="Close booking detail"
       />
@@ -733,6 +782,7 @@ function BookingModal({
             <Link
               href={getCloseHref(activeStatus)}
               scroll={false}
+              prefetch={false}
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xl font-black text-slate-500 transition hover:bg-slate-50 hover:text-slate-950"
               aria-label="Close"
             >
