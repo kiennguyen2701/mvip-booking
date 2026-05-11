@@ -123,6 +123,7 @@ export async function POST(request: Request) {
         booking_date: bookingDate,
         booking_time: bookingTime,
         guests,
+        guest_count: guests,
         status: "pending",
         total_bill: 0,
         customer_discount_amount: 0,
