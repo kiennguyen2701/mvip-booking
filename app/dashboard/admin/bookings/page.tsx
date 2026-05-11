@@ -56,6 +56,9 @@ type RestaurantRow = {
   id: string;
   name?: string | null;
   slug?: string | null;
+  city?: string | null;
+  address?: string | null;
+  phone?: string | null;
   supplier_id?: string | null;
 };
 
@@ -395,7 +398,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
     restaurantIds.length
       ? adminClient
           .from("restaurants")
-          .select("id, name, slug, supplier_id")
+          .select("id, name, slug, city, address, phone, supplier_id")
           .in("id", restaurantIds)
       : Promise.resolve({ data: [] }),
 

@@ -23,6 +23,7 @@ type RestaurantRow = {
   slug?: string | null;
   city?: string | null;
   address?: string | null;
+  phone?: string | null;
   supplier_id?: string | null;
 };
 
@@ -147,6 +148,10 @@ function getGuestCount(booking: AdminBookingRow) {
 
 function getRestaurantName(booking: AdminBookingRow) {
   return booking.restaurants?.name || booking.service_name || "Restaurant";
+}
+
+function getRestaurantPhone(booking: AdminBookingRow) {
+  return booking.restaurants?.phone || "-";
 }
 
 function getRestaurantLocation(booking: AdminBookingRow) {
@@ -516,6 +521,7 @@ function BookingDetailModal({
                 <Info label="Phone" value={getCustomerPhone(booking)} />
                 <Info label="Whatsapp" value={getCustomerWhatsapp(booking)} />
                 <Info label="Nhà hàng" value={getRestaurantName(booking)} />
+                <Info label="SĐT nhà hàng" value={getRestaurantPhone(booking)} />
                 <Info label="Địa điểm" value={getRestaurantLocation(booking)} />
                 <Info label="Ngày" value={booking.booking_date || "-"} />
                 <Info label="Giờ" value={booking.booking_time || "-"} />
@@ -764,7 +770,6 @@ export function AdminBookingsClient({
 
             <tbody className="divide-y divide-slate-100">
               {filteredBookings.map((booking) => {
-                const restaurant = booking.restaurants;
                 const agent = booking.agent;
 
                 return (
@@ -799,15 +804,9 @@ export function AdminBookingsClient({
                       <p className="font-bold text-slate-950">
                         {getRestaurantName(booking)}
                       </p>
-                      {restaurant?.slug ? (
-                        <Link
-                          href={`/restaurants/${restaurant.slug}`}
-                          prefetch={false}
-                          className="mt-1 inline-flex text-xs font-bold text-amber-700 hover:text-amber-800"
-                        >
-                          Xem nhà hàng →
-                        </Link>
-                      ) : null}
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {getRestaurantPhone(booking)}
+                      </p>
                     </td>
 
                     <td className="px-4 py-4">
