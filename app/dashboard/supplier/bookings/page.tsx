@@ -206,9 +206,11 @@ function getGuestCount(booking: BookingRow) {
 }
 
 function getAgentPlatformCommissionAmount(booking: BookingRow) {
-  return (
-    Number(booking.platform_commission_amount ?? 0) +
-    Number(booking.agent_commission_amount ?? 0)
+  return Number(
+    booking.platform_commission_amount ??
+      (Number(booking.total_bill ?? 0) > 0
+        ? Number(booking.total_bill ?? 0) * 0.1
+        : 0),
   );
 }
 
