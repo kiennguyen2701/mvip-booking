@@ -15,6 +15,12 @@ type CustomerProfile = {
   email?: string | null;
 };
 
+const HOURS = Array.from({ length: 24 }, (_, index) =>
+  String(index).padStart(2, "0"),
+);
+
+const MINUTES = ["00", "10", "20", "30", "40", "50"];
+
 export default function RestaurantBookingForm({
   restaurantId,
   restaurantName,
@@ -25,6 +31,9 @@ export default function RestaurantBookingForm({
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+
+  const [bookingHour, setBookingHour] = useState("18");
+  const [bookingMinute, setBookingMinute] = useState("00");
 
   const [profileLoading, setProfileLoading] = useState(false);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
@@ -73,6 +82,8 @@ export default function RestaurantBookingForm({
       sessionStorage.getItem("agent_ref") ||
       "";
 
+    const bookingTime = `${bookingHour}:${bookingMinute}`;
+
     setLoading(true);
 
     try {
@@ -90,7 +101,7 @@ export default function RestaurantBookingForm({
           whatsapp: String(formData.get("whatsapp") || ""),
           guests: Number(formData.get("guest_count") || 1),
           bookingDate: String(formData.get("booking_date") || ""),
-          bookingTime: String(formData.get("booking_time") || ""),
+          bookingTime,
           agentRef,
         }),
       });
@@ -215,23 +226,50 @@ export default function RestaurantBookingForm({
               </select>
             </Field>
 
+            <Field label="Date">
+              <input
+                name="booking_date"
+                type="date"
+                required
+                className="booking-input"
+              />
+            </Field>
+
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Date">
-                <input
-                  name="booking_date"
-                  type="date"
-                  required
+              <Field label="Hour">
+                <select
+                  value={bookingHour}
+                  onChange={(event) => setBookingHour(event.target.value)}
                   className="booking-input"
-                />
+                >
+                  {HOURS.map((hour) => (
+                    <option
+                      key={hour}
+                      value={hour}
+                      className="text-slate-950"
+                    >
+                      {hour}h
+                    </option>
+                  ))}
+                </select>
               </Field>
 
-              <Field label="Time">
-                <input
-                  name="booking_time"
-                  type="time"
-                  required
+              <Field label="Minute">
+                <select
+                  value={bookingMinute}
+                  onChange={(event) => setBookingMinute(event.target.value)}
                   className="booking-input"
-                />
+                >
+                  {MINUTES.map((minute) => (
+                    <option
+                      key={minute}
+                      value={minute}
+                      className="text-slate-950"
+                    >
+                      {minute}
+                    </option>
+                  ))}
+                </select>
               </Field>
             </div>
 
