@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   createRestaurant,
@@ -45,6 +46,8 @@ const initialState: RestaurantManagerState = {
   success: false,
   message: "",
 };
+
+const RESTAURANTS_DASHBOARD_PATH = "/dashboard/supplier/restaurants";
 
 function Field({
   label,
@@ -295,45 +298,23 @@ function LocationPicker({ restaurant }: { restaurant?: RestaurantItem | null }) 
           </button>
         </div>
 
-        <div className="space-y-2">
-          <label
-            htmlFor="latitude"
-            className="block text-sm font-bold text-slate-800"
-          >
-            Latitude
-          </label>
+        <Field
+          label="Latitude"
+          name="latitude"
+          type="number"
+          step="any"
+          defaultValue={latitude}
+          placeholder="21.028511"
+        />
 
-          <input
-            id="latitude"
-            name="latitude"
-            type="number"
-            step="any"
-            value={latitude}
-            onChange={(event) => setLatitude(event.target.value)}
-            placeholder="21.028511"
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="longitude"
-            className="block text-sm font-bold text-slate-800"
-          >
-            Longitude
-          </label>
-
-          <input
-            id="longitude"
-            name="longitude"
-            type="number"
-            step="any"
-            value={longitude}
-            onChange={(event) => setLongitude(event.target.value)}
-            placeholder="105.804817"
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100"
-          />
-        </div>
+        <Field
+          label="Longitude"
+          name="longitude"
+          type="number"
+          step="any"
+          defaultValue={longitude}
+          placeholder="105.804817"
+        />
       </div>
 
       {message && (
@@ -961,14 +942,64 @@ function RestaurantForm({
   );
 }
 
+function RestaurantFormModal({
+  mode,
+  restaurant,
+}: {
+  mode: "create" | "update";
+  restaurant?: RestaurantItem | null;
+}) {
+  return (
+    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/60 px-3 py-4 backdrop-blur-sm md:px-6 md:py-8">
+      <Link
+        href={RESTAURANTS_DASHBOARD_PATH}
+        className="fixed inset-0 cursor-default"
+        aria-label="Close restaurant form"
+        scroll={false}
+      />
+
+      <section className="relative z-10 mx-auto w-full max-w-5xl overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 shadow-2xl">
+        <div className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-500">
+              Supplier Restaurant
+            </p>
+
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              {mode === "create" ? "Tạo nhà hàng mới" : "Chỉnh sửa nhà hàng"}
+            </h2>
+          </div>
+
+          <Link
+            href={RESTAURANTS_DASHBOARD_PATH}
+            scroll={false}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl font-black text-slate-500 transition hover:bg-slate-50 hover:text-slate-950"
+            aria-label="Close"
+          >
+            ×
+          </Link>
+        </div>
+
+        <div className="p-4 md:p-6">
+          <RestaurantForm mode={mode} restaurant={restaurant} />
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function RestaurantManager({
   restaurants,
   editingRestaurant,
 }: RestaurantManagerProps) {
+  const searchParams = useSearchParams();
+  const isCreating = searchParams.get("create") === "1";
+  const showModal = isCreating || Boolean(editingRestaurant);
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+    <>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-5 flex items-center justify-between">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-black text-slate-950">
               Danh sách nhà hàng
@@ -979,29 +1010,31 @@ export default function RestaurantManager({
           </div>
 
           <Link
-            href="/dashboard/supplier/restaurants"
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            href={`${RESTAURANTS_DASHBOARD_PATH}?create=1`}
+            scroll={false}
+            className="w-fit rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-slate-800"
           >
-            Tạo mới
+            + Tạo mới
           </Link>
         </div>
 
-        <div className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-2">
           {restaurants.map((restaurant) => {
             const coverUrl = getRestaurantImageUrl(restaurant.cover_image);
 
             return (
               <div
                 key={restaurant.id}
-                className="rounded-2xl border border-slate-200 p-4"
+                className="rounded-2xl border border-slate-200 p-4 transition hover:border-amber-200 hover:bg-amber-50/30"
               >
-                <div className="flex gap-4">
-                  <div className="h-24 w-32 overflow-hidden rounded-xl bg-amber-50">
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <div className="h-32 w-full overflow-hidden rounded-xl bg-amber-50 sm:h-24 sm:w-32">
                     {coverUrl ? (
                       <img
                         src={coverUrl}
                         alt={restaurant.name}
                         className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-3xl">
@@ -1015,7 +1048,7 @@ export default function RestaurantManager({
                       {restaurant.name}
                     </h3>
 
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-500">
                       {restaurant.address || "Chưa có địa chỉ"}
                     </p>
 
@@ -1038,14 +1071,15 @@ export default function RestaurantManager({
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Link
                         href={`/restaurants/${restaurant.slug}`}
-                        className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
                       >
                         Xem chi tiết
                       </Link>
 
                       <Link
-                        href={`/dashboard/supplier/restaurants?edit=${restaurant.id}`}
-                        className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                        href={`${RESTAURANTS_DASHBOARD_PATH}?edit=${restaurant.id}`}
+                        scroll={false}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
                       >
                         Chỉnh sửa
                       </Link>
@@ -1057,20 +1091,19 @@ export default function RestaurantManager({
           })}
 
           {!restaurants.length && (
-            <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+            <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 md:col-span-2">
               Chưa có nhà hàng nào.
             </div>
           )}
         </div>
       </section>
 
-      <div>
-        {editingRestaurant ? (
-          <RestaurantForm mode="update" restaurant={editingRestaurant} />
-        ) : (
-          <RestaurantForm mode="create" />
-        )}
-      </div>
-    </div>
+      {showModal ? (
+        <RestaurantFormModal
+          mode={editingRestaurant ? "update" : "create"}
+          restaurant={editingRestaurant}
+        />
+      ) : null}
+    </>
   );
 }
