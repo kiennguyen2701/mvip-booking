@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 
+type CompletedBillRow = {
+  total_bill: number | null;
+};
+
 function StatCard({
   label,
   value,
@@ -29,11 +33,6 @@ function formatMoney(value?: number | null) {
   return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 }
 
-async function getCount(query: PromiseLike<{ count: number | null }>) {
-  const result = await query;
-  return result.count || 0;
-}
-
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -42,90 +41,67 @@ export default async function SupplierDashboardPage() {
 
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
-  const { data: supplier, error: supplierError } = await adminClient
+  const { data: supplier } = await adminClient
     .from("suppliers")
-    .select("id, company_name, status, is_active")
+    .select("id, company_name, status")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (supplierError || !supplier) {
-    redirect("/dashboard");
-  }
-
-  if (supplier.is_active === false) {
-    redirect("/dashboard");
-  }
+  if (!supplier) redirect("/dashboard");
 
   const [
-    restaurantsCount,
-    activeRestaurantsCount,
-    totalBookings,
-    pendingCount,
-    confirmedCount,
-    completedCount,
-    cancelledCount,
+    restaurantsCountResult,
+    activeRestaurantsCountResult,
+    totalBookingsResult,
+    pendingCountResult,
+    confirmedCountResult,
+    completedCountResult,
+    cancelledCountResult,
     completedBillsResult,
   ] = await Promise.all([
-    getCount(
-      adminClient
-        .from("restaurants")
-        .select("id", { count: "exact", head: true })
-        .eq("supplier_id", supplier.id),
-    ),
+    adminClient
+      .from("restaurants")
+      .select("id", { count: "exact", head: true })
+      .eq("supplier_id", supplier.id),
 
-    getCount(
-      adminClient
-        .from("restaurants")
-        .select("id", { count: "exact", head: true })
-        .eq("supplier_id", supplier.id)
-        .eq("is_active", true),
-    ),
+    adminClient
+      .from("restaurants")
+      .select("id", { count: "exact", head: true })
+      .eq("supplier_id", supplier.id)
+      .eq("is_active", true),
 
-    getCount(
-      adminClient
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("supplier_id", supplier.id),
-    ),
+    adminClient
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("supplier_id", supplier.id),
 
-    getCount(
-      adminClient
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("supplier_id", supplier.id)
-        .or("status.eq.pending,status.is.null"),
-    ),
+    adminClient
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("supplier_id", supplier.id)
+      .or("status.eq.pending,status.is.null"),
 
-    getCount(
-      adminClient
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("supplier_id", supplier.id)
-        .eq("status", "confirmed"),
-    ),
+    adminClient
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("supplier_id", supplier.id)
+      .eq("status", "confirmed"),
 
-    getCount(
-      adminClient
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("supplier_id", supplier.id)
-        .eq("status", "completed"),
-    ),
+    adminClient
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("supplier_id", supplier.id)
+      .eq("status", "completed"),
 
-    getCount(
-      adminClient
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("supplier_id", supplier.id)
-        .in("status", ["cancelled", "canceled"]),
-    ),
+    adminClient
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("supplier_id", supplier.id)
+      .in("status", ["cancelled", "canceled"]),
 
     adminClient
       .from("bookings")
@@ -134,7 +110,15 @@ export default async function SupplierDashboardPage() {
       .eq("status", "completed"),
   ]);
 
-  const completedRevenue = (completedBillsResult.data || []).reduce(
+  const restaurantsCount = restaurantsCountResult.count || 0;
+  const activeRestaurantsCount = activeRestaurantsCountResult.count || 0;
+  const totalBookings = totalBookingsResult.count || 0;
+  const pendingCount = pendingCountResult.count || 0;
+  const confirmedCount = confirmedCountResult.count || 0;
+  const completedCount = completedCountResult.count || 0;
+  const cancelledCount = cancelledCountResult.count || 0;
+
+  const completedRevenue = ((completedBillsResult.data || []) as CompletedBillRow[]).reduce(
     (sum, booking) => sum + Number(booking.total_bill || 0),
     0,
   );
