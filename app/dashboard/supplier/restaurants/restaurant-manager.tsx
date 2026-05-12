@@ -926,7 +926,7 @@ function RestaurantFormModal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/60 px-3 py-4 backdrop-blur-sm md:px-6 md:py-8">
+    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 px-2 py-3 backdrop-blur-md md:px-6 md:py-6">
       <button
         type="button"
         onClick={onClose}
@@ -934,7 +934,7 @@ function RestaurantFormModal({
         aria-label="Close restaurant form"
       />
 
-      <section className="relative z-10 mx-auto w-full max-w-5xl overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 shadow-2xl">
+      <section className="relative z-10 mx-auto flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 shadow-2xl">
         <div className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-500">
@@ -956,7 +956,7 @@ function RestaurantFormModal({
           </button>
         </div>
 
-        <div className="p-4 md:p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <RestaurantForm
             key={modal.mode === "create" ? "create" : modal.restaurant.id}
             mode={modal.mode}
