@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   createRestaurant,
   updateRestaurant,
@@ -753,7 +753,7 @@ function RestaurantForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 pb-24">
       {mode === "update" && restaurant && (
         <input type="hidden" name="restaurant_id" value={restaurant.id} />
       )}
@@ -903,17 +903,19 @@ function RestaurantForm({
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded-xl bg-slate-950 px-6 py-3 text-sm font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {submitting
-          ? "Đang xử lý..."
-          : mode === "create"
-            ? "Tạo nhà hàng"
-            : "Lưu cập nhật"}
-      </button>
+      <div className="sticky bottom-0 z-30 -mx-4 border-t border-slate-200 bg-slate-50/95 px-4 py-4 backdrop-blur md:-mx-6 md:px-6">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full rounded-xl bg-slate-950 px-6 py-3 text-sm font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
+        >
+          {submitting
+            ? "Đang xử lý..."
+            : mode === "create"
+              ? "Tạo nhà hàng"
+              : "Lưu cập nhật"}
+        </button>
+      </div>
     </form>
   );
 }
@@ -925,17 +927,34 @@ function RestaurantFormModal({
   modal: ModalState;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/70 px-2 py-3 backdrop-blur-md md:px-6 md:py-6">
+    <div className="fixed inset-0 z-[99999] flex h-[100dvh] items-center justify-center overflow-hidden bg-black/75 px-2 py-3 backdrop-blur-md md:px-6 md:py-6">
       <button
         type="button"
         onClick={onClose}
-        className="fixed inset-0 cursor-default"
+        className="absolute inset-0 cursor-default"
         aria-label="Close restaurant form"
       />
 
-      <section className="relative z-10 mx-auto flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 shadow-2xl">
-        <div className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
+      <section className="relative z-10 flex h-[calc(100dvh-24px)] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 shadow-2xl md:h-[calc(100dvh-48px)]">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-500">
               Supplier Restaurant
@@ -956,7 +975,7 @@ function RestaurantFormModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 md:p-6">
           <RestaurantForm
             key={modal.mode === "create" ? "create" : modal.restaurant.id}
             mode={modal.mode}
