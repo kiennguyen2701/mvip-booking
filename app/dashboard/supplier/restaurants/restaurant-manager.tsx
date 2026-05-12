@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   createRestaurant,
   updateRestaurant,
@@ -753,7 +754,7 @@ function RestaurantForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 pb-24">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {mode === "update" && restaurant && (
         <input type="hidden" name="restaurant_id" value={restaurant.id} />
       )}
@@ -903,19 +904,17 @@ function RestaurantForm({
         </div>
       )}
 
-      <div className="sticky bottom-0 z-30 -mx-4 border-t border-slate-200 bg-slate-50/95 px-4 py-4 backdrop-blur md:-mx-6 md:px-6">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-xl bg-slate-950 px-6 py-3 text-sm font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
-        >
-          {submitting
-            ? "Đang xử lý..."
-            : mode === "create"
-              ? "Tạo nhà hàng"
-              : "Lưu cập nhật"}
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={submitting}
+        className="rounded-xl bg-slate-950 px-6 py-3 text-sm font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {submitting
+          ? "Đang xử lý..."
+          : mode === "create"
+            ? "Tạo nhà hàng"
+            : "Lưu cập nhật"}
+      </button>
     </form>
   );
 }
@@ -927,9 +926,12 @@ function RestaurantFormModal({
   modal: ModalState;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -944,8 +946,10 @@ function RestaurantFormModal({
     };
   }, [onClose]);
 
-  return (
-    <div className="fixed inset-0 z-[99999] flex h-[100dvh] items-center justify-center overflow-hidden bg-black/75 px-2 py-3 backdrop-blur-md md:px-6 md:py-6">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[2147483647] flex h-[100dvh] w-[100dvw] items-center justify-center overflow-hidden bg-black/75 px-2 py-3 backdrop-blur-md md:px-6 md:py-6">
       <button
         type="button"
         onClick={onClose}
@@ -983,7 +987,8 @@ function RestaurantFormModal({
           />
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
