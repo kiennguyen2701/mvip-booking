@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
-import { sendBookingCreatedEmails } from "@/lib/email/send-booking-emails";
+import { enqueueBookingCreatedEmailJob } from "@/lib/email/email-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +73,13 @@ export async function POST(request: Request) {
     const bookingDate = String(body.bookingDate || "").trim();
     const bookingTime = String(body.bookingTime || "").trim();
 
-    if (!restaurantId || !customerName || !phone || !bookingDate || !bookingTime) {
+    if (
+      !restaurantId ||
+      !customerName ||
+      !phone ||
+      !bookingDate ||
+      !bookingTime
+    ) {
       return NextResponse.json(
         { error: "Missing required booking information." },
         { status: 400 },
@@ -154,14 +160,8 @@ export async function POST(request: Request) {
 
     const supplierEmail = supplier?.email || supplier?.login_email || null;
 
-    console.log("BOOKING_EMAIL_RECIPIENTS:", {
-      customerEmail: user.email || null,
-      supplierEmail,
-      adminEmail: process.env.ADMIN_EMAIL || null,
-      bookingCode,
-    });
-
-    await sendBookingCreatedEmails({
+    enqueueBookingCreatedEmailJob({
+      bookingId: booking.id,
       customerEmail: user.email || null,
       customerName,
       supplierEmail,
@@ -173,6 +173,8 @@ export async function POST(request: Request) {
       guests,
       phone,
       whatsapp,
+    }).catch((error) => {
+      console.error("ENQUEUE_BOOKING_CREATED_EMAIL_ERROR:", error);
     });
 
     return NextResponse.json({
