@@ -13,9 +13,9 @@ const EMAIL_TEST_TO = process.env.EMAIL_TEST_TO || "";
 const IS_DEV_REDIRECT =
   process.env.NODE_ENV !== "production" && Boolean(EMAIL_TEST_TO);
 
-const SEND_DELAY_MS = 900;
-const RETRY_DELAY_MS = 1800;
-const MAX_SEND_ATTEMPTS = 3;
+const SEND_DELAY_MS = 1200;
+const RETRY_DELAY_MS = 2500;
+const MAX_SEND_ATTEMPTS = 5;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -282,41 +282,62 @@ async function safeSendEmail(input: {
       devRedirect: IS_DEV_REDIRECT,
     });
 
-    const result = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: recipients,
-      subject,
-      html: input.html,
-    });
-
-    if (!result.error) {
-      console.log("RESEND_SEND_SUCCESS:", {
+    try {
+      const result = await resend.emails.send({
+        from: FROM_EMAIL,
         to: recipients,
         subject,
-        data: result.data,
+        html: input.html,
       });
 
-      return result;
+      if (!result.error) {
+        console.log("RESEND_SEND_SUCCESS:", {
+          to: recipients,
+          subject,
+          data: result.data,
+        });
+
+        return result;
+      }
+
+      const status = getErrorStatus(result.error);
+      const message = getErrorMessage(result.error);
+
+      console.error("RESEND_SEND_ERROR:", {
+        to: recipients,
+        subject,
+        attempt,
+        status,
+        message,
+        error: result.error,
+      });
+
+      if (status === 429 && attempt < MAX_SEND_ATTEMPTS) {
+        await sleep(RETRY_DELAY_MS * attempt);
+        continue;
+      }
+
+      throw new Error(`Resend failed for ${recipients.join(", ")}: ${message}`);
+    } catch (error) {
+      const status = getErrorStatus(error);
+      const message = getErrorMessage(error);
+
+      console.error("EMAIL_SEND_FATAL:", {
+        to: recipients,
+        subject,
+        attempt,
+        status,
+        message,
+        error,
+      });
+
+      if (attempt < MAX_SEND_ATTEMPTS) {
+        await sleep(RETRY_DELAY_MS * attempt);
+        continue;
+      }
+
+      throw error;
     }
-
-    const status = getErrorStatus(result.error);
-    const message = getErrorMessage(result.error);
-
-    console.error("RESEND_SEND_ERROR:", {
-      to: recipients,
-      subject,
-      attempt,
-      status,
-      message,
-      error: result.error,
-    });
-
-    if (status === 429 && attempt < MAX_SEND_ATTEMPTS) {
-      await sleep(RETRY_DELAY_MS * attempt);
-      continue;
-    }
-
-    throw new Error(`Resend failed for ${recipients.join(", ")}: ${message}`);
   }
 
   return null;

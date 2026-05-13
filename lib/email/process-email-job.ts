@@ -26,11 +26,47 @@ function getNumber(value: unknown) {
 export async function processEmailJob(job: EmailJobRow) {
   const payload = job.payload || {};
 
-  if (job.type === "booking_created") {
+  if (job.type === "booking_created_customer") {
     await sendBookingCreatedEmails({
       customerEmail: getNullableString(payload.customerEmail),
       customerName: getString(payload.customerName) || "Customer",
+      supplierEmail: null,
+      adminEmail: null,
+      restaurantName: getString(payload.restaurantName) || "Restaurant",
+      bookingCode: getString(payload.bookingCode),
+      bookingDate: getString(payload.bookingDate),
+      bookingTime: getString(payload.bookingTime),
+      guests: getNumber(payload.guests) || 1,
+      phone: getNullableString(payload.phone),
+      whatsapp: getNullableString(payload.whatsapp),
+    });
+
+    return;
+  }
+
+  if (job.type === "booking_created_supplier") {
+    await sendBookingCreatedEmails({
+      customerEmail: null,
+      customerName: getString(payload.customerName) || "Customer",
       supplierEmail: getNullableString(payload.supplierEmail),
+      adminEmail: null,
+      restaurantName: getString(payload.restaurantName) || "Restaurant",
+      bookingCode: getString(payload.bookingCode),
+      bookingDate: getString(payload.bookingDate),
+      bookingTime: getString(payload.bookingTime),
+      guests: getNumber(payload.guests) || 1,
+      phone: getNullableString(payload.phone),
+      whatsapp: getNullableString(payload.whatsapp),
+    });
+
+    return;
+  }
+
+  if (job.type === "booking_created_admin") {
+    await sendBookingCreatedEmails({
+      customerEmail: null,
+      customerName: getString(payload.customerName) || "Customer",
+      supplierEmail: null,
       adminEmail: getNullableString(payload.adminEmail),
       restaurantName: getString(payload.restaurantName) || "Restaurant",
       bookingCode: getString(payload.bookingCode),

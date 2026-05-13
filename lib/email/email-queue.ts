@@ -1,40 +1,27 @@
 import { adminClient } from "@/lib/supabase/admin";
 
-export type EmailJobType =
-  | "booking_created"
-  | "booking_confirmed"
-  | "booking_completed"
-  | "booking_cancelled";
+const DEFAULT_MAX_ATTEMPTS = 5;
 
-type BaseJobInput = {
-  type: EmailJobType;
-  bookingId?: string | null;
-  dedupeKey: string;
+async function createEmailJob(input: {
+  bookingId: string;
+  type: string;
   payload: Record<string, unknown>;
-  scheduledAt?: string;
-};
+}) {
+  const dedupeKey = `${input.type}:${input.bookingId}`;
 
-async function enqueueEmailJob(input: BaseJobInput) {
-  const now = new Date().toISOString();
-
-  const { error } = await adminClient.from("email_jobs").upsert(
-    {
-      type: input.type,
-      booking_id: input.bookingId || null,
-      dedupe_key: input.dedupeKey,
-      payload: input.payload,
-      status: "pending",
-      scheduled_at: input.scheduledAt || now,
-      updated_at: now,
-    },
-    {
-      onConflict: "dedupe_key",
-      ignoreDuplicates: true,
-    },
-  );
+  const { error } = await adminClient.from("email_jobs").insert({
+    booking_id: input.bookingId,
+    type: input.type,
+    payload: input.payload,
+    dedupe_key: dedupeKey,
+    status: "pending",
+    attempts: 0,
+    max_attempts: DEFAULT_MAX_ATTEMPTS,
+    scheduled_at: new Date().toISOString(),
+  });
 
   if (error) {
-    console.error("ENQUEUE_EMAIL_JOB_ERROR:", error.message);
+    console.error("CREATE_EMAIL_JOB_ERROR:", error);
     throw error;
   }
 }
@@ -53,71 +40,57 @@ export async function enqueueBookingCreatedEmailJob(payload: {
   phone?: string | null;
   whatsapp?: string | null;
 }) {
-  return enqueueEmailJob({
-    type: "booking_created",
-    bookingId: payload.bookingId,
-    dedupeKey: `booking_created:${payload.bookingId}`,
-    payload,
-  });
-}
+  const basePayload = {
+    customerName: payload.customerName,
+    restaurantName: payload.restaurantName,
+    bookingCode: payload.bookingCode,
+    bookingDate: payload.bookingDate,
+    bookingTime: payload.bookingTime,
+    guests: payload.guests,
+    phone: payload.phone,
+    whatsapp: payload.whatsapp,
+  };
 
-export async function enqueueBookingConfirmedEmailJob(payload: {
-  bookingId: string;
-  customerEmail?: string | null;
-  customerName: string;
-  restaurantName: string;
-  bookingCode: string;
-  bookingDate: string;
-  bookingTime: string;
-}) {
-  return enqueueEmailJob({
-    type: "booking_confirmed",
-    bookingId: payload.bookingId,
-    dedupeKey: `booking_confirmed:${payload.bookingId}`,
-    payload,
-  });
-}
+  const jobs: Promise<void>[] = [];
 
-export async function enqueueBookingCompletedEmailJob(payload: {
-  bookingId: string;
-  customerEmail?: string | null;
-  supplierEmail?: string | null;
-  agentEmail?: string | null;
-  adminEmail?: string | null;
-  customerName: string;
-  restaurantName: string;
-  bookingCode: string;
-  totalBill: number;
-  customerDiscountAmount: number;
-  platformCommissionAmount: number;
-  agentCommissionAmount: number;
-  platformNetAmount: number;
-}) {
-  return enqueueEmailJob({
-    type: "booking_completed",
-    bookingId: payload.bookingId,
-    dedupeKey: `booking_completed:${payload.bookingId}`,
-    payload,
-  });
-}
+  if (payload.customerEmail) {
+    jobs.push(
+      createEmailJob({
+        bookingId: payload.bookingId,
+        type: "booking_created_customer",
+        payload: {
+          ...basePayload,
+          customerEmail: payload.customerEmail,
+        },
+      }),
+    );
+  }
 
-export async function enqueueBookingCancelledEmailJob(payload: {
-  bookingId: string;
-  customerEmail?: string | null;
-  supplierEmail?: string | null;
-  agentEmail?: string | null;
-  adminEmail?: string | null;
-  customerName: string;
-  restaurantName: string;
-  bookingCode: string;
-  bookingDate?: string | null;
-  bookingTime?: string | null;
-  cancellationReason?: string | null;
-}) {
-  return enqueueEmailJob({
-    type: "booking_cancelled",
-    bookingId: payload.bookingId,
-    dedupeKey: `booking_cancelled:${payload.bookingId}`,
-    payload,
-  });
+  if (payload.supplierEmail) {
+    jobs.push(
+      createEmailJob({
+        bookingId: payload.bookingId,
+        type: "booking_created_supplier",
+        payload: {
+          ...basePayload,
+          supplierEmail: payload.supplierEmail,
+        },
+      }),
+    );
+  }
+
+  if (payload.adminEmail) {
+    jobs.push(
+      createEmailJob({
+        bookingId: payload.bookingId,
+        type: "booking_created_admin",
+        payload: {
+          ...basePayload,
+          adminEmail: payload.adminEmail,
+        },
+      }),
+    );
+  }
+
+  await Promise.all(jobs);
 }
