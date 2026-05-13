@@ -11,11 +11,17 @@ export async function getCache<T>(key: string): Promise<T | null> {
   }
 }
 
-export async function setCache<T>(key: string, value: T, ttlSeconds: number) {
+export async function setCache<T>(
+  key: string,
+  value: T,
+  ttlSeconds: number,
+) {
   if (!redis) return;
 
   try {
-    await redis.set(key, value, { ex: ttlSeconds });
+    await redis.set(key, value, {
+      ex: ttlSeconds,
+    });
   } catch (error) {
     console.error("REDIS_SET_ERROR:", error);
   }
@@ -28,5 +34,19 @@ export async function deleteCache(key: string) {
     await redis.del(key);
   } catch (error) {
     console.error("REDIS_DELETE_ERROR:", error);
+  }
+}
+
+export async function deleteCacheByPattern(pattern: string) {
+  if (!redis) return;
+
+  try {
+    const keys = await redis.keys(pattern);
+
+    if (keys.length) {
+      await redis.del(...keys);
+    }
+  } catch (error) {
+    console.error("REDIS_DELETE_PATTERN_ERROR:", error);
   }
 }

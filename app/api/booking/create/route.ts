@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { enqueueBookingCreatedEmailJob } from "@/lib/email/email-queue";
+import { deleteCache, deleteCacheByPattern } from "@/lib/cache/cache";
+import { cacheKeys, cachePatterns } from "@/lib/cache/keys";
 
 export const dynamic = "force-dynamic";
 
@@ -173,9 +175,15 @@ export async function POST(request: Request) {
       guests,
       phone,
       whatsapp,
-    }).catch((error) => {
+    }).catch((error: unknown) => {
       console.error("ENQUEUE_BOOKING_CREATED_EMAIL_ERROR:", error);
     });
+
+    if (supplierId) {
+      await deleteCache(cacheKeys.supplierDashboard(supplierId));
+    }
+
+    await deleteCacheByPattern(cachePatterns.publicRestaurants());
 
     return NextResponse.json({
       success: true,

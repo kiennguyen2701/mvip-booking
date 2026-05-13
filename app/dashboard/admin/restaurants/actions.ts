@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { requireAuth } from '@/lib/auth';
 import { adminClient } from '@/lib/supabase/admin';
+import { deleteCache, deleteCacheByPattern } from '@/lib/cache/cache';
+import { cacheKeys, cachePatterns } from '@/lib/cache/keys';
 
 async function ensureAdmin() {
   const current = await requireAuth();
@@ -61,6 +63,26 @@ function buildOpeningHours(formData: FormData) {
     acc[day] = String(formData.get(`opening_hours_${day}`) || '').trim();
     return acc;
   }, {});
+}
+
+async function invalidateRestaurantCaches(options: {
+  supplierId?: string | null;
+  oldSlug?: string | null;
+  newSlug?: string | null;
+}) {
+  await deleteCacheByPattern(cachePatterns.publicRestaurants());
+
+  if (options.oldSlug) {
+    await deleteCache(cacheKeys.publicRestaurantDetail(options.oldSlug));
+  }
+
+  if (options.newSlug && options.newSlug !== options.oldSlug) {
+    await deleteCache(cacheKeys.publicRestaurantDetail(options.newSlug));
+  }
+
+  if (options.supplierId) {
+    await deleteCache(cacheKeys.supplierDashboard(options.supplierId));
+  }
 }
 
 function revalidateRestaurantPaths() {
@@ -132,6 +154,11 @@ export async function createRestaurant(formData: FormData): Promise<void> {
     throw new Error(error.message);
   }
 
+  await invalidateRestaurantCaches({
+    supplierId,
+    newSlug: slug,
+  });
+
   revalidateRestaurantPaths();
 }
 
@@ -175,6 +202,12 @@ export async function updateRestaurant(formData: FormData): Promise<void> {
     throw new Error('Supplier is required');
   }
 
+  const { data: currentRestaurant } = await adminClient
+    .from('restaurants')
+    .select('id, slug, supplier_id')
+    .eq('id', id)
+    .maybeSingle();
+
   const { error } = await adminClient
     .from('restaurants')
     .update({
@@ -204,6 +237,19 @@ export async function updateRestaurant(formData: FormData): Promise<void> {
     throw new Error(error.message);
   }
 
+  await invalidateRestaurantCaches({
+    supplierId: supplierId || currentRestaurant?.supplier_id,
+    oldSlug: currentRestaurant?.slug,
+    newSlug: slug,
+  });
+
+  if (
+    currentRestaurant?.supplier_id &&
+    currentRestaurant.supplier_id !== supplierId
+  ) {
+    await deleteCache(cacheKeys.supplierDashboard(currentRestaurant.supplier_id));
+  }
+
   revalidateRestaurantPaths();
 }
 
@@ -216,11 +262,22 @@ export async function deleteRestaurant(formData: FormData): Promise<void> {
     throw new Error('Restaurant id is required');
   }
 
+  const { data: currentRestaurant } = await adminClient
+    .from('restaurants')
+    .select('id, slug, supplier_id')
+    .eq('id', id)
+    .maybeSingle();
+
   const { error } = await adminClient.from('restaurants').delete().eq('id', id);
 
   if (error) {
     throw new Error(error.message);
   }
+
+  await invalidateRestaurantCaches({
+    supplierId: currentRestaurant?.supplier_id,
+    oldSlug: currentRestaurant?.slug,
+  });
 
   revalidateRestaurantPaths();
 }

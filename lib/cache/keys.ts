@@ -5,23 +5,42 @@ export const CACHE_TTL = {
 } as const;
 
 export const cacheKeys = {
+  adminDashboard: "admin:dashboard",
+
+  adminBookings: "admin:bookings",
+  adminRestaurants: "admin:restaurants",
+  adminSuppliers: "admin:suppliers",
+  adminAgents: "admin:agents",
+
   supplierDashboard: (supplierId: string) =>
-    `supplier-dashboard:${supplierId}`,
+    `supplier:${supplierId}:dashboard`,
 
-  publicRestaurants: (params: {
-    query?: string;
-    city?: string;
-    tag?: string;
-    priceRange?: string;
-    limit?: number;
-  }) =>
-    `public-restaurants:${JSON.stringify({
-      q: params.query || "",
-      c: params.city || "",
-      t: params.tag || "",
-      p: params.priceRange || "",
-      l: params.limit || 60,
-    })}`,
+  supplierBookings: (supplierId: string) =>
+    `supplier:${supplierId}:bookings`,
 
-  publicRestaurantDetail: (slug: string) => `public-restaurant-detail:${slug}`,
+  supplierRestaurants: (supplierId: string) =>
+    `supplier:${supplierId}:restaurants`,
+
+  publicRestaurants: "public:restaurants",
+
+  publicRestaurantDetail: (slug: string) =>
+    `public:restaurant:${slug}`,
+};
+
+export const cachePatterns = {
+  admin: "admin:*",
+
+  supplierDashboard: (supplierId: string) =>
+    `supplier:${supplierId}:dashboard`,
+
+  supplierBookings: (supplierId: string) =>
+    `supplier:${supplierId}:bookings`,
+
+  supplierRestaurants: (supplierId: string) =>
+    `supplier:${supplierId}:restaurants`,
+
+  publicRestaurants: "public:restaurants*",
+
+  publicRestaurantDetail: (slug: string) =>
+    `public:restaurant:${slug}`,
 };

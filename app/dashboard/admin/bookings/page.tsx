@@ -2,10 +2,12 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { adminClient } from "@/lib/supabase/admin";
 import {
-  sendBookingCancelledEmails,
-  sendBookingCompletedEmails,
-  sendBookingConfirmedEmail,
-} from "@/lib/email/send-booking-emails";
+  enqueueBookingCancelledEmailJob,
+  enqueueBookingCompletedEmailJob,
+  enqueueBookingConfirmedEmailJob,
+} from "@/lib/email/email-queue";
+import { deleteCache } from "@/lib/cache/cache";
+import { cacheKeys } from "@/lib/cache/keys";
 import {
   AdminBookingsClient,
   type AdminBookingRow,
@@ -119,11 +121,11 @@ async function getSupplierEmailForBooking(booking: BookingRow) {
   if (booking.supplier_id) {
     const { data } = await adminClient
       .from("suppliers")
-      .select("id, email")
+      .select("id, email, login_email")
       .eq("id", booking.supplier_id)
       .maybeSingle();
 
-    return data?.email || null;
+    return data?.email || data?.login_email || null;
   }
 
   if (booking.restaurant_id) {
@@ -136,11 +138,11 @@ async function getSupplierEmailForBooking(booking: BookingRow) {
     if (restaurant?.supplier_id) {
       const { data } = await adminClient
         .from("suppliers")
-        .select("id, email")
+        .select("id, email, login_email")
         .eq("id", restaurant.supplier_id)
         .maybeSingle();
 
-      return data?.email || null;
+      return data?.email || data?.login_email || null;
     }
   }
 
@@ -157,6 +159,12 @@ async function getAgentEmail(agentId?: string | null) {
     .maybeSingle();
 
   return data?.email || null;
+}
+
+async function invalidateBookingCaches(booking: BookingRow) {
+  if (booking.supplier_id) {
+    await deleteCache(cacheKeys.supplierDashboard(booking.supplier_id));
+  }
 }
 
 async function updateBookingStatus(formData: FormData) {
@@ -262,24 +270,35 @@ async function updateBookingStatus(formData: FormData) {
     created_at: now,
   });
 
+  await invalidateBookingCaches(booking);
+
   if (oldStatus === "pending" && status === "confirmed") {
-    await sendBookingConfirmedEmail({
+    enqueueBookingConfirmedEmailJob({
+      bookingId: booking.id,
       customerEmail: booking.email,
       customerName: booking.customer_name || booking.name || "Customer",
       restaurantName: booking.service_name || "Restaurant",
       bookingCode: booking.booking_code || booking.id,
       bookingDate: booking.booking_date || "",
       bookingTime: booking.booking_time || "",
+    }).catch((error: unknown) => {
+      console.error("ENQUEUE_ADMIN_CONFIRMED_EMAIL_ERROR:", error);
     });
   }
 
   if (oldStatus === "confirmed" && status === "completed") {
-    const supplierEmail = await getSupplierEmailForBooking(booking);
+    const [supplierEmail, agentEmail] = await Promise.all([
+      getSupplierEmailForBooking(booking),
+      getAgentEmail(booking.agent_id),
+    ]);
     const amounts = calculateCommission(totalBill);
 
-    await sendBookingCompletedEmails({
+    enqueueBookingCompletedEmailJob({
+      bookingId: booking.id,
       customerEmail: booking.email,
       supplierEmail,
+      agentEmail,
+      adminEmail: process.env.ADMIN_EMAIL || null,
       customerName: booking.customer_name || booking.name || "Customer",
       restaurantName: booking.service_name || "Restaurant",
       bookingCode: booking.booking_code || booking.id,
@@ -288,6 +307,8 @@ async function updateBookingStatus(formData: FormData) {
       platformCommissionAmount: amounts.platformCommissionAmount,
       agentCommissionAmount: amounts.agentCommissionAmount,
       platformNetAmount: amounts.platformNetAmount,
+    }).catch((error: unknown) => {
+      console.error("ENQUEUE_ADMIN_COMPLETED_EMAIL_ERROR:", error);
     });
   }
 
@@ -297,7 +318,8 @@ async function updateBookingStatus(formData: FormData) {
       getAgentEmail(booking.agent_id),
     ]);
 
-    await sendBookingCancelledEmails({
+    enqueueBookingCancelledEmailJob({
+      bookingId: booking.id,
       customerEmail: booking.email,
       supplierEmail,
       agentEmail,
@@ -307,12 +329,15 @@ async function updateBookingStatus(formData: FormData) {
       bookingDate: booking.booking_date || "",
       bookingTime: booking.booking_time || "",
       cancellationReason,
+    }).catch((error: unknown) => {
+      console.error("ENQUEUE_ADMIN_CANCELLED_EMAIL_ERROR:", error);
     });
   }
 
   revalidatePath("/dashboard/admin/bookings");
   revalidatePath("/dashboard/admin");
   revalidatePath("/dashboard/supplier/bookings");
+  revalidatePath("/dashboard/supplier");
   revalidatePath("/dashboard/customer");
   revalidatePath("/dashboard/agent");
   revalidatePath(`/booking/${id}`);
@@ -332,15 +357,26 @@ async function deleteBooking(formData: FormData) {
     redirect("/dashboard/admin/bookings?error=missing_id");
   }
 
+  const { data: currentBooking } = await adminClient
+    .from("bookings")
+    .select("id, supplier_id")
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await adminClient.from("bookings").delete().eq("id", id);
 
   if (error) {
     redirect(`/dashboard/admin/bookings?error=${encodeURIComponent(error.message)}`);
   }
 
+  if (currentBooking?.supplier_id) {
+    await deleteCache(cacheKeys.supplierDashboard(currentBooking.supplier_id));
+  }
+
   revalidatePath("/dashboard/admin/bookings");
   revalidatePath("/dashboard/admin");
   revalidatePath("/dashboard/supplier/bookings");
+  revalidatePath("/dashboard/supplier");
   revalidatePath("/dashboard/customer");
   revalidatePath("/dashboard/agent");
 

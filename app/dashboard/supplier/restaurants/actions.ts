@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { deleteCache, deleteCacheByPattern } from "@/lib/cache/cache";
+import { cacheKeys, cachePatterns } from "@/lib/cache/keys";
 
 export type RestaurantManagerState = {
   success: boolean;
@@ -67,6 +69,18 @@ async function getSupplierContext() {
     userId: user.id,
     supplierId: supplier.id as string,
   };
+}
+
+async function invalidateRestaurantCaches(options: {
+  supplierId: string;
+  slug?: string | null;
+}) {
+  await deleteCache(cacheKeys.supplierDashboard(options.supplierId));
+  await deleteCacheByPattern(cachePatterns.publicRestaurants());
+
+  if (options.slug) {
+    await deleteCache(cacheKeys.publicRestaurantDetail(options.slug));
+  }
 }
 
 async function uploadRestaurantImage(file: File, supplierId: string) {
@@ -215,7 +229,13 @@ export async function createRestaurant(
       };
     }
 
+    await invalidateRestaurantCaches({
+      supplierId,
+      slug: String(payload.slug || ""),
+    });
+
     revalidatePath("/dashboard/supplier/restaurants");
+    revalidatePath("/dashboard/supplier");
     revalidatePath("/dashboard/admin/supplier-requests");
     revalidatePath("/dashboard/customer");
     revalidatePath("/restaurants");
@@ -302,8 +322,19 @@ export async function updateRestaurant(
       .eq("id", restaurantId)
       .eq("supplier_id", supplierId);
 
+    await invalidateRestaurantCaches({
+      supplierId,
+      slug: currentRestaurant.slug || String(payload.slug || ""),
+    });
+
+    if (currentRestaurant.slug && currentRestaurant.slug !== payload.slug) {
+      await deleteCache(cacheKeys.publicRestaurantDetail(currentRestaurant.slug));
+    }
+
     revalidatePath("/dashboard/supplier/restaurants");
+    revalidatePath("/dashboard/supplier");
     revalidatePath("/dashboard/admin/supplier-requests");
+    revalidatePath("/restaurants");
 
     return {
       success: true,

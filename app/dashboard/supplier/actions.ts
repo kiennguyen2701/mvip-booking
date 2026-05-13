@@ -10,6 +10,8 @@ import {
   enqueueBookingCompletedEmailJob,
   enqueueBookingConfirmedEmailJob,
 } from "@/lib/email/email-queue";
+import { deleteCache } from "@/lib/cache/cache";
+import { cacheKeys } from "@/lib/cache/keys";
 
 export type SupplierActionState = {
   success: boolean;
@@ -225,6 +227,8 @@ export async function updateSupplierBookingStatus(
       created_at: now,
     });
 
+    await deleteCache(cacheKeys.supplierDashboard(supplier.id));
+
     const [{ data: supplierEmailRow }, { data: agentRow }] = await Promise.all([
       adminClient
         .from("suppliers")
@@ -254,7 +258,7 @@ export async function updateSupplierBookingStatus(
         bookingCode: currentBooking.booking_code || bookingId,
         bookingDate: currentBooking.booking_date || "",
         bookingTime: currentBooking.booking_time || "",
-      }).catch((error) => {
+      }).catch((error: unknown) => {
         console.error("ENQUEUE_CONFIRMED_EMAIL_ERROR:", error);
       });
     }
@@ -274,7 +278,7 @@ export async function updateSupplierBookingStatus(
         platformCommissionAmount: amountFields.platform_commission_amount,
         agentCommissionAmount: amountFields.agent_commission_amount,
         platformNetAmount: amountFields.platform_net_amount,
-      }).catch((error) => {
+      }).catch((error: unknown) => {
         console.error("ENQUEUE_COMPLETED_EMAIL_ERROR:", error);
       });
     }
@@ -292,12 +296,13 @@ export async function updateSupplierBookingStatus(
         bookingDate: currentBooking.booking_date || "",
         bookingTime: currentBooking.booking_time || "",
         cancellationReason,
-      }).catch((error) => {
+      }).catch((error: unknown) => {
         console.error("ENQUEUE_CANCELLED_EMAIL_ERROR:", error);
       });
     }
 
     revalidatePath("/dashboard/supplier/bookings");
+    revalidatePath("/dashboard/supplier");
     revalidatePath("/dashboard/admin/bookings");
     revalidatePath(`/booking/${bookingId}`);
 
