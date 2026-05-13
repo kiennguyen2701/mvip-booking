@@ -13,6 +13,14 @@ const EMAIL_TEST_TO = process.env.EMAIL_TEST_TO || "";
 const IS_DEV_REDIRECT =
   process.env.NODE_ENV !== "production" && Boolean(EMAIL_TEST_TO);
 
+const SEND_DELAY_MS = 900;
+const RETRY_DELAY_MS = 1800;
+const MAX_SEND_ATTEMPTS = 3;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function getRecipients(to?: string | null) {
   if (!to) return [];
   if (IS_DEV_REDIRECT) return [EMAIL_TEST_TO];
@@ -229,6 +237,28 @@ function luxuryEmail({
   `;
 }
 
+function getErrorStatus(error: unknown) {
+  if (typeof error === "object" && error !== null && "statusCode" in error) {
+    return Number((error as { statusCode?: number }).statusCode);
+  }
+
+  if (typeof error === "object" && error !== null && "status" in error) {
+    return Number((error as { status?: number }).status);
+  }
+
+  return null;
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String((error as { message?: unknown }).message || "");
+  }
+
+  return String(error || "Unknown email error");
+}
+
 async function safeSendEmail(input: {
   to?: string | null;
   subject: string;
@@ -238,32 +268,71 @@ async function safeSendEmail(input: {
 
   if (!recipients.length) {
     console.log("EMAIL_SKIPPED_NO_RECIPIENT:", input.subject);
-    return;
+    return null;
   }
 
   const subject = getSubject(input.subject, input.to);
 
-  console.log("EMAIL_SEND_DEBUG:", {
-    originalTo: input.to,
-    finalTo: recipients,
-    subject,
-    devRedirect: IS_DEV_REDIRECT,
-  });
+  for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt += 1) {
+    console.log("EMAIL_SEND_DEBUG:", {
+      originalTo: input.to,
+      finalTo: recipients,
+      subject,
+      attempt,
+      devRedirect: IS_DEV_REDIRECT,
+    });
 
-  const result = await resend.emails.send({
-    from: FROM_EMAIL,
-    to: recipients,
-    subject,
-    html: input.html,
-  });
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: recipients,
+      subject,
+      html: input.html,
+    });
 
-  if (result.error) {
-    console.error("RESEND_SEND_ERROR:", result.error);
-  } else {
-    console.log("RESEND_SEND_SUCCESS:", result.data);
+    if (!result.error) {
+      console.log("RESEND_SEND_SUCCESS:", {
+        to: recipients,
+        subject,
+        data: result.data,
+      });
+
+      return result;
+    }
+
+    const status = getErrorStatus(result.error);
+    const message = getErrorMessage(result.error);
+
+    console.error("RESEND_SEND_ERROR:", {
+      to: recipients,
+      subject,
+      attempt,
+      status,
+      message,
+      error: result.error,
+    });
+
+    if (status === 429 && attempt < MAX_SEND_ATTEMPTS) {
+      await sleep(RETRY_DELAY_MS * attempt);
+      continue;
+    }
+
+    throw new Error(`Resend failed for ${recipients.join(", ")}: ${message}`);
   }
 
-  return result;
+  return null;
+}
+
+async function sendSequentially(
+  items: Array<{
+    to?: string | null;
+    subject: string;
+    html: string;
+  }>,
+) {
+  for (const item of items) {
+    await safeSendEmail(item);
+    await sleep(SEND_DELAY_MS);
+  }
 }
 
 export async function sendBookingCreatedEmails(payload: {
@@ -291,8 +360,8 @@ export async function sendBookingCreatedEmails(payload: {
 
   const commonCard = detailCard(rows);
 
-  await Promise.allSettled([
-    safeSendEmail({
+  await sendSequentially([
+    {
       to: payload.customerEmail,
       subject: `Customer Copy - Booking Received - ${payload.restaurantName}`,
       html: luxuryEmail({
@@ -317,9 +386,8 @@ export async function sendBookingCreatedEmails(payload: {
           })}
         `,
       }),
-    }),
-
-    safeSendEmail({
+    },
+    {
       to: payload.supplierEmail,
       subject: `Supplier Copy - New Booking Request - ${payload.bookingCode}`,
       html: luxuryEmail({
@@ -344,9 +412,8 @@ export async function sendBookingCreatedEmails(payload: {
           })}
         `,
       }),
-    }),
-
-    safeSendEmail({
+    },
+    {
       to: payload.adminEmail || ADMIN_EMAIL,
       subject: `Admin Copy - New Booking Created - ${payload.bookingCode}`,
       html: luxuryEmail({
@@ -368,7 +435,7 @@ export async function sendBookingCreatedEmails(payload: {
           })}
         `,
       }),
-    }),
+    },
   ]);
 }
 
@@ -435,14 +502,18 @@ export async function sendBookingCompletedEmails(payload: {
     infoRow("Booking Code", payload.bookingCode) +
       infoRow("Restaurant", payload.restaurantName) +
       moneyRow("Total Bill", payload.totalBill) +
-      moneyRow("Customer Discount 5%", payload.customerDiscountAmount, "#047857") +
+      moneyRow(
+        "Customer Discount 5%",
+        payload.customerDiscountAmount,
+        "#047857",
+      ) +
       moneyRow("Platform Commission 10%", payload.platformCommissionAmount) +
       moneyRow("Agent Payout 5%", payload.agentCommissionAmount) +
       moneyRow("Platform Net 5%", payload.platformNetAmount),
   );
 
-  await Promise.allSettled([
-    safeSendEmail({
+  await sendSequentially([
+    {
       to: payload.customerEmail,
       subject: `Customer Copy - Booking Completed - ${payload.restaurantName}`,
       html: luxuryEmail({
@@ -460,9 +531,8 @@ export async function sendBookingCompletedEmails(payload: {
           ${settlementCard}
         `,
       }),
-    }),
-
-    safeSendEmail({
+    },
+    {
       to: payload.supplierEmail,
       subject: `Supplier Copy - Booking Completed - ${payload.bookingCode}`,
       html: luxuryEmail({
@@ -472,9 +542,8 @@ export async function sendBookingCompletedEmails(payload: {
         badge: "Supplier",
         body: settlementCard,
       }),
-    }),
-
-    safeSendEmail({
+    },
+    {
       to: payload.agentEmail,
       subject: `Agent Copy - Booking Completed - ${payload.bookingCode}`,
       html: luxuryEmail({
@@ -485,9 +554,8 @@ export async function sendBookingCompletedEmails(payload: {
         badge: "Agent",
         body: settlementCard,
       }),
-    }),
-
-    safeSendEmail({
+    },
+    {
       to: payload.adminEmail || ADMIN_EMAIL,
       subject: `Admin Copy - Booking Completed - ${payload.bookingCode}`,
       html: luxuryEmail({
@@ -497,7 +565,7 @@ export async function sendBookingCompletedEmails(payload: {
         badge: "Admin",
         body: settlementCard,
       }),
-    }),
+    },
   ]);
 }
 
@@ -521,8 +589,8 @@ export async function sendBookingCancelledEmails(payload: {
       infoRow("Reason", payload.cancellationReason || "-"),
   );
 
-  await Promise.allSettled([
-    safeSendEmail({
+  await sendSequentially([
+    {
       to: payload.customerEmail,
       subject: `Customer Copy - Booking Cancelled - ${payload.restaurantName}`,
       html: luxuryEmail({
@@ -540,9 +608,8 @@ export async function sendBookingCancelledEmails(payload: {
           ${cancelCard}
         `,
       }),
-    }),
-
-    safeSendEmail({
+    },
+    {
       to: payload.supplierEmail,
       subject: `Supplier Copy - Booking Cancelled - ${payload.bookingCode}`,
       html: luxuryEmail({
@@ -552,9 +619,8 @@ export async function sendBookingCancelledEmails(payload: {
         badge: "Supplier",
         body: cancelCard,
       }),
-    }),
-
-    safeSendEmail({
+    },
+    {
       to: payload.agentEmail,
       subject: `Agent Copy - Booking Cancelled - ${payload.bookingCode}`,
       html: luxuryEmail({
@@ -564,9 +630,8 @@ export async function sendBookingCancelledEmails(payload: {
         badge: "Agent",
         body: cancelCard,
       }),
-    }),
-
-    safeSendEmail({
+    },
+    {
       to: payload.adminEmail || ADMIN_EMAIL,
       subject: `Admin Copy - Booking Cancelled - ${payload.bookingCode}`,
       html: luxuryEmail({
@@ -576,6 +641,6 @@ export async function sendBookingCancelledEmails(payload: {
         badge: "Admin",
         body: cancelCard,
       }),
-    }),
+    },
   ]);
 }
