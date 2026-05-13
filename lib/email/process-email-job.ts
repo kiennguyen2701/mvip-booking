@@ -1,3 +1,5 @@
+// lib/email/process-email-job.ts
+
 import {
   sendBookingCancelledEmails,
   sendBookingCompletedEmails,
@@ -26,17 +28,28 @@ function getNumber(value: unknown) {
 export async function processEmailJob(job: EmailJobRow) {
   const payload = job.payload || {};
 
+  /**
+   * ---------------------------------------------------------
+   * BOOKING CREATED - CUSTOMER
+   * ---------------------------------------------------------
+   */
   if (job.type === "booking_created_customer") {
     await sendBookingCreatedEmails({
       customerEmail: getNullableString(payload.customerEmail),
       customerName: getString(payload.customerName) || "Customer",
+
       supplierEmail: null,
       adminEmail: null,
-      restaurantName: getString(payload.restaurantName) || "Restaurant",
+
+      restaurantName:
+        getString(payload.restaurantName) || "Restaurant",
+
       bookingCode: getString(payload.bookingCode),
       bookingDate: getString(payload.bookingDate),
       bookingTime: getString(payload.bookingTime),
+
       guests: getNumber(payload.guests) || 1,
+
       phone: getNullableString(payload.phone),
       whatsapp: getNullableString(payload.whatsapp),
     });
@@ -44,17 +57,28 @@ export async function processEmailJob(job: EmailJobRow) {
     return;
   }
 
+  /**
+   * ---------------------------------------------------------
+   * BOOKING CREATED - SUPPLIER
+   * ---------------------------------------------------------
+   */
   if (job.type === "booking_created_supplier") {
     await sendBookingCreatedEmails({
       customerEmail: null,
       customerName: getString(payload.customerName) || "Customer",
+
       supplierEmail: getNullableString(payload.supplierEmail),
       adminEmail: null,
-      restaurantName: getString(payload.restaurantName) || "Restaurant",
+
+      restaurantName:
+        getString(payload.restaurantName) || "Restaurant",
+
       bookingCode: getString(payload.bookingCode),
       bookingDate: getString(payload.bookingDate),
       bookingTime: getString(payload.bookingTime),
+
       guests: getNumber(payload.guests) || 1,
+
       phone: getNullableString(payload.phone),
       whatsapp: getNullableString(payload.whatsapp),
     });
@@ -62,17 +86,28 @@ export async function processEmailJob(job: EmailJobRow) {
     return;
   }
 
+  /**
+   * ---------------------------------------------------------
+   * BOOKING CREATED - ADMIN
+   * ---------------------------------------------------------
+   */
   if (job.type === "booking_created_admin") {
     await sendBookingCreatedEmails({
       customerEmail: null,
       customerName: getString(payload.customerName) || "Customer",
+
       supplierEmail: null,
       adminEmail: getNullableString(payload.adminEmail),
-      restaurantName: getString(payload.restaurantName) || "Restaurant",
+
+      restaurantName:
+        getString(payload.restaurantName) || "Restaurant",
+
       bookingCode: getString(payload.bookingCode),
       bookingDate: getString(payload.bookingDate),
       bookingTime: getString(payload.bookingTime),
+
       guests: getNumber(payload.guests) || 1,
+
       phone: getNullableString(payload.phone),
       whatsapp: getNullableString(payload.whatsapp),
     });
@@ -80,12 +115,23 @@ export async function processEmailJob(job: EmailJobRow) {
     return;
   }
 
+  /**
+   * ---------------------------------------------------------
+   * BOOKING CONFIRMED
+   * ---------------------------------------------------------
+   */
   if (job.type === "booking_confirmed") {
     await sendBookingConfirmedEmail({
       customerEmail: getNullableString(payload.customerEmail),
-      customerName: getString(payload.customerName) || "Customer",
-      restaurantName: getString(payload.restaurantName) || "Restaurant",
+
+      customerName:
+        getString(payload.customerName) || "Customer",
+
+      restaurantName:
+        getString(payload.restaurantName) || "Restaurant",
+
       bookingCode: getString(payload.bookingCode),
+
       bookingDate: getString(payload.bookingDate),
       bookingTime: getString(payload.bookingTime),
     });
@@ -93,41 +139,87 @@ export async function processEmailJob(job: EmailJobRow) {
     return;
   }
 
+  /**
+   * ---------------------------------------------------------
+   * BOOKING COMPLETED
+   * ---------------------------------------------------------
+   */
   if (job.type === "booking_completed") {
     await sendBookingCompletedEmails({
       customerEmail: getNullableString(payload.customerEmail),
+
       supplierEmail: getNullableString(payload.supplierEmail),
+
       agentEmail: getNullableString(payload.agentEmail),
+
       adminEmail: getNullableString(payload.adminEmail),
-      customerName: getString(payload.customerName) || "Customer",
-      restaurantName: getString(payload.restaurantName) || "Restaurant",
+
+      customerName:
+        getString(payload.customerName) || "Customer",
+
+      restaurantName:
+        getString(payload.restaurantName) || "Restaurant",
+
       bookingCode: getString(payload.bookingCode),
+
       totalBill: getNumber(payload.totalBill),
-      customerDiscountAmount: getNumber(payload.customerDiscountAmount),
-      platformCommissionAmount: getNumber(payload.platformCommissionAmount),
-      agentCommissionAmount: getNumber(payload.agentCommissionAmount),
-      platformNetAmount: getNumber(payload.platformNetAmount),
+
+      customerDiscountAmount: getNumber(
+        payload.customerDiscountAmount,
+      ),
+
+      platformCommissionAmount: getNumber(
+        payload.platformCommissionAmount,
+      ),
+
+      agentCommissionAmount: getNumber(
+        payload.agentCommissionAmount,
+      ),
+
+      platformNetAmount: getNumber(
+        payload.platformNetAmount,
+      ),
     });
 
     return;
   }
 
+  /**
+   * ---------------------------------------------------------
+   * BOOKING CANCELLED
+   * ---------------------------------------------------------
+   */
   if (job.type === "booking_cancelled") {
     await sendBookingCancelledEmails({
       customerEmail: getNullableString(payload.customerEmail),
+
       supplierEmail: getNullableString(payload.supplierEmail),
+
       agentEmail: getNullableString(payload.agentEmail),
+
       adminEmail: getNullableString(payload.adminEmail),
-      customerName: getString(payload.customerName) || "Customer",
-      restaurantName: getString(payload.restaurantName) || "Restaurant",
+
+      customerName:
+        getString(payload.customerName) || "Customer",
+
+      restaurantName:
+        getString(payload.restaurantName) || "Restaurant",
+
       bookingCode: getString(payload.bookingCode),
+
       bookingDate: getNullableString(payload.bookingDate),
+
       bookingTime: getNullableString(payload.bookingTime),
-      cancellationReason: getNullableString(payload.cancellationReason),
+
+      cancellationReason: getNullableString(
+        payload.cancellationReason,
+      ),
     });
 
     return;
   }
 
-  throw new Error(`Unsupported email job type: ${job.type}`);
+  throw new Error(
+    `Unsupported email job type: ${job.type}`,
+  );
 }
