@@ -1,0 +1,32 @@
+import { redis } from "@/lib/cache/redis";
+
+export async function getCache<T>(key: string): Promise<T | null> {
+  if (!redis) return null;
+
+  try {
+    return await redis.get<T>(key);
+  } catch (error) {
+    console.error("REDIS_GET_ERROR:", error);
+    return null;
+  }
+}
+
+export async function setCache<T>(key: string, value: T, ttlSeconds: number) {
+  if (!redis) return;
+
+  try {
+    await redis.set(key, value, { ex: ttlSeconds });
+  } catch (error) {
+    console.error("REDIS_SET_ERROR:", error);
+  }
+}
+
+export async function deleteCache(key: string) {
+  if (!redis) return;
+
+  try {
+    await redis.del(key);
+  } catch (error) {
+    console.error("REDIS_DELETE_ERROR:", error);
+  }
+}

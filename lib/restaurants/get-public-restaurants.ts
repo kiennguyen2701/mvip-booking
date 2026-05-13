@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCache, setCache } from "@/lib/cache/cache";
+import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
 
 export type PublicRestaurant = {
   id: string;
@@ -48,6 +50,17 @@ export async function getPublicRestaurants({
   priceRange = "",
   limit = 60,
 }: GetPublicRestaurantsParams = {}) {
+  const cacheKey = cacheKeys.publicRestaurants({
+    query,
+    city,
+    tag,
+    priceRange,
+    limit,
+  });
+
+  const cached = await getCache<PublicRestaurant[]>(cacheKey);
+  if (cached) return cached;
+
   const supabase = await createClient();
 
   const hasClientSideFilter = Boolean(query || city || tag);
@@ -74,7 +87,7 @@ export async function getPublicRestaurants({
       tags,
       is_active,
       created_at
-    `
+    `,
     )
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -95,7 +108,7 @@ export async function getPublicRestaurants({
   const normalizedCity = normalizeText(city);
   const normalizedTag = normalizeText(tag);
 
-  return (data || [])
+  const restaurants = ((data || []) as PublicRestaurant[])
     .filter((restaurant) => {
       const tags = Array.isArray(restaurant.tags) ? restaurant.tags : [];
 
@@ -122,4 +135,8 @@ export async function getPublicRestaurants({
       return matchQuery && matchCity && matchTag;
     })
     .slice(0, limit);
+
+  await setCache(cacheKey, restaurants, CACHE_TTL.PUBLIC_RESTAURANTS);
+
+  return restaurants;
 }
