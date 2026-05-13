@@ -1,18 +1,26 @@
+// lib/cache/keys.ts
+
 export const CACHE_TTL = {
-  restaurants: 60 * 5,
-  restaurantDetail: 60 * 5,
-
-  dashboard: 60,
-  booking: 60,
-
-  supplierDashboard: 60,
-  supplierBookings: 60,
-
-  customerDashboard: 60,
-};
+  SUPPLIER_DASHBOARD: 30,
+  PUBLIC_RESTAURANTS: 300,
+  PUBLIC_RESTAURANT_DETAIL: 600,
+} as const;
 
 export const cacheKeys = {
-  publicRestaurants: "public:restaurants",
+  supplierDashboard: (supplierId: string) =>
+    `supplier:${supplierId}:dashboard`,
+
+  supplierBookings: (supplierId: string) =>
+    `supplier:${supplierId}:bookings`,
+
+  supplierRestaurants: (supplierId: string) =>
+    `supplier:${supplierId}:restaurants`,
+
+  publicRestaurants: (suffix = "all") =>
+    `public:restaurants:${suffix}`,
+
+  publicRestaurantDetail: (slug: string) =>
+    `public:restaurant:${slug}`,
 };
 
 export const cachePatterns = {
@@ -27,7 +35,7 @@ export const cachePatterns = {
   supplierRestaurants: (supplierId: string) =>
     `supplier:${supplierId}:restaurants`,
 
-  publicRestaurants: () => "public:restaurants*",
+  publicRestaurants: () => "public:restaurants:*",
 
   publicRestaurantDetail: (slug: string) =>
     `public:restaurant:${slug}`,
