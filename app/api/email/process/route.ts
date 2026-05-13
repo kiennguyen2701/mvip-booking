@@ -7,18 +7,29 @@ export const revalidate = 0;
 
 const BATCH_SIZE = 25;
 
+type EmailJobRow = {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  attempts: number | null;
+  max_attempts: number | null;
+};
+
 function getNextScheduledAt(attempts: number) {
   const seconds = Math.min(60 * 30, Math.max(30, attempts * attempts * 30));
   return new Date(Date.now() + seconds * 1000).toISOString();
 }
 
 function isAuthorized(request: Request) {
-  const secret = process.env.EMAIL_QUEUE_SECRET;
+  const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET;
 
   if (!secret) return true;
 
+  const url = new URL(request.url);
+  const querySecret = url.searchParams.get("secret");
   const authorization = request.headers.get("authorization") || "";
-  return authorization === `Bearer ${secret}`;
+
+  return querySecret === secret || authorization === `Bearer ${secret}`;
 }
 
 export async function POST(request: Request) {
@@ -33,7 +44,6 @@ export async function POST(request: Request) {
     .select("id, type, payload, attempts, max_attempts")
     .in("status", ["pending", "failed"])
     .lte("scheduled_at", now)
-    .lt("attempts", 5)
     .order("created_at", { ascending: true })
     .limit(BATCH_SIZE);
 
@@ -52,7 +62,7 @@ export async function POST(request: Request) {
   let sent = 0;
   let failed = 0;
 
-  for (const job of jobs) {
+  for (const job of jobs as EmailJobRow[]) {
     const lockTime = new Date().toISOString();
 
     await adminClient
