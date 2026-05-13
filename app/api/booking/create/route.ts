@@ -11,7 +11,6 @@ function generateBookingCode() {
   const date = new Date();
   const ymd = date.toISOString().slice(0, 10).replaceAll("-", "");
   const random = Math.floor(1000 + Math.random() * 9000);
-
   return `MVIP-${ymd}-${random}`;
 }
 
@@ -48,24 +47,24 @@ async function getCustomerAgent(userId: string) {
   };
 }
 
-async function triggerEmailWorker() {
+async function triggerEmailWorker(request: Request) {
   try {
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://www.mvipbooking.com";
+    const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET || "";
+    const workerUrl = new URL("/api/email/process", request.url);
 
-    const secret =
-      process.env.EMAIL_QUEUE_SECRET ||
-      process.env.CRON_SECRET ||
-      "";
+    if (secret) {
+      workerUrl.searchParams.set("secret", secret);
+    }
 
-    await fetch(`${siteUrl}/api/email/process`, {
+    const response = await fetch(workerUrl.toString(), {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${secret}`,
-      },
       cache: "no-store",
     });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("TRIGGER_EMAIL_WORKER_FAILED:", response.status, text);
+    }
   } catch (error) {
     console.error("TRIGGER_EMAIL_WORKER_ERROR:", error);
   }
@@ -81,12 +80,8 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        {
-          error: "Please sign in before creating a booking.",
-        },
-        {
-          status: 401,
-        },
+        { error: "Please sign in before creating a booking." },
+        { status: 401 },
       );
     }
 
@@ -94,30 +89,17 @@ export async function POST(request: Request) {
 
     const restaurantId = String(body.restaurantId || "").trim();
     const supplierIdFromBody = String(body.supplierId || "").trim();
-
     const customerName = String(body.customerName || "").trim();
     const phone = String(body.phone || "").trim();
     const whatsapp = String(body.whatsapp || "").trim();
-
     const guests = Number(body.guests || 1);
-
     const bookingDate = String(body.bookingDate || "").trim();
     const bookingTime = String(body.bookingTime || "").trim();
 
-    if (
-      !restaurantId ||
-      !customerName ||
-      !phone ||
-      !bookingDate ||
-      !bookingTime
-    ) {
+    if (!restaurantId || !customerName || !phone || !bookingDate || !bookingTime) {
       return NextResponse.json(
-        {
-          error: "Missing required booking information.",
-        },
-        {
-          status: 400,
-        },
+        { error: "Missing required booking information." },
+        { status: 400 },
       );
     }
 
@@ -128,8 +110,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     const supplierId =
-      supplierIdFromBody ||
-      String(restaurant?.supplier_id || "").trim();
+      supplierIdFromBody || String(restaurant?.supplier_id || "").trim();
 
     const { data: supplier } = supplierId
       ? await adminClient
@@ -137,14 +118,11 @@ export async function POST(request: Request) {
           .select("id, name, company_name, email, login_email")
           .eq("id", supplierId)
           .maybeSingle()
-      : {
-          data: null,
-        };
+      : { data: null };
 
     const { agentId, refCode } = await getCustomerAgent(user.id);
 
     const bookingCode = generateBookingCode();
-
     const now = new Date().toISOString();
 
     const restaurantName =
@@ -153,63 +131,48 @@ export async function POST(request: Request) {
       supplier?.name ||
       String(body.restaurantName || "Restaurant");
 
-    const { data: booking, error: bookingError } =
-      await adminClient
-        .from("bookings")
-        .insert({
-          booking_code: bookingCode,
-          customer_name: customerName,
-          phone,
-          whatsapp: whatsapp || null,
-          email: user.email || null,
-          restaurant_id: restaurantId,
-          service_name: restaurantName,
-          supplier_id: supplierId || null,
-          agent_id: agentId,
-          booking_date: bookingDate,
-          booking_time: bookingTime,
-          guests,
-          guest_count: guests,
-          status: "pending",
-          total_bill: 0,
-          customer_discount_amount: 0,
-          platform_commission_amount: 0,
-          agent_commission_amount: 0,
-          platform_net_amount: 0,
-          supplier_note: refCode
-            ? `Agent ref: ${refCode}`
-            : null,
-          created_at: now,
-        })
-        .select("id")
-        .single();
+    const { data: booking, error: bookingError } = await adminClient
+      .from("bookings")
+      .insert({
+        booking_code: bookingCode,
+        customer_name: customerName,
+        phone,
+        whatsapp: whatsapp || null,
+        email: user.email || null,
+        restaurant_id: restaurantId,
+        service_name: restaurantName,
+        supplier_id: supplierId || null,
+        agent_id: agentId,
+        booking_date: bookingDate,
+        booking_time: bookingTime,
+        guests,
+        guest_count: guests,
+        status: "pending",
+        total_bill: 0,
+        customer_discount_amount: 0,
+        platform_commission_amount: 0,
+        agent_commission_amount: 0,
+        platform_net_amount: 0,
+        supplier_note: refCode ? `Agent ref: ${refCode}` : null,
+        created_at: now,
+      })
+      .select("id")
+      .single();
 
     if (bookingError) {
-      return NextResponse.json(
-        {
-          error: bookingError.message,
-        },
-        {
-          status: 400,
-        },
-      );
+      return NextResponse.json({ error: bookingError.message }, { status: 400 });
     }
 
-    await adminClient
-      .from("booking_status_logs")
-      .insert({
-        booking_id: booking.id,
-        old_status: null,
-        new_status: "pending",
-        changed_by_role: "customer",
-        note: "Customer created restaurant booking.",
-        created_at: now,
-      });
+    await adminClient.from("booking_status_logs").insert({
+      booking_id: booking.id,
+      old_status: null,
+      new_status: "pending",
+      changed_by_role: "customer",
+      note: "Customer created restaurant booking.",
+      created_at: now,
+    });
 
-    const supplierEmail =
-      supplier?.email ||
-      supplier?.login_email ||
-      null;
+    const supplierEmail = supplier?.email || supplier?.login_email || null;
 
     await enqueueBookingCreatedEmailJob({
       bookingId: booking.id,
@@ -226,19 +189,13 @@ export async function POST(request: Request) {
       whatsapp,
     });
 
-    setTimeout(() => {
-      triggerEmailWorker();
-    }, 1200);
+    await triggerEmailWorker(request);
 
     if (supplierId) {
-      await deleteCache(
-        cacheKeys.supplierDashboard(supplierId),
-      );
+      await deleteCache(cacheKeys.supplierDashboard(supplierId));
     }
 
-    await deleteCacheByPattern(
-      cachePatterns.publicRestaurants(),
-    );
+    await deleteCacheByPattern(cachePatterns.publicRestaurants());
 
     return NextResponse.json({
       success: true,
@@ -249,12 +206,8 @@ export async function POST(request: Request) {
     console.error("CREATE_BOOKING_ERROR:", error);
 
     return NextResponse.json(
-      {
-        error: "Unable to create booking.",
-      },
-      {
-        status: 500,
-      },
+      { error: "Unable to create booking." },
+      { status: 500 },
     );
   }
 }
