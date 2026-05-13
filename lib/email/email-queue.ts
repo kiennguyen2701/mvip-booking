@@ -1,27 +1,46 @@
 import { adminClient } from "@/lib/supabase/admin";
 
+export type EmailJobType =
+  | "booking_created_customer"
+  | "booking_created_supplier"
+  | "booking_created_admin"
+  | "booking_confirmed"
+  | "booking_completed"
+  | "booking_cancelled";
+
 const DEFAULT_MAX_ATTEMPTS = 5;
 
-async function createEmailJob(input: {
+type BaseJobInput = {
+  type: EmailJobType;
   bookingId: string;
-  type: string;
+  dedupeKey: string;
   payload: Record<string, unknown>;
-}) {
-  const dedupeKey = `${input.type}:${input.bookingId}`;
+  scheduledAt?: string;
+};
 
-  const { error } = await adminClient.from("email_jobs").insert({
-    booking_id: input.bookingId,
-    type: input.type,
-    payload: input.payload,
-    dedupe_key: dedupeKey,
-    status: "pending",
-    attempts: 0,
-    max_attempts: DEFAULT_MAX_ATTEMPTS,
-    scheduled_at: new Date().toISOString(),
-  });
+async function enqueueEmailJob(input: BaseJobInput) {
+  const now = new Date().toISOString();
+
+  const { error } = await adminClient.from("email_jobs").upsert(
+    {
+      type: input.type,
+      booking_id: input.bookingId,
+      dedupe_key: input.dedupeKey,
+      payload: input.payload,
+      status: "pending",
+      attempts: 0,
+      max_attempts: DEFAULT_MAX_ATTEMPTS,
+      scheduled_at: input.scheduledAt || now,
+      updated_at: now,
+    },
+    {
+      onConflict: "dedupe_key",
+      ignoreDuplicates: true,
+    },
+  );
 
   if (error) {
-    console.error("CREATE_EMAIL_JOB_ERROR:", error);
+    console.error("ENQUEUE_EMAIL_JOB_ERROR:", error.message);
     throw error;
   }
 }
@@ -55,9 +74,10 @@ export async function enqueueBookingCreatedEmailJob(payload: {
 
   if (payload.customerEmail) {
     jobs.push(
-      createEmailJob({
-        bookingId: payload.bookingId,
+      enqueueEmailJob({
         type: "booking_created_customer",
+        bookingId: payload.bookingId,
+        dedupeKey: `booking_created_customer:${payload.bookingId}`,
         payload: {
           ...basePayload,
           customerEmail: payload.customerEmail,
@@ -68,9 +88,10 @@ export async function enqueueBookingCreatedEmailJob(payload: {
 
   if (payload.supplierEmail) {
     jobs.push(
-      createEmailJob({
-        bookingId: payload.bookingId,
+      enqueueEmailJob({
         type: "booking_created_supplier",
+        bookingId: payload.bookingId,
+        dedupeKey: `booking_created_supplier:${payload.bookingId}`,
         payload: {
           ...basePayload,
           supplierEmail: payload.supplierEmail,
@@ -81,9 +102,10 @@ export async function enqueueBookingCreatedEmailJob(payload: {
 
   if (payload.adminEmail) {
     jobs.push(
-      createEmailJob({
-        bookingId: payload.bookingId,
+      enqueueEmailJob({
         type: "booking_created_admin",
+        bookingId: payload.bookingId,
+        dedupeKey: `booking_created_admin:${payload.bookingId}`,
         payload: {
           ...basePayload,
           adminEmail: payload.adminEmail,
@@ -93,4 +115,65 @@ export async function enqueueBookingCreatedEmailJob(payload: {
   }
 
   await Promise.all(jobs);
+}
+
+export async function enqueueBookingConfirmedEmailJob(payload: {
+  bookingId: string;
+  customerEmail?: string | null;
+  customerName: string;
+  restaurantName: string;
+  bookingCode: string;
+  bookingDate: string;
+  bookingTime: string;
+}) {
+  await enqueueEmailJob({
+    type: "booking_confirmed",
+    bookingId: payload.bookingId,
+    dedupeKey: `booking_confirmed:${payload.bookingId}`,
+    payload,
+  });
+}
+
+export async function enqueueBookingCompletedEmailJob(payload: {
+  bookingId: string;
+  customerEmail?: string | null;
+  supplierEmail?: string | null;
+  agentEmail?: string | null;
+  adminEmail?: string | null;
+  customerName: string;
+  restaurantName: string;
+  bookingCode: string;
+  totalBill: number;
+  customerDiscountAmount: number;
+  platformCommissionAmount: number;
+  agentCommissionAmount: number;
+  platformNetAmount: number;
+}) {
+  await enqueueEmailJob({
+    type: "booking_completed",
+    bookingId: payload.bookingId,
+    dedupeKey: `booking_completed:${payload.bookingId}`,
+    payload,
+  });
+}
+
+export async function enqueueBookingCancelledEmailJob(payload: {
+  bookingId: string;
+  customerEmail?: string | null;
+  supplierEmail?: string | null;
+  agentEmail?: string | null;
+  adminEmail?: string | null;
+  customerName: string;
+  restaurantName: string;
+  bookingCode: string;
+  bookingDate?: string | null;
+  bookingTime?: string | null;
+  cancellationReason?: string | null;
+}) {
+  await enqueueEmailJob({
+    type: "booking_cancelled",
+    bookingId: payload.bookingId,
+    dedupeKey: `booking_cancelled:${payload.bookingId}`,
+    payload,
+  });
 }
