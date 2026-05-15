@@ -31,11 +31,13 @@ async function enqueueEmailJob(input: BaseJobInput) {
       attempts: 0,
       max_attempts: DEFAULT_MAX_ATTEMPTS,
       scheduled_at: input.scheduledAt || now,
+      locked_at: null,
+      processed_at: null,
+      last_error: null,
       updated_at: now,
     },
     {
       onConflict: "dedupe_key",
-      ignoreDuplicates: true,
     },
   );
 

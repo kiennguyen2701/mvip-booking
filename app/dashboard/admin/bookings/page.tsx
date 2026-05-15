@@ -305,25 +305,65 @@ async function updateBookingStatus(formData: FormData) {
     ]);
 
     await enqueueBookingCompletedEmailJob({
-      bookingId: id,
-      customerEmail: booking.email,
-      supplierEmail,
-      agentEmail,
-      adminEmail: process.env.ADMIN_EMAIL || null,
-      customerName: booking.customer_name || booking.name || "Customer",
-      restaurantName: booking.service_name || "Restaurant",
-      bookingCode: booking.booking_code || booking.id,
-      bookingDate: booking.booking_date || "",
-      bookingTime: booking.booking_time || "",
-      guests: getGuestCount(booking),
-      phone: booking.phone,
-      whatsapp: booking.whatsapp,
-      totalBill,
-      customerDiscountAmount: amounts.customerDiscountAmount,
-      platformCommissionAmount: amounts.platformCommissionAmount,
-      agentCommissionAmount: amounts.agentCommissionAmount,
-      platformNetAmount: amounts.platformNetAmount,
-    });
+  bookingId: booking.id,
+
+  customerEmail: booking.email,
+  supplierEmail,
+  agentEmail,
+  adminEmail:
+    process.env.ADMIN_EMAIL ||
+    process.env.EMAIL_TEST_TO ||
+    null,
+
+  customerName:
+    booking.customer_name ||
+    booking.name ||
+    "Customer",
+
+  restaurantName:
+    booking.service_name ||
+    "Restaurant",
+
+  bookingCode:
+    booking.booking_code ||
+    booking.id,
+
+  bookingDate:
+    booking.booking_date || "",
+
+  bookingTime:
+    booking.booking_time || "",
+
+  guests:
+    booking.guests ||
+    booking.guest_count ||
+    1,
+
+  phone:
+    booking.phone || "",
+
+  whatsapp:
+    booking.whatsapp || "",
+
+  totalBill,
+
+  customerDiscountAmount:
+    amounts.customerDiscountAmount,
+
+  platformCommissionAmount:
+    amounts.platformCommissionAmount,
+
+  agentCommissionAmount:
+    amounts.agentCommissionAmount,
+
+  platformNetAmount:
+    amounts.platformNetAmount,
+}).catch((error: unknown) => {
+  console.error(
+    "ENQUEUE_ADMIN_COMPLETED_EMAIL_ERROR:",
+    error,
+  );
+});
 
     await triggerEmailWorker();
   }

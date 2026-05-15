@@ -288,25 +288,70 @@ export async function updateSupplierBookingStatus(
 
     if (oldStatus !== status && status === "completed") {
       await enqueueBookingCompletedEmailJob({
-        bookingId,
-        customerEmail: currentBooking.email,
-        supplierEmail,
-        agentEmail,
-        adminEmail: process.env.ADMIN_EMAIL || null,
-        customerName: currentBooking.customer_name || "Customer",
-        restaurantName: currentBooking.service_name || "Restaurant",
-        bookingCode: currentBooking.booking_code || bookingId,
-        bookingDate: currentBooking.booking_date || "",
-        bookingTime: currentBooking.booking_time || "",
-        guests: getGuestCount(currentBooking),
-        phone: currentBooking.phone,
-        whatsapp: currentBooking.whatsapp,
-        totalBill,
-        customerDiscountAmount: amountFields.customer_discount_amount,
-        platformCommissionAmount: amountFields.platform_commission_amount,
-        agentCommissionAmount: amountFields.agent_commission_amount,
-        platformNetAmount: amountFields.platform_net_amount,
-      });
+  bookingId: currentBooking.id,
+
+  customerEmail: currentBooking.email,
+  supplierEmail:
+    supplierEmailRow?.email ||
+    supplierEmailRow?.login_email ||
+    null,
+
+  agentEmail:
+    agentRow?.email || null,
+
+  adminEmail:
+    process.env.ADMIN_EMAIL ||
+    process.env.EMAIL_TEST_TO ||
+    null,
+
+  customerName:
+    currentBooking.customer_name ||
+    "Customer",
+
+  restaurantName:
+    currentBooking.service_name ||
+    "Restaurant",
+
+  bookingCode:
+    currentBooking.booking_code ||
+    currentBooking.id,
+
+  bookingDate:
+    currentBooking.booking_date || "",
+
+  bookingTime:
+    currentBooking.booking_time || "",
+
+  guests:
+    currentBooking.guests ||
+    currentBooking.guest_count ||
+    1,
+
+  phone:
+    currentBooking.phone || "",
+
+  whatsapp:
+    currentBooking.whatsapp || "",
+
+  totalBill,
+
+  customerDiscountAmount:
+    amountFields.customer_discount_amount,
+
+  platformCommissionAmount:
+    amountFields.platform_commission_amount,
+
+  agentCommissionAmount:
+    amountFields.agent_commission_amount,
+
+  platformNetAmount:
+    amountFields.platform_net_amount,
+}).catch((error: unknown) => {
+  console.error(
+    "ENQUEUE_SUPPLIER_COMPLETED_EMAIL_ERROR:",
+    error,
+  );
+});
 
       await triggerEmailWorker();
     }
