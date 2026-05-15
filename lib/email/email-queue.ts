@@ -136,13 +136,22 @@ export async function enqueueBookingConfirmedEmailJob(payload: {
 
 export async function enqueueBookingCompletedEmailJob(payload: {
   bookingId: string;
+
   customerEmail?: string | null;
   supplierEmail?: string | null;
   agentEmail?: string | null;
   adminEmail?: string | null;
+
   customerName: string;
   restaurantName: string;
   bookingCode: string;
+
+  bookingDate?: string | null;
+  bookingTime?: string | null;
+  guests?: number | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+
   totalBill: number;
   customerDiscountAmount: number;
   platformCommissionAmount: number;

@@ -6,8 +6,6 @@ import {
   enqueueBookingCompletedEmailJob,
   enqueueBookingConfirmedEmailJob,
 } from "@/lib/email/email-queue";
-import { deleteCache } from "@/lib/cache/cache";
-import { cacheKeys } from "@/lib/cache/keys";
 import {
   AdminBookingsClient,
   type AdminBookingRow,
@@ -58,9 +56,6 @@ type RestaurantRow = {
   id: string;
   name?: string | null;
   slug?: string | null;
-  city?: string | null;
-  address?: string | null;
-  phone?: string | null;
   supplier_id?: string | null;
 };
 
@@ -117,6 +112,29 @@ function calculateCommission(totalBill: number) {
   };
 }
 
+function getGuestCount(booking: BookingRow) {
+  return booking.guests ?? booking.guest_count ?? 1;
+}
+
+async function triggerEmailWorker() {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.mvipbooking.com";
+    const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET || "";
+    const url = new URL("/api/email/process", siteUrl);
+
+    if (secret) {
+      url.searchParams.set("secret", secret);
+    }
+
+    await fetch(url.toString(), {
+      method: "POST",
+      cache: "no-store",
+    });
+  } catch (error) {
+    console.error("TRIGGER_EMAIL_WORKER_ERROR:", error);
+  }
+}
+
 async function getSupplierEmailForBooking(booking: BookingRow) {
   if (booking.supplier_id) {
     const { data } = await adminClient
@@ -159,12 +177,6 @@ async function getAgentEmail(agentId?: string | null) {
     .maybeSingle();
 
   return data?.email || null;
-}
-
-async function invalidateBookingCaches(booking: BookingRow) {
-  if (booking.supplier_id) {
-    await deleteCache(cacheKeys.supplierDashboard(booking.supplier_id));
-  }
 }
 
 async function updateBookingStatus(formData: FormData) {
@@ -223,6 +235,8 @@ async function updateBookingStatus(formData: FormData) {
     status,
   };
 
+  let amounts = calculateCommission(totalBill);
+
   if (status === "confirmed") {
     updatePayload.confirmed_at = now;
     updatePayload.cancelled_at = null;
@@ -230,7 +244,7 @@ async function updateBookingStatus(formData: FormData) {
   }
 
   if (status === "completed") {
-    const amounts = calculateCommission(totalBill);
+    amounts = calculateCommission(totalBill);
 
     updatePayload.completed_at = now;
     updatePayload.total_bill = totalBill;
@@ -270,20 +284,18 @@ async function updateBookingStatus(formData: FormData) {
     created_at: now,
   });
 
-  await invalidateBookingCaches(booking);
-
   if (oldStatus === "pending" && status === "confirmed") {
-    enqueueBookingConfirmedEmailJob({
-      bookingId: booking.id,
+    await enqueueBookingConfirmedEmailJob({
+      bookingId: id,
       customerEmail: booking.email,
       customerName: booking.customer_name || booking.name || "Customer",
       restaurantName: booking.service_name || "Restaurant",
       bookingCode: booking.booking_code || booking.id,
       bookingDate: booking.booking_date || "",
       bookingTime: booking.booking_time || "",
-    }).catch((error: unknown) => {
-      console.error("ENQUEUE_ADMIN_CONFIRMED_EMAIL_ERROR:", error);
     });
+
+    await triggerEmailWorker();
   }
 
   if (oldStatus === "confirmed" && status === "completed") {
@@ -291,10 +303,9 @@ async function updateBookingStatus(formData: FormData) {
       getSupplierEmailForBooking(booking),
       getAgentEmail(booking.agent_id),
     ]);
-    const amounts = calculateCommission(totalBill);
 
-    enqueueBookingCompletedEmailJob({
-      bookingId: booking.id,
+    await enqueueBookingCompletedEmailJob({
+      bookingId: id,
       customerEmail: booking.email,
       supplierEmail,
       agentEmail,
@@ -302,14 +313,19 @@ async function updateBookingStatus(formData: FormData) {
       customerName: booking.customer_name || booking.name || "Customer",
       restaurantName: booking.service_name || "Restaurant",
       bookingCode: booking.booking_code || booking.id,
+      bookingDate: booking.booking_date || "",
+      bookingTime: booking.booking_time || "",
+      guests: getGuestCount(booking),
+      phone: booking.phone,
+      whatsapp: booking.whatsapp,
       totalBill,
       customerDiscountAmount: amounts.customerDiscountAmount,
       platformCommissionAmount: amounts.platformCommissionAmount,
       agentCommissionAmount: amounts.agentCommissionAmount,
       platformNetAmount: amounts.platformNetAmount,
-    }).catch((error: unknown) => {
-      console.error("ENQUEUE_ADMIN_COMPLETED_EMAIL_ERROR:", error);
     });
+
+    await triggerEmailWorker();
   }
 
   if (oldStatus === "confirmed" && status === "cancelled") {
@@ -318,26 +334,26 @@ async function updateBookingStatus(formData: FormData) {
       getAgentEmail(booking.agent_id),
     ]);
 
-    enqueueBookingCancelledEmailJob({
-      bookingId: booking.id,
+    await enqueueBookingCancelledEmailJob({
+      bookingId: id,
       customerEmail: booking.email,
       supplierEmail,
       agentEmail,
+      adminEmail: process.env.ADMIN_EMAIL || null,
       customerName: booking.customer_name || booking.name || "Customer",
       restaurantName: booking.service_name || "Restaurant",
       bookingCode: booking.booking_code || booking.id,
       bookingDate: booking.booking_date || "",
       bookingTime: booking.booking_time || "",
       cancellationReason,
-    }).catch((error: unknown) => {
-      console.error("ENQUEUE_ADMIN_CANCELLED_EMAIL_ERROR:", error);
     });
+
+    await triggerEmailWorker();
   }
 
   revalidatePath("/dashboard/admin/bookings");
   revalidatePath("/dashboard/admin");
   revalidatePath("/dashboard/supplier/bookings");
-  revalidatePath("/dashboard/supplier");
   revalidatePath("/dashboard/customer");
   revalidatePath("/dashboard/agent");
   revalidatePath(`/booking/${id}`);
@@ -357,26 +373,15 @@ async function deleteBooking(formData: FormData) {
     redirect("/dashboard/admin/bookings?error=missing_id");
   }
 
-  const { data: currentBooking } = await adminClient
-    .from("bookings")
-    .select("id, supplier_id")
-    .eq("id", id)
-    .maybeSingle();
-
   const { error } = await adminClient.from("bookings").delete().eq("id", id);
 
   if (error) {
     redirect(`/dashboard/admin/bookings?error=${encodeURIComponent(error.message)}`);
   }
 
-  if (currentBooking?.supplier_id) {
-    await deleteCache(cacheKeys.supplierDashboard(currentBooking.supplier_id));
-  }
-
   revalidatePath("/dashboard/admin/bookings");
   revalidatePath("/dashboard/admin");
   revalidatePath("/dashboard/supplier/bookings");
-  revalidatePath("/dashboard/supplier");
   revalidatePath("/dashboard/customer");
   revalidatePath("/dashboard/agent");
 
@@ -434,7 +439,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
     restaurantIds.length
       ? adminClient
           .from("restaurants")
-          .select("id, name, slug, city, address, phone, supplier_id")
+          .select("id, name, slug, supplier_id")
           .in("id", restaurantIds)
       : Promise.resolve({ data: [] }),
 

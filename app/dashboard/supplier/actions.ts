@@ -10,8 +10,6 @@ import {
   enqueueBookingCompletedEmailJob,
   enqueueBookingConfirmedEmailJob,
 } from "@/lib/email/email-queue";
-import { deleteCache } from "@/lib/cache/cache";
-import { cacheKeys } from "@/lib/cache/keys";
 
 export type SupplierActionState = {
   success: boolean;
@@ -31,6 +29,32 @@ function calculateAmounts(totalBill: number) {
 
 function getStringValue(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
+}
+
+function getGuestCount(booking: {
+  guests?: number | null;
+  guest_count?: number | null;
+}) {
+  return booking.guests ?? booking.guest_count ?? 1;
+}
+
+async function triggerEmailWorker() {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.mvipbooking.com";
+    const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET || "";
+    const url = new URL("/api/email/process", siteUrl);
+
+    if (secret) {
+      url.searchParams.set("secret", secret);
+    }
+
+    await fetch(url.toString(), {
+      method: "POST",
+      cache: "no-store",
+    });
+  } catch (error) {
+    console.error("TRIGGER_EMAIL_WORKER_ERROR:", error);
+  }
 }
 
 export async function changeSupplierPassword(formData: FormData): Promise<void> {
@@ -145,6 +169,7 @@ export async function updateSupplierBookingStatus(
           booking_date,
           booking_time,
           guests,
+          guest_count,
           total_bill
         `,
         )
@@ -227,8 +252,6 @@ export async function updateSupplierBookingStatus(
       created_at: now,
     });
 
-    await deleteCache(cacheKeys.supplierDashboard(supplier.id));
-
     const [{ data: supplierEmailRow }, { data: agentRow }] = await Promise.all([
       adminClient
         .from("suppliers")
@@ -250,7 +273,7 @@ export async function updateSupplierBookingStatus(
     const agentEmail = agentRow?.email || null;
 
     if (oldStatus !== status && status === "confirmed") {
-      enqueueBookingConfirmedEmailJob({
+      await enqueueBookingConfirmedEmailJob({
         bookingId,
         customerEmail: currentBooking.email,
         customerName: currentBooking.customer_name || "Customer",
@@ -258,13 +281,13 @@ export async function updateSupplierBookingStatus(
         bookingCode: currentBooking.booking_code || bookingId,
         bookingDate: currentBooking.booking_date || "",
         bookingTime: currentBooking.booking_time || "",
-      }).catch((error: unknown) => {
-        console.error("ENQUEUE_CONFIRMED_EMAIL_ERROR:", error);
       });
+
+      await triggerEmailWorker();
     }
 
     if (oldStatus !== status && status === "completed") {
-      enqueueBookingCompletedEmailJob({
+      await enqueueBookingCompletedEmailJob({
         bookingId,
         customerEmail: currentBooking.email,
         supplierEmail,
@@ -273,18 +296,23 @@ export async function updateSupplierBookingStatus(
         customerName: currentBooking.customer_name || "Customer",
         restaurantName: currentBooking.service_name || "Restaurant",
         bookingCode: currentBooking.booking_code || bookingId,
+        bookingDate: currentBooking.booking_date || "",
+        bookingTime: currentBooking.booking_time || "",
+        guests: getGuestCount(currentBooking),
+        phone: currentBooking.phone,
+        whatsapp: currentBooking.whatsapp,
         totalBill,
         customerDiscountAmount: amountFields.customer_discount_amount,
         platformCommissionAmount: amountFields.platform_commission_amount,
         agentCommissionAmount: amountFields.agent_commission_amount,
         platformNetAmount: amountFields.platform_net_amount,
-      }).catch((error: unknown) => {
-        console.error("ENQUEUE_COMPLETED_EMAIL_ERROR:", error);
       });
+
+      await triggerEmailWorker();
     }
 
     if (oldStatus !== status && status === "cancelled") {
-      enqueueBookingCancelledEmailJob({
+      await enqueueBookingCancelledEmailJob({
         bookingId,
         customerEmail: currentBooking.email,
         supplierEmail,
@@ -296,13 +324,12 @@ export async function updateSupplierBookingStatus(
         bookingDate: currentBooking.booking_date || "",
         bookingTime: currentBooking.booking_time || "",
         cancellationReason,
-      }).catch((error: unknown) => {
-        console.error("ENQUEUE_CANCELLED_EMAIL_ERROR:", error);
       });
+
+      await triggerEmailWorker();
     }
 
     revalidatePath("/dashboard/supplier/bookings");
-    revalidatePath("/dashboard/supplier");
     revalidatePath("/dashboard/admin/bookings");
     revalidatePath(`/booking/${bookingId}`);
 
