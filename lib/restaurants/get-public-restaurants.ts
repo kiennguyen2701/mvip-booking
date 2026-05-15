@@ -8,6 +8,8 @@ export type PublicRestaurant = {
   slug: string | null;
   address: string | null;
   city: string | null;
+  short_description?: string | null;
+  description?: string | null;
   cover_image: string | null;
   image_url?: string | null;
   discount_percent?: number | null;
@@ -16,8 +18,12 @@ export type PublicRestaurant = {
   category?: string | null;
   price_range?: string | null;
   tags?: string[] | null;
+  latitude?: number | null;
+  longitude?: number | null;
   is_active?: boolean | null;
   created_at?: string | null;
+  average_rating?: number | null;
+  total_reviews?: number;
 };
 
 type GetPublicRestaurantsParams = {
@@ -26,6 +32,11 @@ type GetPublicRestaurantsParams = {
   tag?: string;
   priceRange?: string;
   limit?: number;
+};
+
+type ReviewRatingRow = {
+  restaurant_id: string;
+  rating: number | null;
 };
 
 function normalizeText(value: string) {
@@ -43,6 +54,29 @@ function includesNormalized(source: string | null | undefined, keyword: string) 
   return normalizeText(source || "").includes(keyword);
 }
 
+function getRatingMap(reviews: ReviewRatingRow[]) {
+  const map = new Map<string, { total: number; count: number }>();
+
+  for (const review of reviews) {
+    if (!review.restaurant_id) continue;
+
+    const rating = Number(review.rating || 0);
+    if (rating < 1 || rating > 5) continue;
+
+    const current = map.get(review.restaurant_id) || {
+      total: 0,
+      count: 0,
+    };
+
+    current.total += rating;
+    current.count += 1;
+
+    map.set(review.restaurant_id, current);
+  }
+
+  return map;
+}
+
 export async function getPublicRestaurants({
   query = "",
   city = "",
@@ -50,13 +84,15 @@ export async function getPublicRestaurants({
   priceRange = "",
   limit = 60,
 }: GetPublicRestaurantsParams = {}) {
-  const cacheKey = cacheKeys.publicRestaurants({
+ const cacheKey = cacheKeys.publicRestaurants(
+  JSON.stringify({
     query,
     city,
     tag,
     priceRange,
     limit,
-  });
+  }),
+);
 
   const cached = await getCache<PublicRestaurant[]>(cacheKey);
   if (cached) return cached;
@@ -77,6 +113,8 @@ export async function getPublicRestaurants({
       slug,
       address,
       city,
+      short_description,
+      description,
       cover_image,
       image_url,
       discount_percent,
@@ -85,6 +123,8 @@ export async function getPublicRestaurants({
       category,
       price_range,
       tags,
+      latitude,
+      longitude,
       is_active,
       created_at
     `,
@@ -104,11 +144,40 @@ export async function getPublicRestaurants({
     return [];
   }
 
+  const rawRestaurants = (data || []) as PublicRestaurant[];
+  const restaurantIds = rawRestaurants.map((item) => item.id).filter(Boolean);
+
+  const { data: reviewRatings, error: reviewError } =
+    restaurantIds.length > 0
+      ? await supabase
+          .from("restaurant_reviews")
+          .select("restaurant_id, rating")
+          .in("restaurant_id", restaurantIds)
+      : { data: [], error: null };
+
+  if (reviewError) {
+    console.error("getPublicRestaurants review rating error:", reviewError);
+  }
+
+  const ratingMap = getRatingMap((reviewRatings || []) as ReviewRatingRow[]);
+
   const normalizedQuery = normalizeText(query);
   const normalizedCity = normalizeText(city);
   const normalizedTag = normalizeText(tag);
 
-  const restaurants = ((data || []) as PublicRestaurant[])
+  const restaurants = rawRestaurants
+    .map((restaurant) => {
+      const ratingInfo = ratingMap.get(restaurant.id);
+      const totalReviews = ratingInfo?.count || 0;
+      const averageRating =
+        totalReviews > 0 ? ratingInfo!.total / totalReviews : 5;
+
+      return {
+        ...restaurant,
+        average_rating: Number(averageRating.toFixed(1)),
+        total_reviews: totalReviews,
+      };
+    })
     .filter((restaurant) => {
       const tags = Array.isArray(restaurant.tags) ? restaurant.tags : [];
 
@@ -120,6 +189,8 @@ export async function getPublicRestaurants({
         includesNormalized(restaurant.cuisine_type, normalizedQuery) ||
         includesNormalized(restaurant.cuisine, normalizedQuery) ||
         includesNormalized(restaurant.category, normalizedQuery) ||
+        includesNormalized(restaurant.short_description, normalizedQuery) ||
+        includesNormalized(restaurant.description, normalizedQuery) ||
         tags.some((item) => includesNormalized(item, normalizedQuery));
 
       const matchCity =
