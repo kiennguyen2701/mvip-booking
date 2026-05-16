@@ -27,6 +27,7 @@ type Restaurant = {
   price_range?: string | null;
   discount_percent?: number | null;
   average_rating?: number | null;
+  total_reviews?: number | null;
 };
 
 type RestaurantWithDistance = Restaurant & {

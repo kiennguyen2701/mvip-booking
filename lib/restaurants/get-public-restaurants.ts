@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCache, setCache } from "@/lib/cache/cache";
-import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
+import { CACHE_TTL } from "@/lib/cache/keys";
 
 export type PublicRestaurant = {
   id: string;
@@ -20,8 +20,8 @@ export type PublicRestaurant = {
   longitude?: number | null;
   is_active?: boolean | null;
   created_at?: string | null;
-  average_rating?: number | null;
-  total_reviews?: number;
+  average_rating: number;
+  total_reviews: number;
 };
 
 type GetPublicRestaurantsParams = {
@@ -61,10 +61,7 @@ function buildRatingMap(rows: ReviewRatingRow[]) {
     const rating = Number(row.rating || 0);
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) continue;
 
-    const current = map.get(row.restaurant_id) || {
-      total: 0,
-      count: 0,
-    };
+    const current = map.get(row.restaurant_id) || { total: 0, count: 0 };
 
     current.total += rating;
     current.count += 1;
@@ -75,6 +72,18 @@ function buildRatingMap(rows: ReviewRatingRow[]) {
   return map;
 }
 
+function getCacheKey(params: Required<GetPublicRestaurantsParams>) {
+  return [
+    "public-restaurants",
+    "ratings-v4",
+    params.query,
+    params.city,
+    params.tag,
+    params.priceRange,
+    params.limit,
+  ].join(":");
+}
+
 export async function getPublicRestaurants({
   query = "",
   city = "",
@@ -82,7 +91,13 @@ export async function getPublicRestaurants({
   priceRange = "",
   limit = 60,
 }: GetPublicRestaurantsParams = {}) {
-  const cacheKey = `public-restaurants:${query}:${city}:${tag}:${priceRange}:${limit}:ratings-v2`;
+  const cacheKey = getCacheKey({
+    query,
+    city,
+    tag,
+    priceRange,
+    limit,
+  });
 
   const cached = await getCache<PublicRestaurant[]>(cacheKey);
   if (cached) return cached;
@@ -132,7 +147,11 @@ export async function getPublicRestaurants({
     return [];
   }
 
-  const rawRestaurants = (data || []) as PublicRestaurant[];
+  const rawRestaurants = (data || []) as Omit<
+    PublicRestaurant,
+    "average_rating" | "total_reviews"
+  >[];
+
   const restaurantIds = rawRestaurants.map((item) => item.id).filter(Boolean);
 
   let ratingMap = new Map<string, { total: number; count: number }>();
@@ -194,7 +213,11 @@ export async function getPublicRestaurants({
     })
     .slice(0, limit);
 
-  await setCache(cacheKey, restaurants, Math.min(CACHE_TTL.PUBLIC_RESTAURANTS, 60));
+  await setCache(
+    cacheKey,
+    restaurants,
+    Math.min(CACHE_TTL.PUBLIC_RESTAURANTS, 60),
+  );
 
   return restaurants;
 }
