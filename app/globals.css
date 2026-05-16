@@ -141,3 +141,33 @@ body.menu-open {
     max-width: 100dvw;
   }
 }
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  position: relative;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+#__next {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}

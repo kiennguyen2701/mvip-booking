@@ -14,7 +14,7 @@ export default function LoginPage() {
       </div>
 
       {/* Center form */}
-      <div className="relative mx-auto flex min-h-[80vh] max-w-xl items-center justify-center">
+      <div className="relative mx-auto flex min-h-[80vh] w-full max-w-xl items-center justify-center overflow-x-hidden">
         <Suspense fallback={null}>
           <LoginForm />
         </Suspense>

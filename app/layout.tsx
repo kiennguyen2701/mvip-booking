@@ -6,6 +6,12 @@ import { Footer } from "@/components/footer";
 export const metadata: Metadata = {
   title: "Mvip Booking",
   description: "Premium booking platform",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: "cover",
+  },
 };
 
 export default function RootLayout({
@@ -14,11 +20,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi">
-      <body>
-        <Header />
-        {children}
-        <Footer />
+    <html
+      lang="vi"
+      suppressHydrationWarning
+      className="overflow-x-hidden"
+    >
+      <body className="min-h-screen overflow-x-hidden bg-[#080704] text-white antialiased">
+        <div className="relative w-full max-w-full overflow-x-hidden">
+          <Header />
+
+          <main className="relative w-full max-w-full overflow-x-hidden">
+            {children}
+          </main>
+
+          <Footer />
+        </div>
       </body>
     </html>
   );
