@@ -28,6 +28,17 @@ function getFriendlyError(message: string) {
   return message;
 }
 
+function resetMobileViewport() {
+  if (typeof window === "undefined") return;
+
+  window.scrollTo({ left: 0 });
+  document.documentElement.scrollLeft = 0;
+  document.body.scrollLeft = 0;
+}
+
+const inputClassName =
+  "w-full min-w-0 max-w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-4 text-[16px] leading-6 text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10";
+
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -49,6 +60,8 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    resetMobileViewport();
+
     if (refCode || urlMode === "register") {
       setMode("register");
       return;
@@ -59,6 +72,8 @@ export default function LoginForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    resetMobileViewport();
+
     setError("");
     setMessage("");
 
@@ -159,23 +174,23 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="w-full rounded-[36px] border border-white/10 bg-white/[0.07] p-6 shadow-2xl shadow-black/30 backdrop-blur-xl md:p-8">
-      <div className="mb-7">
+    <div className="w-full min-w-0 max-w-full overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.07] p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:rounded-[36px] sm:p-6 md:p-8">
+      <div className="mb-7 min-w-0">
         <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-xl text-slate-950 shadow-lg shadow-amber-900/20">
           ♛
         </div>
 
-        <p className="text-xs font-black uppercase tracking-[0.3em] text-amber-300">
+        <p className="break-words text-xs font-black uppercase tracking-[0.3em] text-amber-300">
           Mvip Booking
         </p>
 
-        <h1 className="mt-3 text-4xl font-black tracking-tight text-white">
+        <h1 className="mt-3 break-words text-4xl font-black tracking-tight text-white">
           {mode === "login" && "Welcome Back"}
           {mode === "register" && "Create Customer Account"}
           {mode === "reset" && "Reset Password"}
         </h1>
 
-        <p className="mt-3 text-sm leading-6 text-slate-400">
+        <p className="mt-3 break-words text-sm leading-6 text-slate-400">
           {mode === "login" &&
             "Sign in to access the correct dashboard for your account role."}
           {mode === "register" &&
@@ -185,34 +200,44 @@ export default function LoginForm() {
         </p>
 
         {refCode && mode === "register" && (
-          <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
+          <div className="mt-4 break-words rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
             Referral code applied: {refCode}
           </div>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="min-w-0 space-y-4">
         {mode === "register" && (
           <>
             <input
               placeholder="Full name"
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+              className={inputClassName}
               value={fullName}
+              onFocus={resetMobileViewport}
+              onBlur={resetMobileViewport}
               onChange={(event) => setFullName(event.target.value)}
               required
             />
 
             <input
               placeholder="Phone number"
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+              inputMode="tel"
+              autoComplete="tel"
+              className={inputClassName}
               value={phone}
+              onFocus={resetMobileViewport}
+              onBlur={resetMobileViewport}
               onChange={(event) => setPhone(event.target.value)}
             />
 
             <input
               placeholder="WhatsApp (optional)"
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+              inputMode="tel"
+              autoComplete="tel"
+              className={inputClassName}
               value={whatsapp}
+              onFocus={resetMobileViewport}
+              onBlur={resetMobileViewport}
               onChange={(event) => setWhatsapp(event.target.value)}
             />
           </>
@@ -223,8 +248,10 @@ export default function LoginForm() {
           inputMode="email"
           autoComplete="email"
           placeholder="Email address"
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+          className={inputClassName}
           value={email}
+          onFocus={resetMobileViewport}
+          onBlur={resetMobileViewport}
           onChange={(event) => setEmail(event.target.value)}
           required
         />
@@ -233,31 +260,31 @@ export default function LoginForm() {
           <input
             type="password"
             placeholder="Password"
-            autoComplete={
-              mode === "register" ? "new-password" : "current-password"
-            }
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+            autoComplete={mode === "register" ? "new-password" : "current-password"}
+            className={inputClassName}
             value={password}
+            onFocus={resetMobileViewport}
+            onBlur={resetMobileViewport}
             onChange={(event) => setPassword(event.target.value)}
             required
           />
         )}
 
         {error && (
-          <div className="rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-200">
+          <div className="break-words rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-200">
             {error}
           </div>
         )}
 
         {message && (
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-200">
+          <div className="break-words rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-200">
             {message}
           </div>
         )}
 
         <button
           disabled={loading}
-          className="w-full rounded-2xl bg-amber-300 py-4 text-sm font-black text-slate-950 shadow-xl shadow-amber-900/20 transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-2xl bg-amber-300 py-4 text-[16px] font-black text-slate-950 shadow-xl shadow-amber-900/20 transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading
             ? "Processing..."
@@ -275,6 +302,7 @@ export default function LoginForm() {
             <button
               type="button"
               onClick={() => {
+                resetMobileViewport();
                 setError("");
                 setMessage("");
                 setMode("reset");
@@ -287,6 +315,7 @@ export default function LoginForm() {
             <button
               type="button"
               onClick={() => {
+                resetMobileViewport();
                 setError("");
                 setMessage("");
                 setMode("register");
@@ -302,6 +331,7 @@ export default function LoginForm() {
           <button
             type="button"
             onClick={() => {
+              resetMobileViewport();
               setError("");
               setMessage("");
               setMode("login");
@@ -316,6 +346,7 @@ export default function LoginForm() {
           <button
             type="button"
             onClick={() => {
+              resetMobileViewport();
               setError("");
               setMessage("");
               setMode("login");
