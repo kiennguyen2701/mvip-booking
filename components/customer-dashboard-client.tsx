@@ -71,7 +71,13 @@ function getDiscount(item: Restaurant) {
 }
 
 function getAverageRating(item: Restaurant) {
-  return Number(item.average_rating ?? 5).toFixed(1);
+  const rating = Number(item.average_rating ?? 5);
+
+  if (!Number.isFinite(rating) || rating <= 0) {
+    return "5.0";
+  }
+
+  return rating.toFixed(1);
 }
 
 function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {

@@ -8,8 +8,6 @@ export type PublicRestaurant = {
   slug: string | null;
   address: string | null;
   city: string | null;
-  short_description?: string | null;
-  description?: string | null;
   cover_image: string | null;
   image_url?: string | null;
   discount_percent?: number | null;
@@ -35,7 +33,7 @@ type GetPublicRestaurantsParams = {
 };
 
 type ReviewRatingRow = {
-  restaurant_id: string;
+  restaurant_id: string | null;
   rating: number | null;
 };
 
@@ -54,16 +52,16 @@ function includesNormalized(source: string | null | undefined, keyword: string) 
   return normalizeText(source || "").includes(keyword);
 }
 
-function getRatingMap(reviews: ReviewRatingRow[]) {
+function buildRatingMap(rows: ReviewRatingRow[]) {
   const map = new Map<string, { total: number; count: number }>();
 
-  for (const review of reviews) {
-    if (!review.restaurant_id) continue;
+  for (const row of rows) {
+    if (!row.restaurant_id) continue;
 
-    const rating = Number(review.rating || 0);
-    if (rating < 1 || rating > 5) continue;
+    const rating = Number(row.rating || 0);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) continue;
 
-    const current = map.get(review.restaurant_id) || {
+    const current = map.get(row.restaurant_id) || {
       total: 0,
       count: 0,
     };
@@ -71,7 +69,7 @@ function getRatingMap(reviews: ReviewRatingRow[]) {
     current.total += rating;
     current.count += 1;
 
-    map.set(review.restaurant_id, current);
+    map.set(row.restaurant_id, current);
   }
 
   return map;
@@ -84,15 +82,7 @@ export async function getPublicRestaurants({
   priceRange = "",
   limit = 60,
 }: GetPublicRestaurantsParams = {}) {
- const cacheKey = cacheKeys.publicRestaurants(
-  JSON.stringify({
-    query,
-    city,
-    tag,
-    priceRange,
-    limit,
-  }),
-);
+  const cacheKey = `public-restaurants:${query}:${city}:${tag}:${priceRange}:${limit}:ratings-v2`;
 
   const cached = await getCache<PublicRestaurant[]>(cacheKey);
   if (cached) return cached;
@@ -113,8 +103,6 @@ export async function getPublicRestaurants({
       slug,
       address,
       city,
-      short_description,
-      description,
       cover_image,
       image_url,
       discount_percent,
@@ -147,19 +135,20 @@ export async function getPublicRestaurants({
   const rawRestaurants = (data || []) as PublicRestaurant[];
   const restaurantIds = rawRestaurants.map((item) => item.id).filter(Boolean);
 
-  const { data: reviewRatings, error: reviewError } =
-    restaurantIds.length > 0
-      ? await supabase
-          .from("restaurant_reviews")
-          .select("restaurant_id, rating")
-          .in("restaurant_id", restaurantIds)
-      : { data: [], error: null };
+  let ratingMap = new Map<string, { total: number; count: number }>();
 
-  if (reviewError) {
-    console.error("getPublicRestaurants review rating error:", reviewError);
+  if (restaurantIds.length > 0) {
+    const { data: reviewRows, error: reviewError } = await supabase
+      .from("restaurant_reviews")
+      .select("restaurant_id, rating")
+      .in("restaurant_id", restaurantIds);
+
+    if (reviewError) {
+      console.error("getPublicRestaurants review error:", reviewError);
+    } else {
+      ratingMap = buildRatingMap((reviewRows || []) as ReviewRatingRow[]);
+    }
   }
-
-  const ratingMap = getRatingMap((reviewRatings || []) as ReviewRatingRow[]);
 
   const normalizedQuery = normalizeText(query);
   const normalizedCity = normalizeText(city);
@@ -189,8 +178,6 @@ export async function getPublicRestaurants({
         includesNormalized(restaurant.cuisine_type, normalizedQuery) ||
         includesNormalized(restaurant.cuisine, normalizedQuery) ||
         includesNormalized(restaurant.category, normalizedQuery) ||
-        includesNormalized(restaurant.short_description, normalizedQuery) ||
-        includesNormalized(restaurant.description, normalizedQuery) ||
         tags.some((item) => includesNormalized(item, normalizedQuery));
 
       const matchCity =
@@ -207,7 +194,7 @@ export async function getPublicRestaurants({
     })
     .slice(0, limit);
 
-  await setCache(cacheKey, restaurants, CACHE_TTL.PUBLIC_RESTAURANTS);
+  await setCache(cacheKey, restaurants, Math.min(CACHE_TTL.PUBLIC_RESTAURANTS, 60));
 
   return restaurants;
 }

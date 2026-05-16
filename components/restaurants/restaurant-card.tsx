@@ -2,8 +2,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { getRestaurantImageUrl } from "@/lib/restaurants/images";
 
-function getAverageRating(restaurant: any) {
-  const rating = Number(restaurant.average_rating || 5);
+function getAverageRating(restaurant: {
+  average_rating?: number | null;
+  total_reviews?: number | null;
+}) {
+  const rating = Number(restaurant.average_rating ?? 5);
+
+  if (!Number.isFinite(rating) || rating <= 0) {
+    return "5.0";
+  }
+
   return rating.toFixed(1);
 }
 
