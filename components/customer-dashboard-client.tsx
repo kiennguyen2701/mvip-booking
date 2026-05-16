@@ -113,7 +113,7 @@ const RestaurantCard = memo(function RestaurantCard({
     <Link
       href={href}
       prefetch={false}
-      className="group block w-full max-w-full overflow-hidden rounded-3xl border border-white/10 bg-[#11100c]/95 shadow-xl shadow-black/25 transition hover:border-amber-300/40"
+      className="group mobile-safe-card block rounded-3xl border border-white/10 bg-[#11100c]/95 shadow-xl shadow-black/25 transition hover:border-amber-300/40"
     >
       <div className="relative h-44 w-full overflow-hidden bg-[#12100b] sm:h-56">
         {image ? (
@@ -362,18 +362,18 @@ export default function CustomerDashboardClient({
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
 
   return (
-    <main className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[#050403] pb-10 text-white">
+    <main className="mobile-viewport-lock relative min-h-screen bg-[#050403] pb-10 text-white">
       <div className="pointer-events-none absolute inset-0 w-full max-w-full overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
-        <div className="absolute right-0 top-40 h-[220px] w-[220px] rounded-full bg-orange-900/20 blur-3xl md:h-[440px] md:w-[440px]" />
+        <div className="absolute left-1/2 top-0 h-[260px] w-[260px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
+        <div className="absolute right-0 top-40 h-[180px] w-[180px] rounded-full bg-orange-900/20 blur-3xl md:h-[440px] md:w-[440px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.12)_1px,transparent_0)] [background-size:28px_28px]" />
       </div>
 
       <div className="relative mx-auto w-full max-w-7xl overflow-x-hidden px-3 py-5 sm:px-4 md:px-6 md:py-8">
-        <section className="relative mx-auto w-full max-w-full overflow-hidden rounded-[1.5rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] md:rounded-[2.4rem] md:p-8">
+        <section className="mobile-safe-card relative mx-auto rounded-[1.35rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] md:rounded-[2.4rem] md:p-8">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -left-20 -top-24 h-60 w-60 rounded-full bg-amber-400/10 blur-3xl md:h-72 md:w-72" />
-            <div className="absolute right-0 top-8 h-64 w-64 rounded-full bg-orange-700/10 blur-3xl md:h-80 md:w-80" />
+            <div className="absolute -left-20 -top-24 h-52 w-52 rounded-full bg-amber-400/10 blur-3xl md:h-72 md:w-72" />
+            <div className="absolute right-0 top-8 h-52 w-52 rounded-full bg-orange-700/10 blur-3xl md:h-80 md:w-80" />
           </div>
 
           <div className="relative min-w-0">
@@ -383,17 +383,17 @@ export default function CustomerDashboardClient({
                   Customer Dashboard
                 </p>
 
-                <h1 className="mt-3 max-w-full break-words text-[2rem] font-black leading-[1.05] tracking-tight text-white md:mt-4 md:text-6xl">
+                <h1 className="mobile-safe-text mt-3 text-[2rem] font-black leading-[1.05] tracking-tight text-white md:mt-4 md:text-6xl">
                   Welcome, {profile.fullName || "Customer"}
                 </h1>
 
-                <p className="mt-3 max-w-2xl break-words text-base font-semibold leading-7 text-slate-400 md:mt-4 md:text-lg">
+                <p className="mobile-safe-text mt-3 max-w-2xl text-base font-semibold leading-7 text-slate-400 md:mt-4 md:text-lg">
                   Discover curated premium restaurants and book instantly with
                   your exclusive Mvip benefits.
                 </p>
               </div>
 
-              <div className="w-full max-w-full rounded-[1.5rem] border border-amber-300/20 bg-amber-300/[0.07] px-5 py-4 shadow-2xl shadow-amber-950/20">
+              <div className="mobile-safe-card rounded-[1.35rem] border border-amber-300/20 bg-amber-300/[0.07] px-5 py-4 shadow-2xl shadow-amber-950/20 md:rounded-[1.5rem]">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
                   Member Benefit
                 </p>
@@ -406,7 +406,7 @@ export default function CustomerDashboardClient({
               </div>
             </div>
 
-            <div className="w-full max-w-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
+            <div className="mobile-safe-card rounded-[1.35rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
               <div className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-[1fr_120px_260px]">
                 <input
                   ref={inputRef}
@@ -506,11 +506,11 @@ export default function CustomerDashboardClient({
                 Curated Selection
               </p>
 
-              <h2 className="mt-3 break-words text-3xl font-black leading-tight text-white md:text-4xl">
+              <h2 className="mobile-safe-text mt-3 text-3xl font-black leading-tight text-white md:text-4xl">
                 Premium Restaurants
               </h2>
 
-              <p className="mt-2 break-words text-sm text-slate-400">
+              <p className="mobile-safe-text mt-2 text-sm text-slate-400">
                 Browse luxury dining partners available for booking.
               </p>
             </div>

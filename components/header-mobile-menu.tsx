@@ -33,19 +33,22 @@ export default function HeaderMobileMenu({
 
   useEffect(() => {
     if (!open) {
+      document.body.classList.remove("menu-open");
       document.body.style.overflow = "";
       return;
     }
 
+    document.body.classList.add("menu-open");
     document.body.style.overflow = "hidden";
 
     return () => {
+      document.body.classList.remove("menu-open");
       document.body.style.overflow = "";
     };
   }, [open]);
 
   const menu = (
-    <div className="fixed inset-0 z-[2147483647] bg-black/75 text-white backdrop-blur-md">
+    <div className="fixed inset-0 z-[2147483647] w-[100dvw] max-w-[100dvw] overflow-hidden bg-black/75 text-white backdrop-blur-md">
       <button
         type="button"
         className="absolute inset-0"
@@ -53,9 +56,9 @@ export default function HeaderMobileMenu({
         aria-label="Close menu"
       />
 
-      <aside className="absolute right-0 top-0 flex h-[100dvh] w-[88vw] max-w-[380px] flex-col bg-[#11100c] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
-          <div className="min-w-0">
+      <aside className="absolute right-0 top-0 flex h-[100dvh] w-[88dvw] max-w-[380px] flex-col overflow-hidden bg-[#11100c] shadow-2xl">
+        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-5">
+          <div className="min-w-0 overflow-hidden">
             <p className="truncate text-lg font-black">Mvip Booking</p>
             <p className="truncate text-xs font-semibold text-slate-500">
               Premium booking platform
@@ -66,12 +69,13 @@ export default function HeaderMobileMenu({
             type="button"
             onClick={() => setOpen(false)}
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl font-black"
+            aria-label="Close menu"
           >
             ×
           </button>
         </div>
 
-        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-5">
+        <div className="flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-5 py-5">
           {isLoggedIn ? (
             <>
               <Link
@@ -180,7 +184,7 @@ export default function HeaderMobileMenu({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] text-xl font-black text-white"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] text-xl font-black text-white"
         aria-label="Open menu"
       >
         ☰

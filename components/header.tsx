@@ -62,18 +62,18 @@ export default async function Header() {
   const isSupplier = role === "supplier";
 
   return (
-    <header className="sticky top-0 z-[9999] border-b border-white/10 bg-[#080704]/95 text-white backdrop-blur-xl">
-      <div className="mx-auto flex h-[92px] w-full max-w-7xl items-center justify-between gap-4 px-4 md:h-[96px] md:px-6">
+    <header className="sticky top-0 z-[9999] w-full max-w-[100dvw] overflow-x-hidden border-b border-white/10 bg-[#080704]/95 text-white backdrop-blur-xl">
+      <div className="mx-auto flex h-[92px] w-full max-w-7xl items-center justify-between gap-3 overflow-hidden px-4 md:h-[96px] md:px-6">
         <Link
           href={dashboardHref}
           prefetch={false}
-          className="flex min-w-0 items-center gap-3"
+          className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-xl text-slate-950 shadow-xl shadow-amber-950/20">
             ♛
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 overflow-hidden">
             <p className="truncate text-xl font-black leading-tight text-white">
               Mvip Booking
             </p>
@@ -84,7 +84,7 @@ export default async function Header() {
           </div>
         </Link>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden shrink-0 items-center gap-3 md:flex">
           {user ? (
             <>
               {isCustomer ? (
@@ -107,7 +107,7 @@ export default async function Header() {
         </div>
 
         {user && (
-          <div className="md:hidden">
+          <div className="shrink-0 md:hidden">
             <HeaderMobileMenu isLoggedIn={!!user} role={role} />
           </div>
         )}
