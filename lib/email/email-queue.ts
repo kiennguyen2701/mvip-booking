@@ -31,13 +31,11 @@ async function enqueueEmailJob(input: BaseJobInput) {
       attempts: 0,
       max_attempts: DEFAULT_MAX_ATTEMPTS,
       scheduled_at: input.scheduledAt || now,
-      locked_at: null,
-      processed_at: null,
-      last_error: null,
       updated_at: now,
     },
     {
       onConflict: "dedupe_key",
+      ignoreDuplicates: true,
     },
   );
 
@@ -50,6 +48,7 @@ async function enqueueEmailJob(input: BaseJobInput) {
 export async function enqueueBookingCreatedEmailJob(payload: {
   bookingId: string;
   customerEmail?: string | null;
+  customerLanguage?: "en" | "zh" | null;
   customerName: string;
   supplierEmail?: string | null;
   adminEmail?: string | null;
@@ -63,6 +62,7 @@ export async function enqueueBookingCreatedEmailJob(payload: {
 }) {
   const basePayload = {
     customerName: payload.customerName,
+    customerLanguage: payload.customerLanguage || "en",
     restaurantName: payload.restaurantName,
     bookingCode: payload.bookingCode,
     bookingDate: payload.bookingDate,
@@ -122,6 +122,7 @@ export async function enqueueBookingCreatedEmailJob(payload: {
 export async function enqueueBookingConfirmedEmailJob(payload: {
   bookingId: string;
   customerEmail?: string | null;
+  customerLanguage?: "en" | "zh" | null;
   customerName: string;
   restaurantName: string;
   bookingCode: string;
@@ -138,22 +139,19 @@ export async function enqueueBookingConfirmedEmailJob(payload: {
 
 export async function enqueueBookingCompletedEmailJob(payload: {
   bookingId: string;
-
   customerEmail?: string | null;
+  customerLanguage?: "en" | "zh" | null;
   supplierEmail?: string | null;
   agentEmail?: string | null;
   adminEmail?: string | null;
-
   customerName: string;
   restaurantName: string;
   bookingCode: string;
-
   bookingDate?: string | null;
   bookingTime?: string | null;
   guests?: number | null;
   phone?: string | null;
   whatsapp?: string | null;
-
   totalBill: number;
   customerDiscountAmount: number;
   platformCommissionAmount: number;
@@ -171,6 +169,7 @@ export async function enqueueBookingCompletedEmailJob(payload: {
 export async function enqueueBookingCancelledEmailJob(payload: {
   bookingId: string;
   customerEmail?: string | null;
+  customerLanguage?: "en" | "zh" | null;
   supplierEmail?: string | null;
   agentEmail?: string | null;
   adminEmail?: string | null;

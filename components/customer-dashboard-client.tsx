@@ -4,10 +4,79 @@ import Link from "next/link";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { getRestaurantImageUrl } from "@/lib/restaurants/images";
 
+type PreferredLanguage = "en" | "zh";
+
+const CUSTOMER_COPY = {
+  en: {
+    dashboardLabel: "Customer Dashboard",
+    welcome: "Welcome",
+    description:
+      "Discover curated premium restaurants and book instantly with your exclusive Mvip benefits.",
+    memberBenefit: "Member Benefit",
+    discountText: "Direct customer discount",
+    searchPlaceholder: "Search restaurant, city or cuisine...",
+    search: "Search",
+    allCuisines: "All Cuisines",
+    top: "top",
+    nearby: "nearby",
+    popular: "popular",
+    showing: "Showing",
+    of: "of",
+    clearFilters: "CLEAR FILTERS",
+    curatedSelection: "Curated Selection",
+    premiumRestaurants: "Premium Restaurants",
+    browseText: "Browse luxury dining partners available for booking.",
+    findNearby: "Find nearby restaurants",
+    noRestaurants:
+      "No restaurants match your filters. Try clearing filters or explore top picks ✨",
+    loadMore: "Load more restaurants",
+    nearbyEnabled: "Nearby restaurants within 1km enabled.",
+    detectingLocation: "Detecting your location...",
+    locationNotSupported: "Your browser does not support location services.",
+    locationDenied:
+      "We could not access your location. You can still browse all restaurants.",
+    luxuryDining: "Luxury Dining",
+    signatureDining: "Signature Dining",
+    premiumPartner: "Premium dining partner available for booking.",
+    vietnam: "Vietnam",
+  },
+  zh: {
+    dashboardLabel: "客户中心",
+    welcome: "欢迎",
+    description: "探索精选高端餐厅，并使用您的 Mvip 专属权益快速预订。",
+    memberBenefit: "会员权益",
+    discountText: "顾客账单直接优惠",
+    searchPlaceholder: "搜索餐厅、城市或菜系...",
+    search: "搜索",
+    allCuisines: "全部菜系",
+    top: "推荐",
+    nearby: "附近",
+    popular: "热门",
+    showing: "显示",
+    of: "共",
+    clearFilters: "清除筛选",
+    curatedSelection: "精选推荐",
+    premiumRestaurants: "高端餐厅",
+    browseText: "浏览可预订的高端餐饮合作伙伴。",
+    findNearby: "查找附近餐厅",
+    noRestaurants: "没有符合筛选条件的餐厅。请清除筛选或查看推荐餐厅 ✨",
+    loadMore: "加载更多餐厅",
+    nearbyEnabled: "已启用 1 公里内附近餐厅。",
+    detectingLocation: "正在定位您的位置...",
+    locationNotSupported: "您的浏览器不支持定位服务。",
+    locationDenied: "无法获取您的位置。您仍然可以浏览所有餐厅。",
+    luxuryDining: "高端餐饮",
+    signatureDining: "特色餐饮",
+    premiumPartner: "可预订的高端餐饮合作伙伴。",
+    vietnam: "越南",
+  },
+} as const;
+
 type Profile = {
   fullName: string;
   email?: string;
   refCode?: string;
+  preferredLanguage?: PreferredLanguage;
 };
 
 type Restaurant = {
@@ -27,7 +96,6 @@ type Restaurant = {
   price_range?: string | null;
   discount_percent?: number | null;
   average_rating?: number | null;
-  total_reviews?: number | null;
 };
 
 type RestaurantWithDistance = Restaurant & {
@@ -55,8 +123,8 @@ function hardLockViewport() {
   document.body.scrollLeft = 0;
 }
 
-function getCuisine(item: Restaurant) {
-  return item.cuisine_type || item.category || "Signature Dining";
+function getCuisine(item: Restaurant, fallback = "Signature Dining") {
+  return item.cuisine_type || item.category || fallback;
 }
 
 function getImage(item: Restaurant) {
@@ -97,11 +165,13 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 const RestaurantCard = memo(function RestaurantCard({
   restaurant,
+  t,
 }: {
   restaurant: RestaurantWithDistance;
+  t: (typeof CUSTOMER_COPY)[PreferredLanguage];
 }) {
   const image = getImage(restaurant);
-  const cuisine = getCuisine(restaurant);
+  const cuisine = getCuisine(restaurant, t.signatureDining);
   const discount = getDiscount(restaurant);
   const rating = getAverageRating(restaurant);
 
@@ -113,7 +183,7 @@ const RestaurantCard = memo(function RestaurantCard({
     <Link
       href={href}
       prefetch={false}
-      className="group mobile-safe-card block rounded-3xl border border-white/10 bg-[#11100c]/95 shadow-xl shadow-black/25 transition hover:border-amber-300/40"
+      className="group block w-full max-w-full overflow-hidden rounded-3xl border border-white/10 bg-[#11100c]/95 shadow-xl shadow-black/25 transition hover:border-amber-300/40"
     >
       <div className="relative h-44 w-full overflow-hidden bg-[#12100b] sm:h-56">
         {image ? (
@@ -152,12 +222,12 @@ const RestaurantCard = memo(function RestaurantCard({
           {restaurant.short_description ||
             restaurant.description ||
             restaurant.address ||
-            "Premium dining partner available for booking."}
+            t.premiumPartner}
         </p>
 
         <div className="mt-5 flex w-full max-w-full items-center justify-between gap-3 overflow-hidden">
           <p className="min-w-0 flex-1 truncate text-sm font-bold text-slate-300">
-            📍 {restaurant.city || "Vietnam"}
+            📍 {restaurant.city || t.vietnam}
           </p>
 
           <span className="shrink-0 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-300">
@@ -173,6 +243,9 @@ export default function CustomerDashboardClient({
   profile,
   restaurants,
 }: Props) {
+  const language: PreferredLanguage =
+    profile.preferredLanguage === "zh" ? "zh" : "en";
+  const t = CUSTOMER_COPY[language];
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const [input, setInput] = useState("");
@@ -212,11 +285,11 @@ export default function CustomerDashboardClient({
 
   function requestLocation() {
     if (!navigator.geolocation) {
-      setLocationStatus("Your browser does not support location services.");
+      setLocationStatus(t.locationNotSupported);
       return;
     }
 
-    setLocationStatus("Detecting your location...");
+    setLocationStatus(t.detectingLocation);
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -228,14 +301,12 @@ export default function CustomerDashboardClient({
         setNearbyOnly(true);
         setSortMode("nearby");
         setVisibleCount(9);
-        setLocationStatus("Nearby restaurants within 1km enabled.");
+        setLocationStatus(t.nearbyEnabled);
         setTimeout(hardLockViewport, 80);
       },
       () => {
         setNearbyOnly(false);
-        setLocationStatus(
-          "We could not access your location. You can still browse all restaurants.",
-        );
+        setLocationStatus(t.locationDenied);
       },
       {
         enableHighAccuracy: true,
@@ -258,10 +329,10 @@ export default function CustomerDashboardClient({
   }
 
   const cuisines = useMemo(() => {
-    return Array.from(new Set(restaurants.map((item) => getCuisine(item))))
+    return Array.from(new Set(restaurants.map((item) => getCuisine(item, t.signatureDining))))
       .filter(Boolean)
       .sort();
-  }, [restaurants]);
+  }, [restaurants, t.signatureDining]);
 
   const restaurantsWithDistance = useMemo<RestaurantWithDistance[]>(() => {
     return restaurants.map((item) => {
@@ -292,7 +363,7 @@ export default function CustomerDashboardClient({
         const searchableText = normalizeSearch(
           [
             item.name,
-            getCuisine(item),
+            getCuisine(item, t.signatureDining),
             item.description,
             item.short_description,
             item.address,
@@ -307,7 +378,7 @@ export default function CustomerDashboardClient({
         );
 
         const matchKeyword = !keyword || searchableText.includes(keyword);
-        const matchCuisine = !cuisine || getCuisine(item) === cuisine;
+        const matchCuisine = !cuisine || getCuisine(item, t.signatureDining) === cuisine;
 
         const matchNearby =
           !nearbyOnly ||
@@ -362,51 +433,50 @@ export default function CustomerDashboardClient({
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
 
   return (
-    <main className="mobile-viewport-lock relative min-h-screen bg-[#050403] pb-10 text-white">
+    <main className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[#050403] pb-10 text-white">
       <div className="pointer-events-none absolute inset-0 w-full max-w-full overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-[260px] w-[260px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
-        <div className="absolute right-0 top-40 h-[180px] w-[180px] rounded-full bg-orange-900/20 blur-3xl md:h-[440px] md:w-[440px]" />
+        <div className="absolute left-1/2 top-0 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-3xl md:h-[560px] md:w-[560px]" />
+        <div className="absolute right-0 top-40 h-[220px] w-[220px] rounded-full bg-orange-900/20 blur-3xl md:h-[440px] md:w-[440px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(251,191,36,0.12)_1px,transparent_0)] [background-size:28px_28px]" />
       </div>
 
       <div className="relative mx-auto w-full max-w-7xl overflow-x-hidden px-3 py-5 sm:px-4 md:px-6 md:py-8">
-        <section className="mobile-safe-card relative mx-auto rounded-[1.35rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] md:rounded-[2.4rem] md:p-8">
+        <section className="relative mx-auto w-full max-w-full overflow-hidden rounded-[1.5rem] border border-amber-300/15 bg-[#11100c]/95 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.55)] md:rounded-[2.4rem] md:p-8">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -left-20 -top-24 h-52 w-52 rounded-full bg-amber-400/10 blur-3xl md:h-72 md:w-72" />
-            <div className="absolute right-0 top-8 h-52 w-52 rounded-full bg-orange-700/10 blur-3xl md:h-80 md:w-80" />
+            <div className="absolute -left-20 -top-24 h-60 w-60 rounded-full bg-amber-400/10 blur-3xl md:h-72 md:w-72" />
+            <div className="absolute right-0 top-8 h-64 w-64 rounded-full bg-orange-700/10 blur-3xl md:h-80 md:w-80" />
           </div>
 
           <div className="relative min-w-0">
             <div className="mb-6 grid min-w-0 gap-4 lg:grid-cols-[1fr_260px] lg:items-end">
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300 md:text-xs md:tracking-[0.45em]">
-                  Customer Dashboard
+                  {t.dashboardLabel}
                 </p>
 
-                <h1 className="mobile-safe-text mt-3 text-[2rem] font-black leading-[1.05] tracking-tight text-white md:mt-4 md:text-6xl">
-                  Welcome, {profile.fullName || "Customer"}
+                <h1 className="mt-3 max-w-full break-words text-[2rem] font-black leading-[1.05] tracking-tight text-white md:mt-4 md:text-6xl">
+                  {t.welcome}, {profile.fullName || "Customer"}
                 </h1>
 
-                <p className="mobile-safe-text mt-3 max-w-2xl text-base font-semibold leading-7 text-slate-400 md:mt-4 md:text-lg">
-                  Discover curated premium restaurants and book instantly with
-                  your exclusive Mvip benefits.
+                <p className="mt-3 max-w-2xl break-words text-base font-semibold leading-7 text-slate-400 md:mt-4 md:text-lg">
+                  {t.description}
                 </p>
               </div>
 
-              <div className="mobile-safe-card rounded-[1.35rem] border border-amber-300/20 bg-amber-300/[0.07] px-5 py-4 shadow-2xl shadow-amber-950/20 md:rounded-[1.5rem]">
+              <div className="w-full max-w-full rounded-[1.5rem] border border-amber-300/20 bg-amber-300/[0.07] px-5 py-4 shadow-2xl shadow-amber-950/20">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
-                  Member Benefit
+                  {t.memberBenefit}
                 </p>
                 <p className="mt-2 text-4xl font-black leading-none text-white">
                   5% OFF
                 </p>
                 <p className="mt-2 text-sm font-semibold text-slate-400">
-                  Direct customer discount
+                  {t.discountText}
                 </p>
               </div>
             </div>
 
-            <div className="mobile-safe-card rounded-[1.35rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
+            <div className="w-full max-w-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
               <div className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-[1fr_120px_260px]">
                 <input
                   ref={inputRef}
@@ -415,7 +485,7 @@ export default function CustomerDashboardClient({
                   onKeyDown={(event) => {
                     if (event.key === "Enter") handleSearch();
                   }}
-                  placeholder="Search restaurant, city or cuisine..."
+                  placeholder={t.searchPlaceholder}
                   className="h-14 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-base font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
                 />
 
@@ -452,7 +522,7 @@ export default function CustomerDashboardClient({
                 <div className="grid w-full min-w-0 grid-cols-3 gap-2 md:flex md:w-auto md:flex-wrap">
                   {(["top", "nearby", "popular"] as SortMode[]).map((mode) => (
                     <button
-                      key={mode}
+                      key={t[mode]}
                       type="button"
                       onClick={() => {
                         if (mode === "nearby") {
@@ -470,14 +540,14 @@ export default function CustomerDashboardClient({
                           : "min-w-0 rounded-xl border border-white/10 px-2 py-3 text-[11px] font-black uppercase tracking-wide text-slate-400 transition hover:bg-white/[0.08] hover:text-white md:px-5 md:text-xs"
                       }
                     >
-                      {mode}
+                      {t[mode]}
                     </button>
                   ))}
                 </div>
 
                 <div className="flex min-w-0 flex-wrap items-center gap-3 text-xs font-black text-slate-400">
                   <span>
-                    Showing {filteredRestaurants.length} of {restaurants.length}
+                    {t.showing} {filteredRestaurants.length} {t.of} {restaurants.length}
                   </span>
 
                   <button
@@ -485,7 +555,7 @@ export default function CustomerDashboardClient({
                     onClick={clearFilters}
                     className="text-amber-300 transition hover:text-amber-200"
                   >
-                    CLEAR FILTERS
+                    {t.clearFilters}
                   </button>
                 </div>
               </div>
@@ -503,15 +573,15 @@ export default function CustomerDashboardClient({
           <div className="flex min-w-0 flex-col justify-between gap-3 md:flex-row md:items-end">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300 md:tracking-[0.45em]">
-                Curated Selection
+                {t.curatedSelection}
               </p>
 
-              <h2 className="mobile-safe-text mt-3 text-3xl font-black leading-tight text-white md:text-4xl">
-                Premium Restaurants
+              <h2 className="mt-3 break-words text-3xl font-black leading-tight text-white md:text-4xl">
+                {t.premiumRestaurants}
               </h2>
 
-              <p className="mobile-safe-text mt-2 text-sm text-slate-400">
-                Browse luxury dining partners available for booking.
+              <p className="mt-2 break-words text-sm text-slate-400">
+                {t.browseText}
               </p>
             </div>
 
@@ -520,19 +590,18 @@ export default function CustomerDashboardClient({
               onClick={requestLocation}
               className="hidden w-fit rounded-2xl border border-amber-300/40 px-5 py-3 text-sm font-black text-amber-300 transition hover:bg-amber-300 hover:text-slate-950 md:block"
             >
-              Find nearby restaurants
+              {t.findNearby}
             </button>
           </div>
 
           {visibleRestaurants.length === 0 ? (
             <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.05] px-6 py-10 text-center text-sm text-slate-300">
-              No restaurants match your filters. Try clearing filters or explore
-              top picks ✨
+              {t.noRestaurants}
             </div>
           ) : (
             <div className="mt-6 grid w-full min-w-0 grid-cols-1 gap-5 overflow-hidden md:grid-cols-2 xl:grid-cols-3">
               {visibleRestaurants.map((restaurant) => (
-                <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+                <RestaurantCard key={restaurant.id} restaurant={restaurant} t={t} />
               ))}
             </div>
           )}
@@ -547,7 +616,7 @@ export default function CustomerDashboardClient({
                 }}
                 className="rounded-2xl border border-amber-300/40 px-6 py-3 text-sm font-black text-amber-300 transition hover:bg-amber-300 hover:text-slate-950"
               >
-                Load more restaurants
+                {t.loadMore}
               </button>
             </div>
           )}

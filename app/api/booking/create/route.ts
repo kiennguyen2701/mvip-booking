@@ -7,6 +7,12 @@ import { cacheKeys, cachePatterns } from "@/lib/cache/keys";
 
 export const dynamic = "force-dynamic";
 
+type PreferredLanguage = "en" | "zh";
+
+function normalizePreferredLanguage(value: unknown): PreferredLanguage {
+  return String(value || "").trim().toLowerCase() === "zh" ? "zh" : "en";
+}
+
 function generateBookingCode() {
   const date = new Date();
   const ymd = date.toISOString().slice(0, 10).replaceAll("-", "");
@@ -47,29 +53,6 @@ async function getCustomerAgent(userId: string) {
   };
 }
 
-async function triggerEmailWorker(request: Request) {
-  try {
-    const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET || "";
-    const workerUrl = new URL("/api/email/process", request.url);
-
-    if (secret) {
-      workerUrl.searchParams.set("secret", secret);
-    }
-
-    const response = await fetch(workerUrl.toString(), {
-      method: "POST",
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.error("TRIGGER_EMAIL_WORKER_FAILED:", response.status, text);
-    }
-  } catch (error) {
-    console.error("TRIGGER_EMAIL_WORKER_ERROR:", error);
-  }
-}
-
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -89,14 +72,22 @@ export async function POST(request: Request) {
 
     const restaurantId = String(body.restaurantId || "").trim();
     const supplierIdFromBody = String(body.supplierId || "").trim();
+
     const customerName = String(body.customerName || "").trim();
     const phone = String(body.phone || "").trim();
     const whatsapp = String(body.whatsapp || "").trim();
+
     const guests = Number(body.guests || 1);
     const bookingDate = String(body.bookingDate || "").trim();
     const bookingTime = String(body.bookingTime || "").trim();
 
-    if (!restaurantId || !customerName || !phone || !bookingDate || !bookingTime) {
+    if (
+      !restaurantId ||
+      !customerName ||
+      !phone ||
+      !bookingDate ||
+      !bookingTime
+    ) {
       return NextResponse.json(
         { error: "Missing required booking information." },
         { status: 400 },
@@ -121,6 +112,26 @@ export async function POST(request: Request) {
       : { data: null };
 
     const { agentId, refCode } = await getCustomerAgent(user.id);
+
+    const [{ data: profileLanguageRow }, { data: userLanguageRow }] =
+      await Promise.all([
+        adminClient
+          .from("profiles")
+          .select("preferred_language")
+          .eq("id", user.id)
+          .maybeSingle(),
+        adminClient
+          .from("users")
+          .select("preferred_language")
+          .eq("id", user.id)
+          .maybeSingle(),
+      ]);
+
+    const customerLanguage = normalizePreferredLanguage(
+      profileLanguageRow?.preferred_language ||
+        userLanguageRow?.preferred_language ||
+        user.user_metadata?.preferred_language,
+    );
 
     const bookingCode = generateBookingCode();
     const now = new Date().toISOString();
@@ -160,7 +171,10 @@ export async function POST(request: Request) {
       .single();
 
     if (bookingError) {
-      return NextResponse.json({ error: bookingError.message }, { status: 400 });
+      return NextResponse.json(
+        { error: bookingError.message },
+        { status: 400 },
+      );
     }
 
     await adminClient.from("booking_status_logs").insert({
@@ -174,9 +188,10 @@ export async function POST(request: Request) {
 
     const supplierEmail = supplier?.email || supplier?.login_email || null;
 
-    await enqueueBookingCreatedEmailJob({
+    enqueueBookingCreatedEmailJob({
       bookingId: booking.id,
       customerEmail: user.email || null,
+      customerLanguage,
       customerName,
       supplierEmail,
       adminEmail: process.env.ADMIN_EMAIL || null,
@@ -187,9 +202,9 @@ export async function POST(request: Request) {
       guests,
       phone,
       whatsapp,
+    }).catch((error: unknown) => {
+      console.error("ENQUEUE_BOOKING_CREATED_EMAIL_ERROR:", error);
     });
-
-    await triggerEmailWorker(request);
 
     if (supplierId) {
       await deleteCache(cacheKeys.supplierDashboard(supplierId));

@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+type PreferredLanguage = "en" | "zh";
+
 type RestaurantRow = {
   id: string;
   name?: string | null;
@@ -29,6 +31,10 @@ type ReviewRow = {
   restaurant_id: string | null;
   rating: number | null;
 };
+
+function normalizePreferredLanguage(value: unknown): PreferredLanguage {
+  return String(value || "").trim().toLowerCase() === "zh" ? "zh" : "en";
+}
 
 function buildRatingMap(reviews: ReviewRow[]) {
   const ratingMap = new Map<string, { total: number; count: number }>();
@@ -68,7 +74,7 @@ export default async function CustomerPage() {
 
   const { data: profileRow } = await supabase
     .from("profiles")
-    .select("full_name, email, role, referred_by_ref_code")
+    .select("full_name, email, role, referred_by_ref_code, preferred_language")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -77,6 +83,10 @@ export default async function CustomerPage() {
   if (role && role !== "customer") {
     redirect("/dashboard");
   }
+
+  const preferredLanguage = normalizePreferredLanguage(
+    profileRow?.preferred_language || user.user_metadata?.preferred_language,
+  );
 
   const { data: restaurantsData } = await supabase
     .from("restaurants")
@@ -144,6 +154,7 @@ export default async function CustomerPage() {
           "Customer",
         email: profileRow?.email || user.email || "",
         refCode: profileRow?.referred_by_ref_code || "",
+        preferredLanguage,
       }}
       restaurants={restaurantsWithRatings}
     />
