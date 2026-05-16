@@ -5,6 +5,8 @@ import { useEffect, useState, useTransition } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 
+type PreferredLanguage = "en" | "zh";
+
 export default function CustomerRegisterForm({
   initialRefCode,
 }: {
@@ -25,6 +27,7 @@ export default function CustomerRegisterForm({
     phone: "",
     whatsapp: "",
     refCode: initialRefCode || "",
+    preferredLanguage: "en" as PreferredLanguage,
   });
 
   useEffect(() => {
@@ -165,71 +168,107 @@ export default function CustomerRegisterForm({
         className="space-y-4"
       >
         <input
+          required
+          type="text"
+          placeholder="Full name"
           value={form.fullName}
           onChange={(event) =>
             updateField("fullName", event.target.value)
           }
-          placeholder="Full name"
-          required
-          className="h-16 w-full rounded-3xl border border-white/10 bg-white/[0.08] px-5 text-base font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-[16px] font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/40"
         />
 
         <input
+          required
+          type="email"
+          placeholder="Email address"
           value={form.email}
           onChange={(event) =>
             updateField("email", event.target.value)
           }
-          type="email"
-          placeholder="Email address"
-          required
-          className="h-16 w-full rounded-3xl border border-white/10 bg-white/[0.08] px-5 text-base font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-[16px] font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/40"
         />
 
         <input
+          required
+          type="password"
+          placeholder="Password"
           value={form.password}
           onChange={(event) =>
             updateField("password", event.target.value)
           }
-          type="password"
-          placeholder="Password"
-          required
-          minLength={6}
-          className="h-16 w-full rounded-3xl border border-white/10 bg-white/[0.08] px-5 text-base font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-[16px] font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/40"
         />
 
         <input
+          type="text"
+          placeholder="Phone number"
           value={form.phone}
           onChange={(event) =>
             updateField("phone", event.target.value)
           }
-          placeholder="Phone number"
-          className="h-16 w-full rounded-3xl border border-white/10 bg-white/[0.08] px-5 text-base font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-[16px] font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/40"
         />
 
         <input
+          type="text"
+          placeholder="WhatsApp"
           value={form.whatsapp}
           onChange={(event) =>
             updateField("whatsapp", event.target.value)
           }
-          placeholder="WhatsApp"
-          className="h-16 w-full rounded-3xl border border-white/10 bg-white/[0.08] px-5 text-base font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-[16px] font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/40"
         />
 
-        {/* REF CODE HIDDEN */}
+        <div>
+          <label className="mb-2 block text-sm font-bold text-amber-300">
+            Preferred Language
+          </label>
+
+          <select
+            value={form.preferredLanguage}
+            onChange={(event) =>
+              updateField(
+                "preferredLanguage",
+                event.target.value as PreferredLanguage,
+              )
+            }
+            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-[16px] font-semibold text-white outline-none focus:border-amber-300/40"
+          >
+            <option
+              value="en"
+              className="text-black"
+            >
+              English
+            </option>
+
+            <option
+              value="zh"
+              className="text-black"
+            >
+              中文 Chinese
+            </option>
+          </select>
+        </div>
+
         <input
-          type="hidden"
-          name="refCode"
+          type="text"
+          placeholder="Referral Code"
           value={form.refCode}
+          onChange={(event) =>
+            updateField("refCode", event.target.value)
+          }
+          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-[16px] font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/40"
         />
 
         <button
           type="submit"
           disabled={pending}
-          className="flex h-16 w-full items-center justify-center rounded-3xl bg-gradient-to-r from-amber-300 to-yellow-500 text-lg font-black text-slate-950 shadow-2xl shadow-yellow-900/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-500 px-5 py-4 text-base font-black text-slate-950 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending
-            ? "Creating account..."
-            : "Create account"}
+            ? "Creating Account..."
+            : "Create Account"}
         </button>
       </form>
     </section>

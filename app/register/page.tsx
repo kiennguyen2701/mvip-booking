@@ -1,7 +1,7 @@
-import { cookies } from 'next/headers';
-import CustomerRegisterForm from '@/components/customer-register-form';
+import { cookies } from "next/headers";
+import CustomerRegisterForm from "@/components/customer-register-form";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function RegisterPage({
   searchParams,
@@ -13,20 +13,23 @@ export default async function RegisterPage({
 
   const refCode =
     query.ref ||
-    cookieStore.get('mvip_ref_code')?.value ||
-    cookieStore.get('ref_code')?.value ||
-    '';
+    cookieStore.get("mvip_ref_code")?.value ||
+    cookieStore.get("ref_code")?.value ||
+    "";
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#080704] px-4 py-10 text-white md:px-6">
-      <div className="pointer-events-none absolute inset-0">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-40 -top-40 h-[460px] w-[460px] rounded-full bg-amber-500/20 blur-3xl" />
+
         <div className="absolute right-[-140px] top-20 h-[520px] w-[520px] rounded-full bg-orange-700/20 blur-3xl" />
+
         <div className="absolute bottom-[-160px] left-1/3 h-[460px] w-[460px] rounded-full bg-yellow-300/10 blur-3xl" />
+
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,214,140,0.1)_1px,transparent_0)] [background-size:30px_30px]" />
       </div>
 
-      <div className="relative mx-auto flex min-h-[80vh] max-w-xl items-center justify-center">
+      <div className="relative mx-auto flex min-h-[80vh] w-full max-w-xl items-center justify-center overflow-x-hidden">
         <CustomerRegisterForm initialRefCode={refCode} />
       </div>
     </main>
