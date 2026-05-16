@@ -5,51 +5,34 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL =
   process.env.BOOKING_FROM_EMAIL ||
   process.env.FROM_EMAIL ||
-  "Mvip Booking <onboarding@resend.dev>";
+  "Mvip Booking <booking@mvipbooking.com>";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
-const EMAIL_TEST_TO = process.env.EMAIL_TEST_TO || "";
 
-const IS_DEV_REDIRECT =
-  process.env.NODE_ENV !== "production" && Boolean(EMAIL_TEST_TO);
-
-const SEND_DELAY_MS = 1200;
-const RETRY_DELAY_MS = 2500;
-const MAX_SEND_ATTEMPTS = 5;
+const SEND_DELAY_MS = 900;
+const RETRY_DELAY_MS = 1800;
+const MAX_SEND_ATTEMPTS = 4;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getRecipients(to?: string | null) {
-  if (!to) return [];
-  if (IS_DEV_REDIRECT) return [EMAIL_TEST_TO];
-  return [to];
+function formatMoney(value?: number | null) {
+  return `${Number(value || 0).toLocaleString("vi-VN")} ₫`;
 }
 
-function getSubject(subject: string, originalTo?: string | null) {
-  if (IS_DEV_REDIRECT) {
-    return `[DEV REDIRECT | original: ${originalTo || "empty"}] ${subject}`;
-  }
-
-  return subject;
-}
-
-function formatMoney(value: number | null | undefined) {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(Number(value ?? 0));
-}
-
-function escapeHtml(value: string | number | null | undefined) {
+function escapeHtml(value?: string | number | null) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function displayValue(value?: string | number | null) {
+  if (value === undefined || value === null || value === "") return "-";
+  return escapeHtml(value);
 }
 
 function infoRow(label: string, value?: string | number | null) {
@@ -59,23 +42,19 @@ function infoRow(label: string, value?: string | number | null) {
         ${escapeHtml(label)}
       </td>
       <td align="right" style="padding:14px 0;color:#17120b;font-size:14px;font-weight:900;border-bottom:1px solid #eadfce;">
-        ${escapeHtml(value || "-")}
+        ${displayValue(value)}
       </td>
     </tr>
   `;
 }
 
-function moneyRow(
-  label: string,
-  value: number | null | undefined,
-  tone = "#17120b",
-) {
+function moneyRow(label: string, value?: number | null, color = "#17120b") {
   return `
     <tr>
       <td style="padding:14px 0;color:#7a6a55;font-size:14px;font-weight:700;border-bottom:1px solid #eadfce;">
         ${escapeHtml(label)}
       </td>
-      <td align="right" style="padding:14px 0;color:${tone};font-size:15px;font-weight:900;border-bottom:1px solid #eadfce;">
+      <td align="right" style="padding:14px 0;color:${color};font-size:15px;font-weight:900;border-bottom:1px solid #eadfce;">
         ${formatMoney(value)}
       </td>
     </tr>
@@ -132,14 +111,12 @@ function luxuryEmail({
   subtitle,
   badge,
   body,
-  footerNote,
 }: {
   eyebrow: string;
   title: string;
   subtitle: string;
-  badge?: string;
+  badge: string;
   body: string;
-  footerNote?: string;
 }) {
   return `
     <!doctype html>
@@ -153,10 +130,6 @@ function luxuryEmail({
       </head>
 
       <body style="margin:0;padding:0;background:#f4efe6;font-family:Arial,Helvetica,sans-serif;color:#17120b;">
-        <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
-          ${escapeHtml(subtitle)}
-        </div>
-
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4efe6;padding:24px 10px;">
           <tr>
             <td align="center">
@@ -174,13 +147,9 @@ function luxuryEmail({
                                 </div>
                               </td>
                               <td align="right" style="vertical-align:top;">
-                                ${
-                                  badge
-                                    ? `<span style="display:inline-block;border:1px solid #e0bd62;background:#fff3c4;color:#7a4a00;border-radius:999px;padding:9px 14px;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;">${escapeHtml(
-                                        badge,
-                                      )}</span>`
-                                    : ""
-                                }
+                                <span style="display:inline-block;border:1px solid #e0bd62;background:#fff3c4;color:#7a4a00;border-radius:999px;padding:9px 14px;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;">
+                                  ${escapeHtml(badge)}
+                                </span>
                               </td>
                             </tr>
                           </table>
@@ -208,12 +177,8 @@ function luxuryEmail({
                       <tr>
                         <td style="padding:22px 26px;background:#fbf7ef;border-top:1px solid #eadfce;">
                           <p style="margin:0;color:#6f6253;font-size:12px;line-height:1.6;">
-                            ${escapeHtml(
-                              footerNote ||
-                                "This is an automated notification from Mvip Booking. Please do not reply directly to this email.",
-                            )}
+                            This is an automated notification from Mvip Booking. Please do not reply directly to this email.
                           </p>
-
                           <p style="margin:13px 0 0;color:#17120b;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;">
                             Mvip Booking · Premium Booking Platform
                           </p>
@@ -264,28 +229,24 @@ async function safeSendEmail(input: {
   subject: string;
   html: string;
 }) {
-  const recipients = getRecipients(input.to);
-
-  if (!recipients.length) {
+  if (!input.to) {
     console.log("EMAIL_SKIPPED_NO_RECIPIENT:", input.subject);
     return null;
   }
-
-  const subject = getSubject(input.subject, input.to);
 
   for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt += 1) {
     try {
       const result = await resend.emails.send({
         from: FROM_EMAIL,
-        to: recipients,
-        subject,
+        to: input.to,
+        subject: input.subject,
         html: input.html,
       });
 
       if (!result.error) {
         console.log("RESEND_SEND_SUCCESS:", {
-          to: recipients,
-          subject,
+          to: input.to,
+          subject: input.subject,
           data: result.data,
         });
 
@@ -296,12 +257,11 @@ async function safeSendEmail(input: {
       const message = getErrorMessage(result.error);
 
       console.error("RESEND_SEND_ERROR:", {
-        to: recipients,
-        subject,
+        to: input.to,
+        subject: input.subject,
         attempt,
         status,
         message,
-        error: result.error,
       });
 
       if (status === 429 && attempt < MAX_SEND_ATTEMPTS) {
@@ -309,18 +269,17 @@ async function safeSendEmail(input: {
         continue;
       }
 
-      throw new Error(`Resend failed for ${recipients.join(", ")}: ${message}`);
+      throw new Error(`Resend failed for ${input.to}: ${message}`);
     } catch (error) {
       const status = getErrorStatus(error);
       const message = getErrorMessage(error);
 
       console.error("EMAIL_SEND_FATAL:", {
-        to: recipients,
-        subject,
+        to: input.to,
+        subject: input.subject,
         attempt,
         status,
         message,
-        error,
       });
 
       if (attempt < MAX_SEND_ATTEMPTS) {
@@ -498,54 +457,61 @@ export async function sendBookingConfirmedEmail(payload: {
 }
 
 export async function sendBookingCompletedEmails(payload: {
+  bookingId?: string;
   customerEmail?: string | null;
   supplierEmail?: string | null;
   agentEmail?: string | null;
   adminEmail?: string | null;
+
   customerName: string;
   restaurantName: string;
   bookingCode: string;
+
   bookingDate?: string | null;
   bookingTime?: string | null;
   guests?: number | null;
   phone?: string | null;
   whatsapp?: string | null;
-  totalBill: number;
-  customerDiscountAmount: number;
-  platformCommissionAmount: number;
-  agentCommissionAmount: number;
-  platformNetAmount: number;
+
+  totalBill?: number | null;
+  customerDiscountAmount?: number | null;
+  platformCommissionAmount?: number | null;
+  agentCommissionAmount?: number | null;
+  platformNetAmount?: number | null;
 }) {
-  const baseRows =
+  const bookingRows =
     infoRow("Booking Code", payload.bookingCode) +
     infoRow("Restaurant", payload.restaurantName) +
-    infoRow("Date", payload.bookingDate || "-") +
-    infoRow("Time", payload.bookingTime || "-") +
-    infoRow("Guests", payload.guests || "-") +
+    infoRow("Date", payload.bookingDate) +
+    infoRow("Time", payload.bookingTime) +
+    infoRow("Guests", payload.guests) +
     infoRow("Customer", payload.customerName) +
-    infoRow("Phone", payload.phone || "-") +
-    infoRow("WhatsApp", payload.whatsapp || "-");
+    infoRow("Phone", payload.phone) +
+    infoRow("WhatsApp", payload.whatsapp);
 
-  const customerCard = detailCard(
-    baseRows +
-      moneyRow("Total Bill", payload.totalBill) +
+  const bookingCard = detailCard(bookingRows);
+
+  const customerMoneyCard = detailCard(
+    moneyRow("Total Bill", payload.totalBill) +
       moneyRow("Customer Discount 5%", payload.customerDiscountAmount, "#047857"),
   );
 
-  const supplierCard = detailCard(
-    baseRows +
-      moneyRow("Total Bill", payload.totalBill) +
+  const supplierMoneyCard = detailCard(
+    moneyRow("Total Bill", payload.totalBill) +
       moneyRow("Customer Discount 5%", payload.customerDiscountAmount, "#047857") +
       moneyRow("Platform Commission 10%", payload.platformCommissionAmount),
   );
 
-  const adminCard = detailCard(
-    baseRows +
-      moneyRow("Total Bill", payload.totalBill) +
+  const adminMoneyCard = detailCard(
+    moneyRow("Total Bill", payload.totalBill) +
       moneyRow("Customer Discount 5%", payload.customerDiscountAmount, "#047857") +
       moneyRow("Platform Commission 10%", payload.platformCommissionAmount) +
       moneyRow("Agent Payout 5%", payload.agentCommissionAmount) +
       moneyRow("Platform Net 5%", payload.platformNetAmount),
+  );
+
+  const agentMoneyCard = detailCard(
+    moneyRow("Agent Payout 5%", payload.agentCommissionAmount),
   );
 
   await sendSequentially([
@@ -565,7 +531,8 @@ export async function sendBookingCompletedEmails(payload: {
           <p style="margin:12px 0 0;color:#4f4538;font-size:15px;line-height:1.8;">
             Thank you for using Mvip Booking. Your customer discount has been applied directly to your bill.
           </p>
-          ${customerCard}
+          ${bookingCard}
+          ${customerMoneyCard}
         `,
       }),
     },
@@ -578,7 +545,10 @@ export async function sendBookingCompletedEmails(payload: {
         subtitle:
           "A booking has been marked completed. Below is the supplier settlement summary.",
         badge: "Supplier",
-        body: supplierCard,
+        body: `
+          ${bookingCard}
+          ${supplierMoneyCard}
+        `,
       }),
     },
     {
@@ -590,9 +560,10 @@ export async function sendBookingCompletedEmails(payload: {
         subtitle:
           "A booking linked to your referral has been completed. Commission is now ready for payout tracking.",
         badge: "Agent",
-        body: detailCard(
-          baseRows + moneyRow("Agent Payout 5%", payload.agentCommissionAmount),
-        ),
+        body: `
+          ${bookingCard}
+          ${agentMoneyCard}
+        `,
       }),
     },
     {
@@ -603,7 +574,10 @@ export async function sendBookingCompletedEmails(payload: {
         title: "Booking Completed",
         subtitle: "Commission and settlement details are ready for review.",
         badge: "Admin",
-        body: adminCard,
+        body: `
+          ${bookingCard}
+          ${adminMoneyCard}
+        `,
       }),
     },
   ]);
