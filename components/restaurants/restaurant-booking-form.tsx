@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+type PreferredLanguage = "en" | "zh";
 
 type Props = {
   restaurantId: string;
   restaurantName: string;
   supplierId?: string | null;
+  preferredLanguage?: PreferredLanguage;
 };
 
 type CustomerProfile = {
@@ -21,11 +24,66 @@ const HOURS = Array.from({ length: 24 }, (_, index) =>
 
 const MINUTES = ["00", "10", "20", "30", "40", "50"];
 
+const bookingText = {
+  en: {
+    premiumBooking: "Premium Booking",
+    reserveTitle: "Reserve a Table",
+    secureSeat: "Secure your seat before arrival",
+    instantDiscount: "Instant 5% Discount",
+    useProfile: "Use My Profile Information",
+    fullName: "Full Name",
+    phoneNumber: "Phone Number",
+    whatsapp: "WhatsApp (optional)",
+    guests: "Guests",
+    guest: "guest",
+    guestPlural: "guests",
+    date: "Date",
+    hour: "Hour",
+    minute: "Minute",
+    yourName: "Your name",
+    processing: "Processing...",
+    reserveNow: "Reserve Now",
+    invalidResponse:
+      "Booking API returned an invalid response. Check terminal log.",
+    unableCreate: "Unable to create booking.",
+    missingId: "Booking created but booking ID was missing.",
+    unableCreateTerminal: "Unable to create booking. Please check terminal log.",
+  },
+  zh: {
+    premiumBooking: "高端预订",
+    reserveTitle: "预订餐桌",
+    secureSeat: "提前预订您的座位",
+    instantDiscount: "即时 5% 折扣",
+    useProfile: "使用我的资料",
+    fullName: "姓名",
+    phoneNumber: "电话号码",
+    whatsapp: "WhatsApp（可选）",
+    guests: "人数",
+    guest: "位客人",
+    guestPlural: "位客人",
+    date: "日期",
+    hour: "小时",
+    minute: "分钟",
+    yourName: "请输入姓名",
+    processing: "正在处理...",
+    reserveNow: "立即预订",
+    invalidResponse: "预订接口返回异常。请检查终端日志。",
+    unableCreate: "无法创建预订。",
+    missingId: "预订已创建，但缺少预订 ID。",
+    unableCreateTerminal: "无法创建预订。请检查终端日志。",
+  },
+} as const;
+
 export default function RestaurantBookingForm({
   restaurantId,
   restaurantName,
   supplierId,
+  preferredLanguage = "en",
 }: Props) {
+  const t = useMemo(() => {
+    return preferredLanguage === "zh" ? bookingText.zh : bookingText.en;
+  }, [preferredLanguage]);
+
   const [loading, setLoading] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
@@ -103,6 +161,8 @@ export default function RestaurantBookingForm({
           bookingDate: String(formData.get("booking_date") || ""),
           bookingTime,
           agentRef,
+          customerLanguage: preferredLanguage,
+          preferredLanguage,
         }),
       });
 
@@ -114,26 +174,26 @@ export default function RestaurantBookingForm({
         result = rawText ? JSON.parse(rawText) : {};
       } catch {
         console.error("BOOKING_API_NON_JSON_RESPONSE:", rawText);
-        alert("Booking API returned an invalid response. Check terminal log.");
+        alert(t.invalidResponse);
         return;
       }
 
       if (!response.ok) {
         console.error("BOOKING_API_ERROR:", result);
-        alert(result.error || "Unable to create booking.");
+        alert(result.error || t.unableCreate);
         return;
       }
 
       if (!result.bookingId) {
         console.error("BOOKING_API_MISSING_ID:", result);
-        alert("Booking created but booking ID was missing.");
+        alert(t.missingId);
         return;
       }
 
       window.location.href = `/booking/${result.bookingId}`;
     } catch (error) {
       console.error("BOOKING_FORM_SUBMIT_ERROR:", error);
-      alert("Unable to create booking. Please check terminal log.");
+      alert(t.unableCreateTerminal);
     } finally {
       setLoading(false);
     }
@@ -152,19 +212,19 @@ export default function RestaurantBookingForm({
             </div>
 
             <p className="mt-4 text-xs font-black uppercase tracking-[0.28em] text-amber-300">
-              Premium Booking
+              {t.premiumBooking}
             </p>
 
             <h2 className="mt-2 text-3xl font-black tracking-tight text-white">
-              Reserve a Table
+              {t.reserveTitle}
             </h2>
 
             <p className="mt-2 text-sm font-medium text-slate-400">
-              Secure your seat before arrival
+              {t.secureSeat}
             </p>
 
             <div className="mx-auto mt-4 w-fit rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-200">
-              Instant 5% Discount
+              {t.instantDiscount}
             </div>
           </div>
 
@@ -175,15 +235,15 @@ export default function RestaurantBookingForm({
               disabled={profileLoading}
               className="mt-5 flex w-full items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-300/20"
             >
-              Use My Profile Information
+              {t.useProfile}
             </button>
           )}
 
           <form onSubmit={handleSubmit} className="mt-7 space-y-4">
-            <Field label="Full Name">
+            <Field label={t.fullName}>
               <input
                 name="customer_name"
-                placeholder="Your name"
+                placeholder={t.yourName}
                 required
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
@@ -191,7 +251,7 @@ export default function RestaurantBookingForm({
               />
             </Field>
 
-            <Field label="Phone Number">
+            <Field label={t.phoneNumber}>
               <input
                 name="phone"
                 placeholder="090..."
@@ -202,7 +262,7 @@ export default function RestaurantBookingForm({
               />
             </Field>
 
-            <Field label="WhatsApp (optional)">
+            <Field label={t.whatsapp}>
               <input
                 name="whatsapp"
                 placeholder="+84..."
@@ -212,7 +272,7 @@ export default function RestaurantBookingForm({
               />
             </Field>
 
-            <Field label="Guests">
+            <Field label={t.guests}>
               <select
                 name="guest_count"
                 defaultValue="2"
@@ -220,13 +280,13 @@ export default function RestaurantBookingForm({
               >
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
                   <option key={item} value={item} className="text-slate-950">
-                    {item} {item === 1 ? "guest" : "guests"}
+                    {item} {item === 1 ? t.guest : t.guestPlural}
                   </option>
                 ))}
               </select>
             </Field>
 
-            <Field label="Date">
+            <Field label={t.date}>
               <input
                 name="booking_date"
                 type="date"
@@ -236,7 +296,7 @@ export default function RestaurantBookingForm({
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Hour">
+              <Field label={t.hour}>
                 <select
                   value={bookingHour}
                   onChange={(event) => setBookingHour(event.target.value)}
@@ -254,7 +314,7 @@ export default function RestaurantBookingForm({
                 </select>
               </Field>
 
-              <Field label="Minute">
+              <Field label={t.minute}>
                 <select
                   value={bookingMinute}
                   onChange={(event) => setBookingMinute(event.target.value)}
@@ -279,7 +339,7 @@ export default function RestaurantBookingForm({
               className="group relative mt-2 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 px-5 py-4 text-sm font-black text-slate-950 shadow-2xl shadow-amber-900/25 transition duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="relative">
-                {loading ? "Processing..." : "Reserve Now"}
+                {loading ? t.processing : t.reserveNow}
               </span>
             </button>
           </form>
