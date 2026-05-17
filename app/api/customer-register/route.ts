@@ -10,7 +10,7 @@ function normalizeRefCode(value: unknown) {
 }
 
 function normalizePreferredLanguage(value: unknown): PreferredLanguage {
-  return String(value || "").trim().toLowerCase() === "zh" ? "zh" : "en";
+  return value === "zh" ? "zh" : "en";
 }
 
 function getCookieValue(cookieHeader: string, name: string) {
@@ -80,8 +80,6 @@ export async function POST(request: NextRequest) {
         user_metadata: {
           full_name: fullName,
           role: "customer",
-          phone: phone || null,
-          whatsapp: whatsapp || null,
           preferred_language: preferredLanguage,
           ref_code: agent?.ref_code || null,
           agent_id: agent?.id || null,
@@ -95,21 +93,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = authUser.user.id;
     const now = new Date().toISOString();
 
     const { error: userError } = await adminClient.from("users").upsert(
       {
-        id: userId,
+        id: authUser.user.id,
         email,
         full_name: fullName,
-        name: fullName,
         phone: phone || null,
-        whatsapp: whatsapp || null,
         role: "customer",
-        agent_id: agent?.id || null,
-        ref_code: agent?.ref_code || null,
         preferred_language: preferredLanguage,
+        ref_code: agent?.ref_code || null,
+        agent_id: agent?.id || null,
         created_at: now,
         updated_at: now,
       },
@@ -117,9 +112,6 @@ export async function POST(request: NextRequest) {
     );
 
     if (userError) {
-      console.error("CUSTOMER_REGISTER_USERS_UPSERT_ERROR:", userError);
-      await adminClient.auth.admin.deleteUser(userId);
-
       return NextResponse.json(
         { error: userError.message },
         { status: 400 },
@@ -128,43 +120,60 @@ export async function POST(request: NextRequest) {
 
     const { error: profileError } = await adminClient.from("profiles").upsert(
       {
-        id: userId,
+        id: authUser.user.id,
         email,
         full_name: fullName,
         phone: phone || null,
         whatsapp: whatsapp || null,
         role: "customer",
-        referred_by_agent_id: agent?.id || null,
-        referred_by_ref_code: agent?.ref_code || null,
         preferred_language: preferredLanguage,
-        created_at: now,
+        referred_by_ref_code: agent?.ref_code || null,
+        referred_by_agent_id: agent?.id || null,
         updated_at: now,
       },
       { onConflict: "id" },
     );
 
     if (profileError) {
-      console.error("CUSTOMER_REGISTER_PROFILES_UPSERT_ERROR:", profileError);
-      await adminClient.auth.admin.deleteUser(userId);
-
       return NextResponse.json(
         { error: profileError.message },
         { status: 400 },
       );
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
-      userId,
+      autoLogin: true,
+      userId: authUser.user.id,
+      refCode: agent?.ref_code || null,
+      agentId: agent?.id || null,
       preferredLanguage,
-      referredByAgentId: agent?.id || null,
-      referredByRefCode: agent?.ref_code || null,
     });
+
+    if (agent?.ref_code) {
+      response.cookies.set("mvip_ref_code", agent.ref_code, {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+
+      response.cookies.set("ref_code", agent.ref_code, {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error("CUSTOMER_REGISTER_ERROR:", error);
 
     return NextResponse.json(
-      { error: "Unable to register customer." },
+      { error: "Registration failed." },
       { status: 500 },
     );
   }
