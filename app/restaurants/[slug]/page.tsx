@@ -12,6 +12,8 @@ type PageProps = {
   }>;
 };
 
+type PreferredLanguage = "en" | "zh";
+
 type RestaurantReview = {
   id: string;
   customer_name: string;
@@ -29,6 +31,58 @@ type ReviewSummary = {
   alreadyReviewed: boolean;
 };
 
+const detailText = {
+  en: {
+    previewMode:
+      "Preview Mode — this restaurant is currently inactive and only visible to owner/admin.",
+    luxuryDiningPartner: "Luxury Dining Partner",
+    reviews: "reviews",
+    exclusiveOffer: "Exclusive Offer",
+    instantCustomerDiscount: "Instant customer discount",
+    supplierPreview: "Supplier Preview",
+    bookingDisabled: "Booking Disabled",
+    inactiveMessage:
+      "This restaurant is inactive. Customers cannot book until Admin approves and activates it.",
+    bookNow: "Book Now",
+  },
+  zh: {
+    previewMode: "预览模式 — 此餐厅当前未启用，仅供应商/管理员可见。",
+    luxuryDiningPartner: "高端餐饮合作伙伴",
+    reviews: "条评价",
+    exclusiveOffer: "专属优惠",
+    instantCustomerDiscount: "客户即时折扣",
+    supplierPreview: "供应商预览",
+    bookingDisabled: "暂不可预订",
+    inactiveMessage: "此餐厅当前未启用。管理员审核并启用后，客户才可以预订。",
+    bookNow: "立即预订",
+  },
+} as const;
+
+async function getPreferredLanguage(): Promise<PreferredLanguage> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      return "en";
+    }
+
+    const { data: profile } = await adminClient
+      .from("profiles")
+      .select("preferred_language")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    return profile?.preferred_language === "zh" ? "zh" : "en";
+  } catch (error) {
+    console.error("GET_RESTAURANT_DETAIL_LANGUAGE_ERROR:", error);
+    return "en";
+  }
+}
+
 async function getRestaurantReviewSummary(
   restaurantId: string,
 ): Promise<ReviewSummary> {
@@ -38,40 +92,36 @@ async function getRestaurantReviewSummary(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [
-    reviewsResult,
-    countResult,
-    averageResult,
-    completedBookingResult,
-  ] = await Promise.all([
-    adminClient
-      .from("restaurant_reviews")
-      .select("id, customer_name, rating, comment, created_at")
-      .eq("restaurant_id", restaurantId)
-      .order("created_at", { ascending: false })
-      .limit(10),
+  const [reviewsResult, countResult, averageResult, completedBookingResult] =
+    await Promise.all([
+      adminClient
+        .from("restaurant_reviews")
+        .select("id, customer_name, rating, comment, created_at")
+        .eq("restaurant_id", restaurantId)
+        .order("created_at", { ascending: false })
+        .limit(10),
 
-    adminClient
-      .from("restaurant_reviews")
-      .select("id", { count: "exact", head: true })
-      .eq("restaurant_id", restaurantId),
+      adminClient
+        .from("restaurant_reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("restaurant_id", restaurantId),
 
-    adminClient
-      .from("restaurant_reviews")
-      .select("rating")
-      .eq("restaurant_id", restaurantId),
+      adminClient
+        .from("restaurant_reviews")
+        .select("rating")
+        .eq("restaurant_id", restaurantId),
 
-    user?.email
-      ? adminClient
-          .from("bookings")
-          .select("id")
-          .eq("restaurant_id", restaurantId)
-          .eq("email", user.email)
-          .eq("status", "completed")
-          .order("created_at", { ascending: false })
-          .limit(5)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
+      user?.email
+        ? adminClient
+            .from("bookings")
+            .select("id")
+            .eq("restaurant_id", restaurantId)
+            .eq("email", user.email)
+            .eq("status", "completed")
+            .order("created_at", { ascending: false })
+            .limit(5)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
 
   const reviews = (reviewsResult.data || []) as RestaurantReview[];
   const totalReviews = countResult.count || 0;
@@ -125,9 +175,12 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
 
   if (!restaurant) notFound();
 
-  const reviewSummary = await getRestaurantReviewSummary(
-    String(restaurant.id),
-  );
+  const [reviewSummary, preferredLanguage] = await Promise.all([
+    getRestaurantReviewSummary(String(restaurant.id)),
+    getPreferredLanguage(),
+  ]);
+
+  const t = detailText[preferredLanguage];
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[#070604] pb-24 text-white">
@@ -141,8 +194,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
       <section className="relative mx-auto w-full max-w-7xl overflow-hidden px-4 py-4 md:px-6 md:py-6">
         {!restaurant.is_active && (
           <div className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
-            Preview Mode — this restaurant is currently inactive and only
-            visible to owner/admin.
+            {t.previewMode}
           </div>
         )}
 
@@ -152,7 +204,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
           <div className="relative grid min-w-0 gap-3 md:grid-cols-[1fr_220px] md:items-center lg:grid-cols-[1fr_260px]">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300 md:text-xs md:tracking-[0.28em]">
-                Luxury Dining Partner
+                {t.luxuryDiningPartner}
               </p>
 
               <h1 className="mt-3 max-w-full break-words text-[2.55rem] font-black leading-[1] tracking-tight text-white drop-shadow-[0_8px_28px_rgba(0,0,0,0.7)] md:text-5xl lg:text-6xl">
@@ -165,14 +217,14 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
                 </div>
 
                 <div className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-slate-300">
-                  {reviewSummary.totalReviews} reviews
+                  {reviewSummary.totalReviews} {t.reviews}
                 </div>
               </div>
             </div>
 
             <div className="-mt-1 max-w-full rounded-[18px] border border-amber-300/20 bg-gradient-to-br from-amber-300/16 to-yellow-700/10 px-4 py-3 text-center shadow-xl shadow-amber-900/10 backdrop-blur-xl md:mt-0 md:rounded-[22px] md:px-5 md:py-4">
               <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-200 md:text-[10px]">
-                Exclusive Offer
+                {t.exclusiveOffer}
               </p>
 
               <p className="mt-1 text-3xl font-black leading-none text-amber-300 md:text-4xl">
@@ -180,7 +232,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
               </p>
 
               <p className="mt-1 text-[11px] font-bold leading-5 text-slate-300 md:text-xs">
-                Instant customer discount
+                {t.instantCustomerDiscount}
               </p>
             </div>
           </div>
@@ -214,6 +266,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
               canReview={reviewSummary.canReview}
               completedBookingId={reviewSummary.completedBookingId}
               alreadyReviewed={reviewSummary.alreadyReviewed}
+              preferredLanguage={preferredLanguage}
             />
           </div>
 
@@ -223,20 +276,20 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
                 restaurantId={restaurant.id}
                 restaurantName={restaurant.name || "Restaurant"}
                 supplierId={restaurant.supplier_id}
+                preferredLanguage={preferredLanguage}
               />
             ) : (
               <aside className="self-start rounded-[30px] border border-amber-300/20 bg-white/[0.055] p-6 shadow-2xl shadow-black/25 backdrop-blur-2xl lg:sticky lg:top-28">
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">
-                  Supplier Preview
+                  {t.supplierPreview}
                 </p>
 
                 <h2 className="mt-3 text-2xl font-black text-white">
-                  Booking Disabled
+                  {t.bookingDisabled}
                 </h2>
 
                 <p className="mt-3 text-sm leading-6 text-slate-400">
-                  This restaurant is inactive. Customers cannot book until Admin
-                  approves and activates it.
+                  {t.inactiveMessage}
                 </p>
               </aside>
             )}
@@ -250,7 +303,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
             href="#booking-form"
             className="flex h-14 w-full items-center justify-center rounded-2xl bg-amber-300 text-base font-black text-slate-950 shadow-2xl shadow-amber-950/30 active:scale-[0.99]"
           >
-            Book Now
+            {t.bookNow}
           </a>
         </div>
       )}
