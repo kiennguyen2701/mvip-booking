@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
 
 function getDashboardHref(role: string | null) {
@@ -22,6 +23,7 @@ export default function HeaderMobileMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
 
   const dashboardHref = getDashboardHref(role);
   const isCustomer = role === "customer";
@@ -30,6 +32,10 @@ export default function HeaderMobileMenu({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!open) {
@@ -41,14 +47,23 @@ export default function HeaderMobileMenu({
     document.body.classList.add("menu-open");
     document.body.style.overflow = "hidden";
 
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.body.classList.remove("menu-open");
       document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
 
   const menu = (
-    <div className="fixed inset-0 z-[2147483647] w-[100dvw] max-w-[100dvw] overflow-hidden bg-black/75 text-white backdrop-blur-md">
+    <div className="fixed inset-0 z-[2147483647] w-full max-w-full overflow-hidden bg-black/75 text-white backdrop-blur-md">
       <button
         type="button"
         className="absolute inset-0"
@@ -186,6 +201,7 @@ export default function HeaderMobileMenu({
         onClick={() => setOpen(true)}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] text-xl font-black text-white"
         aria-label="Open menu"
+        aria-expanded={open}
       >
         ☰
       </button>
