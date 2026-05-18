@@ -45,21 +45,21 @@ export default function CustomerHeaderMenu() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.07] px-4 py-3 text-sm font-black text-white shadow-xl shadow-black/20 transition hover:border-amber-300/50 hover:bg-amber-300 hover:text-slate-950"
+        className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.07] px-4 text-sm font-black text-white shadow-xl shadow-black/20 transition hover:border-amber-300/50 hover:bg-amber-300 hover:text-slate-950"
         aria-label="Open customer menu"
         aria-expanded={open}
       >
-        <span className="text-lg leading-none">☰</span>
+        <span className="text-base leading-none">☰</span>
         <span>Menu</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[calc(100%+12px)] z-[10000] w-[260px] overflow-hidden rounded-3xl border border-white/10 bg-[#11100c] p-2 text-white shadow-2xl shadow-black/80 ring-1 ring-amber-300/10">
+        <div className="absolute right-0 top-full z-[10000] mt-2 w-44 overflow-hidden rounded-2xl border border-white/10 bg-[#11100c] p-1.5 text-white shadow-2xl shadow-black/70">
           <Link
             href="/dashboard/customer"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block rounded-2xl px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             Dashboard
           </Link>
@@ -68,7 +68,7 @@ export default function CustomerHeaderMenu() {
             href="/dashboard/customer/bookings"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block rounded-2xl px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             My Bookings
           </Link>
@@ -77,12 +77,14 @@ export default function CustomerHeaderMenu() {
             href="/dashboard/customer/profile"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block rounded-2xl px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             My Profile
           </Link>
 
-          <div className="mt-2 border-t border-white/10 p-2">
+          <div className="my-1 border-t border-white/10" />
+
+          <div className="[&_button]:w-full [&_button]:rounded-xl [&_button]:px-3 [&_button]:py-2.5 [&_button]:text-left [&_button]:text-sm [&_button]:font-bold [&_button]:leading-none">
             <LogoutButton />
           </div>
         </div>
