@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import { LogoutButton } from "@/components/logout-button";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function CustomerHeaderMenu() {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
   const pathname = usePathname();
+  const supabase = createClient();
+
+  const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setOpen(false);
@@ -19,7 +23,9 @@ export default function CustomerHeaderMenu() {
 
     function handlePointerDown(event: MouseEvent | TouchEvent) {
       if (!menuRef.current) return;
-      if (!menuRef.current.contains(event.target as Node)) setOpen(false);
+      if (!menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -37,6 +43,21 @@ export default function CustomerHeaderMenu() {
     };
   }, [open]);
 
+  async function handleLogout() {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      await supabase.auth.signOut();
+      setOpen(false);
+      router.replace("/login");
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
   return (
     <div ref={menuRef} className="relative hidden md:block">
       <button
@@ -51,12 +72,12 @@ export default function CustomerHeaderMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-[10000] mt-2 flex items-center gap-1 rounded-2xl border border-white/10 bg-[#11100c]/95 p-1.5 text-white shadow-2xl shadow-black/60 backdrop-blur-xl">
+        <div className="absolute right-0 top-full z-[10000] mt-2 w-[190px] rounded-2xl border border-white/10 bg-[#11100c] p-2 text-white shadow-2xl shadow-black/70">
           <Link
             href="/dashboard/customer"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="whitespace-nowrap rounded-xl px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             Dashboard
           </Link>
@@ -65,25 +86,30 @@ export default function CustomerHeaderMenu() {
             href="/dashboard/customer/bookings"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="whitespace-nowrap rounded-xl px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="mt-1 block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
-            Bookings
+            My Bookings
           </Link>
 
           <Link
             href="/dashboard/customer/profile"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="whitespace-nowrap rounded-xl px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="mt-1 block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
-            Profile
+            My Profile
           </Link>
 
-          <div className="h-6 w-px bg-white/10" />
+          <div className="my-2 h-px bg-white/10" />
 
-          <div className="[&_button]:h-8 [&_button]:whitespace-nowrap [&_button]:rounded-xl [&_button]:border [&_button]:border-white/10 [&_button]:px-3 [&_button]:py-0 [&_button]:text-xs [&_button]:font-black [&_button]:leading-none [&_button]:text-white hover:[&_button]:border-red-300/40 hover:[&_button]:bg-red-500/20">
-            <LogoutButton />
-          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold leading-none text-red-200 transition hover:bg-red-500/20 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loggingOut ? "Logging out..." : "Log Out"}
+          </button>
         </div>
       )}
     </div>
