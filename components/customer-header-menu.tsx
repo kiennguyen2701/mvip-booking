@@ -19,10 +19,7 @@ export default function CustomerHeaderMenu() {
 
     function handlePointerDown(event: MouseEvent | TouchEvent) {
       if (!menuRef.current) return;
-
-      if (!menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      if (!menuRef.current.contains(event.target as Node)) setOpen(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -54,12 +51,12 @@ export default function CustomerHeaderMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-[10000] mt-2 w-44 overflow-hidden rounded-2xl border border-white/10 bg-[#11100c] p-1.5 text-white shadow-2xl shadow-black/70">
+        <div className="absolute right-0 top-full z-[10000] mt-2 flex items-center gap-1 rounded-2xl border border-white/10 bg-[#11100c]/95 p-1.5 text-white shadow-2xl shadow-black/60 backdrop-blur-xl">
           <Link
             href="/dashboard/customer"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="whitespace-nowrap rounded-xl px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             Dashboard
           </Link>
@@ -68,23 +65,23 @@ export default function CustomerHeaderMenu() {
             href="/dashboard/customer/bookings"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="whitespace-nowrap rounded-xl px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
-            My Bookings
+            Bookings
           </Link>
 
           <Link
             href="/dashboard/customer/profile"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="whitespace-nowrap rounded-xl px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
-            My Profile
+            Profile
           </Link>
 
-          <div className="my-1 border-t border-white/10" />
+          <div className="h-6 w-px bg-white/10" />
 
-          <div className="[&_button]:w-full [&_button]:rounded-xl [&_button]:px-3 [&_button]:py-2.5 [&_button]:text-left [&_button]:text-sm [&_button]:font-bold [&_button]:leading-none">
+          <div className="[&_button]:h-8 [&_button]:whitespace-nowrap [&_button]:rounded-xl [&_button]:border [&_button]:border-white/10 [&_button]:px-3 [&_button]:py-0 [&_button]:text-xs [&_button]:font-black [&_button]:leading-none [&_button]:text-white hover:[&_button]:border-red-300/40 hover:[&_button]:bg-red-500/20">
             <LogoutButton />
           </div>
         </div>
