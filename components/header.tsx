@@ -62,8 +62,8 @@ export default async function Header() {
   const isSupplier = role === "supplier";
 
   return (
-    <header className="sticky top-0 z-[9999] w-full max-w-full border-b border-white/10 bg-[#080704]/95 text-white backdrop-blur-xl">
-      <div className="mx-auto flex h-[92px] w-full max-w-7xl items-center justify-between gap-3 px-4 md:h-[96px] md:px-6">
+    <header className="sticky top-0 z-[9999] w-full max-w-full overflow-visible border-b border-white/10 bg-[#080704]/95 text-white backdrop-blur-xl">
+      <div className="mx-auto flex h-[92px] w-full max-w-7xl items-center justify-between gap-3 overflow-visible px-4 md:h-[96px] md:px-6">
         <Link
           href={dashboardHref}
           prefetch={false}

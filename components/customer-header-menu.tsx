@@ -26,9 +26,7 @@ export default function CustomerHeaderMenu() {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
+      if (event.key === "Escape") setOpen(false);
     }
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -47,20 +45,21 @@ export default function CustomerHeaderMenu() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] text-xl font-black text-white shadow-xl shadow-black/30 transition hover:border-amber-300/50 hover:bg-amber-300 hover:text-slate-950"
+        className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.07] px-4 py-3 text-sm font-black text-white shadow-xl shadow-black/20 transition hover:border-amber-300/50 hover:bg-amber-300 hover:text-slate-950"
         aria-label="Open customer menu"
         aria-expanded={open}
       >
-        ☰
+        <span className="text-lg leading-none">☰</span>
+        <span>Menu</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-[10000] mt-3 w-64 overflow-hidden rounded-2xl border border-white/10 bg-[#11100c] text-white shadow-2xl shadow-black/80 ring-1 ring-amber-300/10">
+        <div className="absolute right-0 top-[calc(100%+12px)] z-[10000] w-[260px] overflow-hidden rounded-3xl border border-white/10 bg-[#11100c] p-2 text-white shadow-2xl shadow-black/80 ring-1 ring-amber-300/10">
           <Link
             href="/dashboard/customer"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block whitespace-nowrap px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white"
+            className="block rounded-2xl px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             Dashboard
           </Link>
@@ -69,7 +68,7 @@ export default function CustomerHeaderMenu() {
             href="/dashboard/customer/bookings"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block whitespace-nowrap px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white"
+            className="block rounded-2xl px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             My Bookings
           </Link>
@@ -78,12 +77,12 @@ export default function CustomerHeaderMenu() {
             href="/dashboard/customer/profile"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block whitespace-nowrap px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-white/10 hover:text-white"
+            className="block rounded-2xl px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             My Profile
           </Link>
 
-          <div className="border-t border-white/10 p-3">
+          <div className="mt-2 border-t border-white/10 p-2">
             <LogoutButton />
           </div>
         </div>
