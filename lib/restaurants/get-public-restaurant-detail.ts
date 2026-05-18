@@ -4,7 +4,7 @@ import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
 
 export async function getPublicRestaurantDetail(slug: string) {
   const supabase = await createClient();
-  const cacheKey = cacheKeys.publicRestaurantDetail(slug);
+  const cacheKey = `${cacheKeys.publicRestaurantDetail(slug)}:i18n-v1`;
 
   const cached = await getCache<Record<string, unknown>>(cacheKey);
 

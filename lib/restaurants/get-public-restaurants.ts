@@ -5,23 +5,35 @@ import { CACHE_TTL } from "@/lib/cache/keys";
 export type PublicRestaurant = {
   id: string;
   name: string | null;
+  name_zh?: string | null;
   slug: string | null;
   address: string | null;
+  address_zh?: string | null;
   city: string | null;
+  city_zh?: string | null;
+  short_description?: string | null;
+  short_description_zh?: string | null;
+  description?: string | null;
+  description_zh?: string | null;
   cover_image: string | null;
   image_url?: string | null;
   discount_percent?: number | null;
   cuisine_type?: string | null;
+  cuisine_type_zh?: string | null;
   cuisine?: string | null;
+  cuisine_zh?: string | null;
   category?: string | null;
+  category_zh?: string | null;
   price_range?: string | null;
+  price_range_zh?: string | null;
   tags?: string[] | null;
+  tags_zh?: string[] | null;
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean | null;
   created_at?: string | null;
-  average_rating: number;
-  total_reviews: number;
+  average_rating?: number | null;
+  total_reviews?: number;
 };
 
 type GetPublicRestaurantsParams = {
@@ -75,7 +87,7 @@ function buildRatingMap(rows: ReviewRatingRow[]) {
 function getCacheKey(params: Required<GetPublicRestaurantsParams>) {
   return [
     "public-restaurants",
-    "ratings-v4",
+    "i18n-ratings-v1",
     params.query,
     params.city,
     params.tag,
@@ -111,27 +123,7 @@ export async function getPublicRestaurants({
 
   let request = supabase
     .from("restaurants")
-    .select(
-      `
-      id,
-      name,
-      slug,
-      address,
-      city,
-      cover_image,
-      image_url,
-      discount_percent,
-      cuisine_type,
-      cuisine,
-      category,
-      price_range,
-      tags,
-      latitude,
-      longitude,
-      is_active,
-      created_at
-    `,
-    )
+    .select("*")
     .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(safeLimit);
@@ -147,11 +139,7 @@ export async function getPublicRestaurants({
     return [];
   }
 
-  const rawRestaurants = (data || []) as Omit<
-    PublicRestaurant,
-    "average_rating" | "total_reviews"
-  >[];
-
+  const rawRestaurants = (data || []) as PublicRestaurant[];
   const restaurantIds = rawRestaurants.map((item) => item.id).filter(Boolean);
 
   let ratingMap = new Map<string, { total: number; count: number }>();
@@ -188,36 +176,48 @@ export async function getPublicRestaurants({
     })
     .filter((restaurant) => {
       const tags = Array.isArray(restaurant.tags) ? restaurant.tags : [];
+      const tagsZh = Array.isArray(restaurant.tags_zh) ? restaurant.tags_zh : [];
 
       const matchQuery =
         !normalizedQuery ||
         includesNormalized(restaurant.name, normalizedQuery) ||
+        includesNormalized(restaurant.name_zh, normalizedQuery) ||
         includesNormalized(restaurant.address, normalizedQuery) ||
+        includesNormalized(restaurant.address_zh, normalizedQuery) ||
         includesNormalized(restaurant.city, normalizedQuery) ||
+        includesNormalized(restaurant.city_zh, normalizedQuery) ||
         includesNormalized(restaurant.cuisine_type, normalizedQuery) ||
+        includesNormalized(restaurant.cuisine_type_zh, normalizedQuery) ||
         includesNormalized(restaurant.cuisine, normalizedQuery) ||
+        includesNormalized(restaurant.cuisine_zh, normalizedQuery) ||
         includesNormalized(restaurant.category, normalizedQuery) ||
-        tags.some((item) => includesNormalized(item, normalizedQuery));
+        includesNormalized(restaurant.category_zh, normalizedQuery) ||
+        includesNormalized(restaurant.short_description, normalizedQuery) ||
+        includesNormalized(restaurant.short_description_zh, normalizedQuery) ||
+        tags.some((item) => includesNormalized(item, normalizedQuery)) ||
+        tagsZh.some((item) => includesNormalized(item, normalizedQuery));
 
       const matchCity =
-        !normalizedCity || includesNormalized(restaurant.city, normalizedCity);
+        !normalizedCity ||
+        includesNormalized(restaurant.city, normalizedCity) ||
+        includesNormalized(restaurant.city_zh, normalizedCity);
 
       const matchTag =
         !normalizedTag ||
         tags.some((item) => includesNormalized(item, normalizedTag)) ||
+        tagsZh.some((item) => includesNormalized(item, normalizedTag)) ||
         includesNormalized(restaurant.cuisine_type, normalizedTag) ||
+        includesNormalized(restaurant.cuisine_type_zh, normalizedTag) ||
         includesNormalized(restaurant.cuisine, normalizedTag) ||
-        includesNormalized(restaurant.category, normalizedTag);
+        includesNormalized(restaurant.cuisine_zh, normalizedTag) ||
+        includesNormalized(restaurant.category, normalizedTag) ||
+        includesNormalized(restaurant.category_zh, normalizedTag);
 
       return matchQuery && matchCity && matchTag;
     })
     .slice(0, limit);
 
-  await setCache(
-    cacheKey,
-    restaurants,
-    Math.min(CACHE_TTL.PUBLIC_RESTAURANTS, 60),
-  );
+  await setCache(cacheKey, restaurants, Math.min(CACHE_TTL.PUBLIC_RESTAURANTS, 60));
 
   return restaurants;
 }

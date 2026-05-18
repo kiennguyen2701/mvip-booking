@@ -35,9 +35,9 @@ const CUSTOMER_COPY = {
     locationNotSupported: "Your browser does not support location services.",
     locationDenied:
       "We could not access your location. You can still browse all restaurants.",
-    luxuryDining: "Luxury Dining",
     signatureDining: "Signature Dining",
     premiumPartner: "Premium dining partner available for booking.",
+    unnamedRestaurant: "Unnamed Restaurant",
     vietnam: "Vietnam",
   },
   zh: {
@@ -65,9 +65,9 @@ const CUSTOMER_COPY = {
     detectingLocation: "正在定位您的位置...",
     locationNotSupported: "您的浏览器不支持定位服务。",
     locationDenied: "无法获取您的位置。您仍然可以浏览所有餐厅。",
-    luxuryDining: "高端餐饮",
     signatureDining: "特色餐饮",
     premiumPartner: "可预订的高端餐饮合作伙伴。",
+    unnamedRestaurant: "未命名餐厅",
     vietnam: "越南",
   },
 } as const;
@@ -82,20 +82,31 @@ type Profile = {
 type Restaurant = {
   id: string;
   name?: string | null;
+  name_zh?: string | null;
   slug?: string | null;
   address?: string | null;
+  address_zh?: string | null;
   city?: string | null;
+  city_zh?: string | null;
   cuisine_type?: string | null;
+  cuisine_type_zh?: string | null;
+  cuisine?: string | null;
+  cuisine_zh?: string | null;
   category?: string | null;
+  category_zh?: string | null;
   description?: string | null;
+  description_zh?: string | null;
   short_description?: string | null;
+  short_description_zh?: string | null;
   cover_image?: string | null;
   image_url?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   price_range?: string | null;
+  price_range_zh?: string | null;
   discount_percent?: number | null;
   average_rating?: number | null;
+  total_reviews?: number | null;
 };
 
 type RestaurantWithDistance = Restaurant & {
@@ -123,8 +134,82 @@ function hardLockViewport() {
   document.body.scrollLeft = 0;
 }
 
-function getCuisine(item: Restaurant, fallback = "Signature Dining") {
-  return item.cuisine_type || item.category || fallback;
+function getLocalizedText(
+  item: Restaurant,
+  language: PreferredLanguage,
+  enKey: keyof Restaurant,
+  zhKey: keyof Restaurant,
+) {
+  const zhValue = item[zhKey];
+  const enValue = item[enKey];
+
+  if (language === "zh" && typeof zhValue === "string" && zhValue.trim()) {
+    return zhValue;
+  }
+
+  if (typeof enValue === "string" && enValue.trim()) {
+    return enValue;
+  }
+
+  return "";
+}
+
+function getName(item: Restaurant, language: PreferredLanguage, fallback: string) {
+  return getLocalizedText(item, language, "name", "name_zh") || fallback;
+}
+
+function getCity(item: Restaurant, language: PreferredLanguage, fallback: string) {
+  return getLocalizedText(item, language, "city", "city_zh") || fallback;
+}
+
+function getDescription(
+  item: Restaurant,
+  language: PreferredLanguage,
+  fallback: string,
+) {
+  return (
+    getLocalizedText(item, language, "short_description", "short_description_zh") ||
+    getLocalizedText(item, language, "description", "description_zh") ||
+    getLocalizedText(item, language, "address", "address_zh") ||
+    fallback
+  );
+}
+
+function getCuisine(
+  item: Restaurant,
+  language: PreferredLanguage,
+  fallback = "Signature Dining",
+) {
+  return (
+    getLocalizedText(item, language, "cuisine_type", "cuisine_type_zh") ||
+    getLocalizedText(item, language, "cuisine", "cuisine_zh") ||
+    getLocalizedText(item, language, "category", "category_zh") ||
+    fallback
+  );
+}
+
+function getSearchableText(item: Restaurant, language: PreferredLanguage) {
+  return [
+    item.name,
+    item.name_zh,
+    getCuisine(item, language),
+    item.description,
+    item.description_zh,
+    item.short_description,
+    item.short_description_zh,
+    item.address,
+    item.address_zh,
+    item.city,
+    item.city_zh,
+    "restaurant",
+    "restaurants",
+    "nha hang",
+    "nhà hàng",
+    "餐厅",
+    "美食",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function getImage(item: Restaurant) {
@@ -165,15 +250,20 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 const RestaurantCard = memo(function RestaurantCard({
   restaurant,
+  language,
   t,
 }: {
   restaurant: RestaurantWithDistance;
+  language: PreferredLanguage;
   t: (typeof CUSTOMER_COPY)[PreferredLanguage];
 }) {
   const image = getImage(restaurant);
-  const cuisine = getCuisine(restaurant, t.signatureDining);
+  const cuisine = getCuisine(restaurant, language, t.signatureDining);
   const discount = getDiscount(restaurant);
   const rating = getAverageRating(restaurant);
+  const name = getName(restaurant, language, t.unnamedRestaurant);
+  const description = getDescription(restaurant, language, t.premiumPartner);
+  const city = getCity(restaurant, language, t.vietnam);
 
   const href = restaurant.slug
     ? `/restaurants/${restaurant.slug}`
@@ -183,13 +273,13 @@ const RestaurantCard = memo(function RestaurantCard({
     <Link
       href={href}
       prefetch={false}
-      className="group block w-full max-w-full overflow-hidden rounded-3xl border border-white/10 bg-[#11100c]/95 shadow-xl shadow-black/25 transition hover:border-amber-300/40"
+      className="group mobile-safe-card block rounded-3xl border border-white/10 bg-[#11100c]/95 shadow-xl shadow-black/25 transition hover:border-amber-300/40"
     >
       <div className="relative h-44 w-full overflow-hidden bg-[#12100b] sm:h-56">
         {image ? (
           <img
             src={image}
-            alt={restaurant.name || "Restaurant"}
+            alt={name}
             loading="lazy"
             decoding="async"
             className="block h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
@@ -212,22 +302,19 @@ const RestaurantCard = memo(function RestaurantCard({
           </p>
 
           <h3 className="mt-2 line-clamp-2 break-words text-xl font-black leading-tight text-white">
-            {restaurant.name || "Unnamed Restaurant"}
+            {name}
           </h3>
         </div>
       </div>
 
       <div className="w-full max-w-full overflow-hidden p-4">
         <p className="line-clamp-2 break-words text-sm leading-6 text-slate-400">
-          {restaurant.short_description ||
-            restaurant.description ||
-            restaurant.address ||
-            t.premiumPartner}
+          {description}
         </p>
 
         <div className="mt-5 flex w-full max-w-full items-center justify-between gap-3 overflow-hidden">
           <p className="min-w-0 flex-1 truncate text-sm font-bold text-slate-300">
-            📍 {restaurant.city || t.vietnam}
+            📍 {city}
           </p>
 
           <span className="shrink-0 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-300">
@@ -329,10 +416,12 @@ export default function CustomerDashboardClient({
   }
 
   const cuisines = useMemo(() => {
-    return Array.from(new Set(restaurants.map((item) => getCuisine(item, t.signatureDining))))
+    return Array.from(
+      new Set(restaurants.map((item) => getCuisine(item, language, t.signatureDining))),
+    )
       .filter(Boolean)
       .sort();
-  }, [restaurants, t.signatureDining]);
+  }, [restaurants, language, t.signatureDining]);
 
   const restaurantsWithDistance = useMemo<RestaurantWithDistance[]>(() => {
     return restaurants.map((item) => {
@@ -360,25 +449,10 @@ export default function CustomerDashboardClient({
 
     return restaurantsWithDistance
       .filter((item) => {
-        const searchableText = normalizeSearch(
-          [
-            item.name,
-            getCuisine(item, t.signatureDining),
-            item.description,
-            item.short_description,
-            item.address,
-            item.city,
-            "restaurant",
-            "restaurants",
-            "nha hang",
-            "nhà hàng",
-          ]
-            .filter(Boolean)
-            .join(" "),
-        );
-
+        const searchableText = normalizeSearch(getSearchableText(item, language));
         const matchKeyword = !keyword || searchableText.includes(keyword);
-        const matchCuisine = !cuisine || getCuisine(item, t.signatureDining) === cuisine;
+        const matchCuisine =
+          !cuisine || getCuisine(item, language, t.signatureDining) === cuisine;
 
         const matchNearby =
           !nearbyOnly ||
@@ -398,26 +472,26 @@ export default function CustomerDashboardClient({
         if (sortMode === "popular") {
           const aScore =
             (a.cover_image || a.image_url ? 20 : 0) +
-            (a.short_description ? 10 : 0) +
-            (a.city ? 8 : 0);
+            (a.short_description || a.short_description_zh ? 10 : 0) +
+            (a.city || a.city_zh ? 8 : 0);
 
           const bScore =
             (b.cover_image || b.image_url ? 20 : 0) +
-            (b.short_description ? 10 : 0) +
-            (b.city ? 8 : 0);
+            (b.short_description || b.short_description_zh ? 10 : 0) +
+            (b.city || b.city_zh ? 8 : 0);
 
           return bScore - aScore;
         }
 
         const aScore =
           (a.cover_image || a.image_url ? 50 : 0) +
-          (a.name ? 10 : 0) +
-          (a.short_description ? 10 : 0);
+          (a.name || a.name_zh ? 10 : 0) +
+          (a.short_description || a.short_description_zh ? 10 : 0);
 
         const bScore =
           (b.cover_image || b.image_url ? 50 : 0) +
-          (b.name ? 10 : 0) +
-          (b.short_description ? 10 : 0);
+          (b.name || b.name_zh ? 10 : 0) +
+          (b.short_description || b.short_description_zh ? 10 : 0);
 
         return bScore - aScore;
       });
@@ -428,6 +502,8 @@ export default function CustomerDashboardClient({
     sortMode,
     nearbyOnly,
     userLocation,
+    language,
+    t.signatureDining,
   ]);
 
   const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
@@ -494,7 +570,7 @@ export default function CustomerDashboardClient({
                   onClick={handleSearch}
                   className="h-14 w-full rounded-2xl bg-amber-300 px-5 text-base font-black text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
                 >
-                  Search
+                  {t.search}
                 </button>
 
                 <select
@@ -507,7 +583,7 @@ export default function CustomerDashboardClient({
                   className="h-14 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-base font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
                 >
                   <option value="" className="text-slate-950">
-                    All Cuisines
+                    {t.allCuisines}
                   </option>
 
                   {cuisines.map((item) => (
@@ -522,7 +598,7 @@ export default function CustomerDashboardClient({
                 <div className="grid w-full min-w-0 grid-cols-3 gap-2 md:flex md:w-auto md:flex-wrap">
                   {(["top", "nearby", "popular"] as SortMode[]).map((mode) => (
                     <button
-                      key={t[mode]}
+                      key={mode}
                       type="button"
                       onClick={() => {
                         if (mode === "nearby") {
@@ -601,7 +677,12 @@ export default function CustomerDashboardClient({
           ) : (
             <div className="mt-6 grid w-full min-w-0 grid-cols-1 gap-5 overflow-hidden md:grid-cols-2 xl:grid-cols-3">
               {visibleRestaurants.map((restaurant) => (
-                <RestaurantCard key={restaurant.id} restaurant={restaurant} t={t} />
+                <RestaurantCard
+                  key={restaurant.id}
+                  restaurant={restaurant}
+                  language={language}
+                  t={t}
+                />
               ))}
             </div>
           )}

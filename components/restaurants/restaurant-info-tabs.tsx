@@ -44,17 +44,7 @@ type Props = {
   preferredLanguage?: PreferredLanguage;
 };
 
-const tabKeys = ["about", "hours", "location", "food", "menu", "reviews"] as const;
-
-type TabKey = (typeof tabKeys)[number];
-
-const tabsByLanguage: Record<
-  PreferredLanguage,
-  Array<{
-    key: TabKey;
-    label: string;
-  }>
-> = {
+const tabsByLanguage = {
   en: [
     { key: "about", label: "Introduction" },
     { key: "hours", label: "Opening Hours" },
@@ -71,15 +61,9 @@ const tabsByLanguage: Record<
     { key: "menu", label: "菜单" },
     { key: "reviews", label: "评价" },
   ],
-};
+} as const;
 
-const dayOrderByLanguage: Record<
-  PreferredLanguage,
-  Array<{
-    keys: string[];
-    label: string;
-  }>
-> = {
+const dayOrderByLanguage = {
   en: [
     { keys: ["monday", "mon", "Monday", "Mon"], label: "Monday" },
     { keys: ["tuesday", "tue", "Tuesday", "Tue"], label: "Tuesday" },
@@ -98,7 +82,7 @@ const dayOrderByLanguage: Record<
     { keys: ["saturday", "sat", "Saturday", "Sat"], label: "星期六" },
     { keys: ["sunday", "sun", "Sunday", "Sun"], label: "星期日" },
   ],
-};
+} as const;
 
 const textByLanguage = {
   en: {
@@ -126,7 +110,7 @@ const textByLanguage = {
     noReviews: "There are no reviews for this restaurant yet.",
     loading: "Loading...",
     loadMore: "Load more reviews",
-    customerFallback: "Customer",
+    customer: "Customer",
   },
   zh: {
     aboutRestaurant: "餐厅介绍",
@@ -151,9 +135,11 @@ const textByLanguage = {
     noReviews: "此餐厅暂无评价。",
     loading: "正在加载...",
     loadMore: "查看更多评价",
-    customerFallback: "客户",
+    customer: "客户",
   },
 } as const;
+
+type TabKey = (typeof tabsByLanguage.en)[number]["key"];
 
 const initialReviewState: ReviewActionState = {
   success: false,
@@ -239,10 +225,10 @@ export default function RestaurantInfoTabs({
 }: Props) {
   const router = useRouter();
 
-  const currentLanguage = preferredLanguage === "zh" ? "zh" : "en";
-  const tabs = tabsByLanguage[currentLanguage];
-  const dayOrder = dayOrderByLanguage[currentLanguage];
-  const text = textByLanguage[currentLanguage];
+  const language = preferredLanguage === "zh" ? "zh" : "en";
+  const tabs = tabsByLanguage[language];
+  const dayOrder = dayOrderByLanguage[language];
+  const text = textByLanguage[language];
 
   const [activeTab, setActiveTab] = useState<TabKey>("about");
   const [reviews, setReviews] = useState<RestaurantReview[]>(initialReviews);
@@ -558,7 +544,9 @@ export default function RestaurantInfoTabs({
                 </form>
               ) : (
                 <p className="text-sm font-semibold leading-6 text-slate-400">
-                  {alreadyReviewed ? text.alreadyReviewed : text.onlyCompletedBooking}
+                  {alreadyReviewed
+                    ? text.alreadyReviewed
+                    : text.onlyCompletedBooking}
                 </p>
               )}
 
@@ -585,7 +573,7 @@ export default function RestaurantInfoTabs({
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-black text-white">
-                          {review.customer_name || text.customerFallback}
+                          {review.customer_name || text.customer}
                         </p>
 
                         <p className="mt-1 text-xs font-semibold text-slate-500">

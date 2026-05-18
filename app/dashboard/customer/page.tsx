@@ -4,60 +4,29 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-type PreferredLanguage = "en" | "zh";
-
-type RestaurantRow = {
-  id: string;
-  name?: string | null;
-  slug?: string | null;
-  address?: string | null;
-  city?: string | null;
-  cuisine_type?: string | null;
-  category?: string | null;
-  description?: string | null;
-  short_description?: string | null;
-  cover_image?: string | null;
-  image_url?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  price_range?: string | null;
-  discount_percent?: number | null;
-  is_active?: boolean | null;
-  average_rating?: number | null;
-  total_reviews?: number | null;
-};
-
 type ReviewRow = {
   restaurant_id: string | null;
   rating: number | null;
 };
 
-function normalizePreferredLanguage(value: unknown): PreferredLanguage {
-  return String(value || "").trim().toLowerCase() === "zh" ? "zh" : "en";
-}
+function buildRatingMap(rows: ReviewRow[]) {
+  const map = new Map<string, { total: number; count: number }>();
 
-function buildRatingMap(reviews: ReviewRow[]) {
-  const ratingMap = new Map<string, { total: number; count: number }>();
+  for (const row of rows) {
+    if (!row.restaurant_id) continue;
 
-  for (const review of reviews) {
-    if (!review.restaurant_id) continue;
-
-    const rating = Number(review.rating || 0);
-
+    const rating = Number(row.rating || 0);
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) continue;
 
-    const current = ratingMap.get(review.restaurant_id) || {
-      total: 0,
-      count: 0,
-    };
+    const current = map.get(row.restaurant_id) || { total: 0, count: 0 };
 
     current.total += rating;
     current.count += 1;
 
-    ratingMap.set(review.restaurant_id, current);
+    map.set(row.restaurant_id, current);
   }
 
-  return ratingMap;
+  return map;
 }
 
 export default async function CustomerPage() {
@@ -84,36 +53,13 @@ export default async function CustomerPage() {
     redirect("/dashboard");
   }
 
-  const preferredLanguage = normalizePreferredLanguage(
-    profileRow?.preferred_language || user.user_metadata?.preferred_language,
-  );
-
   const { data: restaurantsData } = await supabase
     .from("restaurants")
-    .select(
-      `
-      id,
-      name,
-      slug,
-      address,
-      city,
-      cuisine_type,
-      category,
-      description,
-      short_description,
-      cover_image,
-      image_url,
-      latitude,
-      longitude,
-      price_range,
-      discount_percent,
-      is_active
-    `,
-    )
+    .select("*")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
-  const restaurants = (restaurantsData || []) as RestaurantRow[];
+  const restaurants = restaurantsData || [];
   const restaurantIds = restaurants.map((item) => item.id).filter(Boolean);
 
   let ratingMap = new Map<string, { total: number; count: number }>();
@@ -134,8 +80,7 @@ export default async function CustomerPage() {
   const restaurantsWithRatings = restaurants.map((restaurant) => {
     const ratingInfo = ratingMap.get(restaurant.id);
     const totalReviews = ratingInfo?.count || 0;
-    const averageRating =
-      totalReviews > 0 ? ratingInfo!.total / totalReviews : 5;
+    const averageRating = totalReviews > 0 ? ratingInfo!.total / totalReviews : 5;
 
     return {
       ...restaurant,
@@ -154,7 +99,8 @@ export default async function CustomerPage() {
           "Customer",
         email: profileRow?.email || user.email || "",
         refCode: profileRow?.referred_by_ref_code || "",
-        preferredLanguage,
+        preferredLanguage:
+          profileRow?.preferred_language === "zh" ? "zh" : "en",
       }}
       restaurants={restaurantsWithRatings}
     />

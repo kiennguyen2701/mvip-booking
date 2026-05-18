@@ -31,7 +31,7 @@ type ReviewSummary = {
   alreadyReviewed: boolean;
 };
 
-const detailText = {
+const DETAIL_COPY = {
   en: {
     previewMode:
       "Preview Mode — this restaurant is currently inactive and only visible to owner/admin.",
@@ -44,6 +44,7 @@ const detailText = {
     inactiveMessage:
       "This restaurant is inactive. Customers cannot book until Admin approves and activates it.",
     bookNow: "Book Now",
+    restaurantFallback: "Restaurant",
   },
   zh: {
     previewMode: "预览模式 — 此餐厅当前未启用，仅供应商/管理员可见。",
@@ -55,8 +56,29 @@ const detailText = {
     bookingDisabled: "暂不可预订",
     inactiveMessage: "此餐厅当前未启用。管理员审核并启用后，客户才可以预订。",
     bookNow: "立即预订",
+    restaurantFallback: "餐厅",
   },
 } as const;
+
+function getLocalizedValue(
+  restaurant: Record<string, unknown>,
+  language: PreferredLanguage,
+  enKey: string,
+  zhKey: string,
+) {
+  const zhValue = restaurant[zhKey];
+  const enValue = restaurant[enKey];
+
+  if (language === "zh" && typeof zhValue === "string" && zhValue.trim()) {
+    return zhValue;
+  }
+
+  if (typeof enValue === "string" && enValue.trim()) {
+    return enValue;
+  }
+
+  return null;
+}
 
 async function getPreferredLanguage(): Promise<PreferredLanguage> {
   try {
@@ -66,9 +88,7 @@ async function getPreferredLanguage(): Promise<PreferredLanguage> {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user?.id) {
-      return "en";
-    }
+    if (!user?.id) return "en";
 
     const { data: profile } = await adminClient
       .from("profiles")
@@ -92,36 +112,40 @@ async function getRestaurantReviewSummary(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [reviewsResult, countResult, averageResult, completedBookingResult] =
-    await Promise.all([
-      adminClient
-        .from("restaurant_reviews")
-        .select("id, customer_name, rating, comment, created_at")
-        .eq("restaurant_id", restaurantId)
-        .order("created_at", { ascending: false })
-        .limit(10),
+  const [
+    reviewsResult,
+    countResult,
+    averageResult,
+    completedBookingResult,
+  ] = await Promise.all([
+    adminClient
+      .from("restaurant_reviews")
+      .select("id, customer_name, rating, comment, created_at")
+      .eq("restaurant_id", restaurantId)
+      .order("created_at", { ascending: false })
+      .limit(10),
 
-      adminClient
-        .from("restaurant_reviews")
-        .select("id", { count: "exact", head: true })
-        .eq("restaurant_id", restaurantId),
+    adminClient
+      .from("restaurant_reviews")
+      .select("id", { count: "exact", head: true })
+      .eq("restaurant_id", restaurantId),
 
-      adminClient
-        .from("restaurant_reviews")
-        .select("rating")
-        .eq("restaurant_id", restaurantId),
+    adminClient
+      .from("restaurant_reviews")
+      .select("rating")
+      .eq("restaurant_id", restaurantId),
 
-      user?.email
-        ? adminClient
-            .from("bookings")
-            .select("id")
-            .eq("restaurant_id", restaurantId)
-            .eq("email", user.email)
-            .eq("status", "completed")
-            .order("created_at", { ascending: false })
-            .limit(5)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
+    user?.email
+      ? adminClient
+          .from("bookings")
+          .select("id")
+          .eq("restaurant_id", restaurantId)
+          .eq("email", user.email)
+          .eq("status", "completed")
+          .order("created_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
 
   const reviews = (reviewsResult.data || []) as RestaurantReview[];
   const totalReviews = countResult.count || 0;
@@ -130,7 +154,7 @@ async function getRestaurantReviewSummary(
   const averageRating = ratings.length
     ? ratings.reduce((sum, item) => sum + Number(item.rating || 0), 0) /
       ratings.length
-    : 0;
+    : 5;
 
   const completedBookings =
     (completedBookingResult.data || []) as { id: string }[];
@@ -180,7 +204,58 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
     getPreferredLanguage(),
   ]);
 
-  const t = detailText[preferredLanguage];
+  const language = preferredLanguage === "zh" ? "zh" : "en";
+  const t = DETAIL_COPY[language];
+  const restaurantRecord = restaurant as Record<string, unknown>;
+
+  const restaurantName =
+    getLocalizedValue(restaurantRecord, language, "name", "name_zh") ||
+    t.restaurantFallback;
+
+  const shortDescription = getLocalizedValue(
+    restaurantRecord,
+    language,
+    "short_description",
+    "short_description_zh",
+  );
+
+  const fullDescription = getLocalizedValue(
+    restaurantRecord,
+    language,
+    "full_description",
+    "full_description_zh",
+  );
+
+  const address = getLocalizedValue(
+    restaurantRecord,
+    language,
+    "address",
+    "address_zh",
+  );
+
+  const city = getLocalizedValue(restaurantRecord, language, "city", "city_zh");
+
+  const tags =
+    language === "zh" && Array.isArray(restaurantRecord.tags_zh)
+      ? (restaurantRecord.tags_zh as string[])
+      : ((restaurantRecord.tags as string[] | null) || []);
+
+  const amenities =
+    language === "zh" && Array.isArray(restaurantRecord.amenities_zh)
+      ? (restaurantRecord.amenities_zh as string[])
+      : ((restaurantRecord.amenities as string[] | null) || []);
+
+  const openingHours =
+    language === "zh" && restaurantRecord.opening_hours_zh
+      ? (restaurantRecord.opening_hours_zh as Record<string, string>)
+      : (restaurantRecord.opening_hours as Record<string, string> | null);
+
+  const priceRange = getLocalizedValue(
+    restaurantRecord,
+    language,
+    "price_range",
+    "price_range_zh",
+  );
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[#070604] pb-24 text-white">
@@ -208,7 +283,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
               </p>
 
               <h1 className="mt-3 max-w-full break-words text-[2.55rem] font-black leading-[1] tracking-tight text-white drop-shadow-[0_8px_28px_rgba(0,0,0,0.7)] md:text-5xl lg:text-6xl">
-                {restaurant.name}
+                {restaurantName}
               </h1>
 
               <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -241,7 +316,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
         <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
           <div className="min-w-0 space-y-5">
             <RestaurantGallery
-              name={restaurant.name || "Restaurant"}
+              name={restaurantName}
               coverImage={restaurant.cover_image}
               galleryImages={restaurant.gallery_images || []}
             />
@@ -249,16 +324,16 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
             <RestaurantInfoTabs
               restaurantId={restaurant.id}
               slug={restaurant.slug}
-              shortDescription={restaurant.short_description}
-              fullDescription={restaurant.full_description}
-              openingHours={restaurant.opening_hours}
-              address={restaurant.address}
-              city={restaurant.city}
+              shortDescription={shortDescription}
+              fullDescription={fullDescription}
+              openingHours={openingHours}
+              address={address}
+              city={city}
               latitude={restaurant.latitude}
               longitude={restaurant.longitude}
-              tags={restaurant.tags}
-              amenities={restaurant.amenities}
-              priceRange={restaurant.price_range}
+              tags={tags}
+              amenities={amenities}
+              priceRange={priceRange}
               menuImages={restaurant.menu_images || []}
               initialReviews={reviewSummary.reviews}
               totalReviews={reviewSummary.totalReviews}
@@ -266,7 +341,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
               canReview={reviewSummary.canReview}
               completedBookingId={reviewSummary.completedBookingId}
               alreadyReviewed={reviewSummary.alreadyReviewed}
-              preferredLanguage={preferredLanguage}
+              preferredLanguage={language}
             />
           </div>
 
@@ -274,9 +349,9 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
             {restaurant.is_active ? (
               <RestaurantBookingForm
                 restaurantId={restaurant.id}
-                restaurantName={restaurant.name || "Restaurant"}
+                restaurantName={restaurantName}
                 supplierId={restaurant.supplier_id}
-                preferredLanguage={preferredLanguage}
+                preferredLanguage={language}
               />
             ) : (
               <aside className="self-start rounded-[30px] border border-amber-300/20 bg-white/[0.055] p-6 shadow-2xl shadow-black/25 backdrop-blur-2xl lg:sticky lg:top-28">
