@@ -57,7 +57,7 @@ export default function CustomerHeaderMenu() {
   }
 
   return (
-    <div ref={menuRef} className="relative hidden md:block">
+    <div ref={menuRef} className="relative hidden pr-16 md:block lg:pr-20">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
@@ -70,7 +70,7 @@ export default function CustomerHeaderMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-[10000] mt-2 w-[230px] rounded-2xl border border-white/10 bg-[#11100c] p-2 text-white shadow-2xl shadow-black/70">
+        <div className="absolute right-16 top-full z-[10000] mt-2 w-[230px] rounded-2xl border border-white/10 bg-[#11100c] p-2 text-white shadow-2xl shadow-black/70 lg:right-20">
           <Link
             href="/dashboard/customer"
             prefetch={false}
