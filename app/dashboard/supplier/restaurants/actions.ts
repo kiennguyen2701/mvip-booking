@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { deleteCache, deleteCacheByPattern } from "@/lib/cache/cache";
 import { cacheKeys, cachePatterns } from "@/lib/cache/keys";
+import {
+  buildRestaurantChineseContentPatch,
+  type RestaurantChineseContent,
+} from "@/lib/restaurants/generate-chinese-content";
 
 export type RestaurantManagerState = {
   success: boolean;
@@ -46,6 +50,68 @@ function toNullableNumber(value: FormDataEntryValue | null) {
 
 function getText(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
+}
+
+function getNullableText(formData: FormData, key: string) {
+  return getText(formData, key) || null;
+}
+
+function getManualChineseContent(formData: FormData): Partial<RestaurantChineseContent> {
+  return {
+    name_zh: getNullableText(formData, "name_zh"),
+    short_description_zh: getNullableText(formData, "short_description_zh"),
+    full_description_zh: getNullableText(formData, "full_description_zh"),
+    address_zh: getNullableText(formData, "address_zh"),
+    city_zh: getNullableText(formData, "city_zh"),
+    cuisine_type_zh: getNullableText(formData, "cuisine_type_zh"),
+    category_zh: getNullableText(formData, "category_zh"),
+  };
+}
+
+function getExistingChineseContent(
+  restaurant?: Record<string, unknown> | null,
+): Partial<RestaurantChineseContent> {
+  return {
+    name_zh: typeof restaurant?.name_zh === "string" ? restaurant.name_zh : null,
+    short_description_zh:
+      typeof restaurant?.short_description_zh === "string"
+        ? restaurant.short_description_zh
+        : null,
+    full_description_zh:
+      typeof restaurant?.full_description_zh === "string"
+        ? restaurant.full_description_zh
+        : null,
+    address_zh:
+      typeof restaurant?.address_zh === "string" ? restaurant.address_zh : null,
+    city_zh: typeof restaurant?.city_zh === "string" ? restaurant.city_zh : null,
+    cuisine_type_zh:
+      typeof restaurant?.cuisine_type_zh === "string"
+        ? restaurant.cuisine_type_zh
+        : null,
+    category_zh:
+      typeof restaurant?.category_zh === "string" ? restaurant.category_zh : null,
+  };
+}
+
+function hasSourceChanged(
+  currentRestaurant: Record<string, unknown> | null | undefined,
+  next: {
+    name: string;
+    shortDescription: string | null;
+    fullDescription: string | null;
+    city: string | null;
+    address: string | null;
+  },
+) {
+  if (!currentRestaurant) return true;
+
+  return (
+    String(currentRestaurant.name || "") !== next.name ||
+    String(currentRestaurant.short_description || "") !== String(next.shortDescription || "") ||
+    String(currentRestaurant.full_description || "") !== String(next.fullDescription || "") ||
+    String(currentRestaurant.city || "") !== String(next.city || "") ||
+    String(currentRestaurant.address || "") !== String(next.address || "")
+  );
 }
 
 async function getSupplierContext() {
@@ -116,7 +182,11 @@ async function uploadMany(files: File[], supplierId: string) {
   return uploaded;
 }
 
-async function buildPayload(formData: FormData, supplierId: string) {
+async function buildPayload(
+  formData: FormData,
+  supplierId: string,
+  currentRestaurant?: Record<string, unknown> | null,
+) {
   const name = getText(formData, "name");
   const manualSlug = getText(formData, "slug");
   const slug = manualSlug ? slugify(manualSlug) : slugify(name);
@@ -167,10 +237,41 @@ async function buildPayload(formData: FormData, supplierId: string) {
     sunday: getText(formData, "opening_hours_sunday"),
   };
 
+  const shortDescription = getText(formData, "short_description") || null;
+  const fullDescription = getText(formData, "full_description") || null;
+  const address = getText(formData, "address") || null;
+  const city = getText(formData, "city") || null;
+  const tags = parseCommaList(formData.get("tags"));
+  const amenities = parseCommaList(formData.get("amenities"));
+  const priceRange = getText(formData, "price_range") || null;
+
   const errors: Record<string, string> = {};
 
   if (!name) errors.name = "Tên nhà hàng là bắt buộc.";
   if (!slug) errors.slug = "Slug là bắt buộc.";
+
+  const regenerateChinese = hasSourceChanged(currentRestaurant, {
+    name,
+    shortDescription,
+    fullDescription,
+    city,
+    address,
+  });
+
+  const chineseContent = await buildRestaurantChineseContentPatch({
+    source: {
+      name,
+      shortDescription,
+      fullDescription,
+      address,
+      city,
+      cuisineType: tags[0] || null,
+      category: tags[0] || null,
+    },
+    manual: getManualChineseContent(formData),
+    existing: getExistingChineseContent(currentRestaurant),
+    regenerate: regenerateChinese,
+  });
 
   return {
     errors,
@@ -180,21 +281,22 @@ async function buildPayload(formData: FormData, supplierId: string) {
       slug,
       phone: getText(formData, "phone") || null,
       whatsapp: getText(formData, "whatsapp") || null,
-      address: getText(formData, "address") || null,
-      city: getText(formData, "city") || null,
+      address,
+      city,
       latitude: toNullableNumber(formData.get("latitude")),
       longitude: toNullableNumber(formData.get("longitude")),
-      short_description: getText(formData, "short_description") || null,
-      full_description: getText(formData, "full_description") || null,
+      short_description: shortDescription,
+      full_description: fullDescription,
       cover_image: coverImage || null,
       gallery_images: galleryImages,
       menu_images: menuImages,
       opening_hours: openingHours,
-      price_range: getText(formData, "price_range") || null,
+      price_range: priceRange,
       discount_percent: discountPercent,
-      tags: parseCommaList(formData.get("tags")),
-      amenities: parseCommaList(formData.get("amenities")),
+      tags,
+      amenities,
       updated_at: new Date().toISOString(),
+      ...chineseContent,
     },
   };
 }
@@ -283,7 +385,11 @@ export async function updateRestaurant(
       };
     }
 
-    const { errors, payload } = await buildPayload(formData, supplierId);
+    const { errors, payload } = await buildPayload(
+      formData,
+      supplierId,
+      currentRestaurant as Record<string, unknown>,
+    );
 
     if (Object.keys(errors).length > 0) {
       return {
