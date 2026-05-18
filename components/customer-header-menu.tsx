@@ -23,9 +23,7 @@ export default function CustomerHeaderMenu() {
 
     function handlePointerDown(event: MouseEvent | TouchEvent) {
       if (!menuRef.current) return;
-      if (!menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      if (!menuRef.current.contains(event.target as Node)) setOpen(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -72,12 +70,12 @@ export default function CustomerHeaderMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-[10000] mt-2 w-[190px] rounded-2xl border border-white/10 bg-[#11100c] p-2 text-white shadow-2xl shadow-black/70">
+        <div className="absolute right-0 top-full z-[10000] mt-2 w-[230px] rounded-2xl border border-white/10 bg-[#11100c] p-2 text-white shadow-2xl shadow-black/70">
           <Link
             href="/dashboard/customer"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="block whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             Dashboard
           </Link>
@@ -86,7 +84,7 @@ export default function CustomerHeaderMenu() {
             href="/dashboard/customer/bookings"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="mt-1 block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="mt-1 block whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             My Bookings
           </Link>
@@ -95,7 +93,7 @@ export default function CustomerHeaderMenu() {
             href="/dashboard/customer/profile"
             prefetch={false}
             onClick={() => setOpen(false)}
-            className="mt-1 block rounded-xl px-3 py-2.5 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
+            className="mt-1 block whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
             My Profile
           </Link>
@@ -106,7 +104,7 @@ export default function CustomerHeaderMenu() {
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold leading-none text-red-200 transition hover:bg-red-500/20 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="block w-full whitespace-nowrap rounded-xl px-4 py-3 text-left text-sm font-bold leading-none text-red-200 transition hover:bg-red-500/20 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loggingOut ? "Logging out..." : "Log Out"}
           </button>
