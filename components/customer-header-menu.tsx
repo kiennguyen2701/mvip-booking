@@ -5,10 +5,39 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function CustomerHeaderMenu() {
+type PreferredLanguage = "en" | "zh";
+
+const menuCopy = {
+  en: {
+    menu: "Menu",
+    openMenu: "Open customer menu",
+    dashboard: "Dashboard",
+    bookings: "My Bookings",
+    profile: "My Profile",
+    logOut: "Log Out",
+    loggingOut: "Logging out...",
+  },
+  zh: {
+    menu: "菜单",
+    openMenu: "打开客户菜单",
+    dashboard: "客户中心",
+    bookings: "我的预订",
+    profile: "我的资料",
+    logOut: "退出登录",
+    loggingOut: "正在退出...",
+  },
+} as const;
+
+export default function CustomerHeaderMenu({
+  preferredLanguage = "en",
+}: {
+  preferredLanguage?: PreferredLanguage;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+  const language = preferredLanguage === "zh" ? "zh" : "en";
+  const t = menuCopy[language];
 
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -62,11 +91,11 @@ export default function CustomerHeaderMenu() {
         type="button"
         onClick={() => setOpen((current) => !current)}
         className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.07] px-4 text-sm font-black text-white shadow-xl shadow-black/20 transition hover:border-amber-300/50 hover:bg-amber-300 hover:text-slate-950"
-        aria-label="Open customer menu"
+        aria-label={t.openMenu}
         aria-expanded={open}
       >
         <span className="text-base leading-none">☰</span>
-        <span>Menu</span>
+        <span>{t.menu}</span>
       </button>
 
       {open && (
@@ -77,7 +106,7 @@ export default function CustomerHeaderMenu() {
             onClick={() => setOpen(false)}
             className="block whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
-            Dashboard
+            {t.dashboard}
           </Link>
 
           <Link
@@ -86,7 +115,7 @@ export default function CustomerHeaderMenu() {
             onClick={() => setOpen(false)}
             className="mt-1 block whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
-            My Bookings
+            {t.bookings}
           </Link>
 
           <Link
@@ -95,7 +124,7 @@ export default function CustomerHeaderMenu() {
             onClick={() => setOpen(false)}
             className="mt-1 block whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold leading-none text-slate-200 transition hover:bg-amber-300 hover:text-slate-950"
           >
-            My Profile
+            {t.profile}
           </Link>
 
           <div className="my-2 h-px bg-white/10" />
@@ -106,7 +135,7 @@ export default function CustomerHeaderMenu() {
             disabled={loggingOut}
             className="block w-full whitespace-nowrap rounded-xl px-4 py-3 text-left text-sm font-bold leading-none text-red-200 transition hover:bg-red-500/20 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loggingOut ? "Logging out..." : "Log Out"}
+            {loggingOut ? t.loggingOut : t.logOut}
           </button>
         </div>
       )}

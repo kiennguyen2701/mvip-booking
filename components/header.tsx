@@ -7,6 +7,8 @@ import HeaderMobileMenu from "@/components/header-mobile-menu";
 import CustomerHeaderMenu from "@/components/customer-header-menu";
 import SupplierHeaderMenu from "@/components/supplier-header-menu";
 
+type PreferredLanguage = "en" | "zh";
+
 function getDashboardHref(role: string | null) {
   if (role === "admin") return "/dashboard/admin";
   if (role === "supplier") return "/dashboard/supplier";
@@ -30,12 +32,17 @@ function hasSupabaseAuthCookie(
     );
 }
 
+function normalizePreferredLanguage(value: unknown): PreferredLanguage {
+  return value === "zh" ? "zh" : "en";
+}
+
 export default async function Header() {
   const cookieStore = await cookies();
   const hasAuthCookie = hasSupabaseAuthCookie(cookieStore);
 
   let user = null;
   let role: string | null = null;
+  let preferredLanguage: PreferredLanguage = "en";
 
   if (hasAuthCookie) {
     const supabase = await createClient();
@@ -49,11 +56,14 @@ export default async function Header() {
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, preferred_language")
         .eq("id", user.id)
         .maybeSingle();
 
       role = profile?.role || user.user_metadata?.role || null;
+      preferredLanguage = normalizePreferredLanguage(
+        profile?.preferred_language || user.user_metadata?.preferred_language,
+      );
     }
   }
 
@@ -88,7 +98,7 @@ export default async function Header() {
           {user ? (
             <>
               {isCustomer ? (
-                <CustomerHeaderMenu />
+                <CustomerHeaderMenu preferredLanguage={preferredLanguage} />
               ) : isSupplier ? (
                 <SupplierHeaderMenu />
               ) : (
