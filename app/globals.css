@@ -23,6 +23,7 @@ body {
   position: relative;
   background: #050403;
   touch-action: pan-y;
+  text-size-adjust: 100%;
 }
 
 #__next {
@@ -141,6 +142,7 @@ body.menu-open {
     max-width: 100dvw;
   }
 }
+
 html,
 body {
   width: 100%;
@@ -170,4 +172,23 @@ svg {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+}
+
+/* =========================================
+   iPhone Safari input auto zoom hard fix
+========================================= */
+
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+    transform: translateZ(0);
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    font-size: 16px !important;
+  }
 }

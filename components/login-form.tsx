@@ -179,8 +179,8 @@ export default function LoginForm() {
           <div
             className={
               isCompactLogin
-                ? "mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-lg text-slate-950 shadow-lg shadow-amber-900/20"
-                : "mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-lg text-slate-950 shadow-lg shadow-amber-900/20"
+                ? "mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-[16px] text-slate-950 shadow-lg shadow-amber-900/20"
+                : "mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-[16px] text-slate-950 shadow-lg shadow-amber-900/20"
             }
           >
             ♛
@@ -317,7 +317,7 @@ export default function LoginForm() {
 
           <button
             disabled={loading}
-            className="w-full rounded-2xl bg-amber-300 py-3.5 text-sm font-black text-slate-950 shadow-xl shadow-amber-900/20 transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-2xl bg-amber-300 py-3.5 text-[18px] font-black text-slate-950 shadow-xl shadow-amber-900/20 transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading
               ? "Processing..."
