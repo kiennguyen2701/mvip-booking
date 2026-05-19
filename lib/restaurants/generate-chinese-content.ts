@@ -30,6 +30,16 @@ const EMPTY_CHINESE_CONTENT: RestaurantChineseContent = {
   category_zh: null,
 };
 
+const RESTAURANT_CHINESE_KEYS: Array<keyof RestaurantChineseContent> = [
+  "name_zh",
+  "short_description_zh",
+  "full_description_zh",
+  "address_zh",
+  "city_zh",
+  "cuisine_type_zh",
+  "category_zh",
+];
+
 function cleanText(value?: string | null) {
   const text = String(value || "").trim();
   return text.length > 0 ? text : null;
@@ -125,25 +135,23 @@ export async function generateRestaurantChineseContent(
   const apiKey = getApiKey();
 
   if (!apiKey) {
+    console.error("GENERATE_RESTAURANT_CHINESE_CONTENT_MISSING_API_KEY");
     return EMPTY_CHINESE_CONTENT;
   }
 
-  const payload = {
-    model: getModel(),
-    temperature: 0.2,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You translate and localize restaurant booking content into Simplified Chinese. Return valid JSON only.",
-      },
-      {
-        role: "user",
-        content: buildPrompt(input),
-      },
-    ],
-  };
+  const sourceHasContent = [
+    input.name,
+    input.shortDescription,
+    input.fullDescription,
+    input.address,
+    input.city,
+    input.cuisineType,
+    input.category,
+  ].some((value) => Boolean(cleanText(value)));
+
+  if (!sourceHasContent) {
+    return EMPTY_CHINESE_CONTENT;
+  }
 
   try {
     const response = await fetch(getApiUrl(), {
@@ -152,7 +160,22 @@ export async function generateRestaurantChineseContent(
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        model: getModel(),
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You translate and localize restaurant booking content into Simplified Chinese. Return valid JSON only.",
+          },
+          {
+            role: "user",
+            content: buildPrompt(input),
+          },
+        ],
+      }),
       cache: "no-store",
     });
 
@@ -174,14 +197,27 @@ export async function generateRestaurantChineseContent(
     };
 
     const rawContent = data.choices?.[0]?.message?.content || "";
-    return normalizeChineseContent(extractJsonObject(rawContent));
+    const normalized = normalizeChineseContent(extractJsonObject(rawContent));
+
+    const generatedSomething = RESTAURANT_CHINESE_KEYS.some((key) =>
+      Boolean(cleanText(normalized[key])),
+    );
+
+    if (!generatedSomething) {
+      console.error("GENERATE_RESTAURANT_CHINESE_CONTENT_EMPTY_RESULT:", {
+        model: getModel(),
+        sourceName: input.name,
+      });
+    }
+
+    return normalized;
   } catch (error) {
     console.error("GENERATE_RESTAURANT_CHINESE_CONTENT_ERROR:", error);
     return EMPTY_CHINESE_CONTENT;
   }
 }
 
-function shouldUseManualValue(value?: string | null) {
+function shouldUseValue(value?: string | null) {
   return Boolean(cleanText(value));
 }
 
@@ -193,28 +229,17 @@ export async function buildRestaurantChineseContentPatch(options: {
 }): Promise<RestaurantChineseContentPatch> {
   const manual = options.manual || {};
   const existing = options.existing || {};
-
-  const manualPatch: RestaurantChineseContentPatch = {};
+  const patch: RestaurantChineseContentPatch = {};
   const missingKeys: Array<keyof RestaurantChineseContent> = [];
 
-  const keys: Array<keyof RestaurantChineseContent> = [
-    "name_zh",
-    "short_description_zh",
-    "full_description_zh",
-    "address_zh",
-    "city_zh",
-    "cuisine_type_zh",
-    "category_zh",
-  ];
-
-  for (const key of keys) {
-    if (shouldUseManualValue(manual[key])) {
-      manualPatch[key] = cleanText(manual[key]);
+  for (const key of RESTAURANT_CHINESE_KEYS) {
+    if (shouldUseValue(manual[key])) {
+      patch[key] = cleanText(manual[key]);
       continue;
     }
 
-    if (!options.regenerate && shouldUseManualValue(existing[key])) {
-      manualPatch[key] = cleanText(existing[key]);
+    if (!options.regenerate && shouldUseValue(existing[key])) {
+      patch[key] = cleanText(existing[key]);
       continue;
     }
 
@@ -222,17 +247,17 @@ export async function buildRestaurantChineseContentPatch(options: {
   }
 
   if (missingKeys.length === 0) {
-    return manualPatch;
+    return patch;
   }
 
   const generated = await generateRestaurantChineseContent(options.source);
-  const patch: RestaurantChineseContentPatch = { ...manualPatch };
 
   for (const key of missingKeys) {
     const generatedValue = cleanText(generated[key]);
     const existingValue = cleanText(existing[key]);
 
-    patch[key] = generatedValue || (!options.regenerate ? existingValue : null) || null;
+    patch[key] =
+      generatedValue || (!options.regenerate ? existingValue : null) || null;
   }
 
   return patch;

@@ -5,6 +5,10 @@ import { adminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/auth";
 import { deleteCache, deleteCacheByPattern } from "@/lib/cache/cache";
 import { cacheKeys, cachePatterns } from "@/lib/cache/keys";
+import {
+  buildRestaurantChineseContentPatch,
+  type RestaurantChineseContent,
+} from "@/lib/restaurants/generate-chinese-content";
 
 async function ensureAdmin() {
   const current = await requireAuth();
@@ -16,24 +20,76 @@ async function ensureAdmin() {
   return current;
 }
 
+function cleanNullable(value: unknown) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function getExistingChineseContent(
+  restaurant?: Record<string, unknown> | null,
+): Partial<RestaurantChineseContent> {
+  return {
+    name_zh: typeof restaurant?.name_zh === "string" ? restaurant.name_zh : null,
+    short_description_zh:
+      typeof restaurant?.short_description_zh === "string"
+        ? restaurant.short_description_zh
+        : null,
+    full_description_zh:
+      typeof restaurant?.full_description_zh === "string"
+        ? restaurant.full_description_zh
+        : null,
+    address_zh:
+      typeof restaurant?.address_zh === "string" ? restaurant.address_zh : null,
+    city_zh: typeof restaurant?.city_zh === "string" ? restaurant.city_zh : null,
+    cuisine_type_zh:
+      typeof restaurant?.cuisine_type_zh === "string"
+        ? restaurant.cuisine_type_zh
+        : null,
+    category_zh:
+      typeof restaurant?.category_zh === "string" ? restaurant.category_zh : null,
+  };
+}
+
+function getSourceFromRestaurant(restaurant: Record<string, unknown>) {
+  const tags = Array.isArray(restaurant.tags) ? restaurant.tags : [];
+  const firstTag = typeof tags[0] === "string" ? tags[0] : null;
+
+  return {
+    name: cleanNullable(restaurant.name),
+    shortDescription: cleanNullable(restaurant.short_description),
+    fullDescription: cleanNullable(restaurant.full_description),
+    address: cleanNullable(restaurant.address),
+    city: cleanNullable(restaurant.city),
+    cuisineType: cleanNullable(restaurant.cuisine_type) || firstTag,
+    category: cleanNullable(restaurant.category) || firstTag,
+  };
+}
+
 async function invalidateRestaurantCaches(options: {
   supplierId?: string | null;
-  oldSlug?: string | null;
-  newSlug?: string | null;
+  slug?: string | null;
 }) {
   await deleteCacheByPattern(cachePatterns.publicRestaurants());
 
-  if (options.oldSlug) {
-    await deleteCache(cacheKeys.publicRestaurantDetail(options.oldSlug));
-  }
-
-  if (options.newSlug && options.newSlug !== options.oldSlug) {
-    await deleteCache(cacheKeys.publicRestaurantDetail(options.newSlug));
+  if (options.slug) {
+    await deleteCache(cacheKeys.publicRestaurantDetail(options.slug));
   }
 
   if (options.supplierId) {
     await deleteCache(cacheKeys.supplierDashboard(options.supplierId));
   }
+}
+
+async function buildChinesePatchForRestaurant(
+  restaurant: Record<string, unknown>,
+  regenerate: boolean,
+) {
+  return buildRestaurantChineseContentPatch({
+    source: getSourceFromRestaurant(restaurant),
+    existing: getExistingChineseContent(restaurant),
+    manual: getExistingChineseContent(restaurant),
+    regenerate,
+  });
 }
 
 function revalidateSupplierRequestPaths() {
@@ -47,15 +103,27 @@ function revalidateSupplierRequestPaths() {
 export async function approveRestaurant(id: string) {
   await ensureAdmin();
 
-  const { data: currentRestaurant } = await adminClient
+  const { data: restaurant, error: restaurantError } = await adminClient
     .from("restaurants")
-    .select("id, slug, supplier_id")
+    .select("*")
     .eq("id", id)
     .maybeSingle();
+
+  if (restaurantError || !restaurant) {
+    throw new Error(restaurantError?.message || "Restaurant not found.");
+  }
+
+  const restaurantRecord = restaurant as Record<string, unknown>;
+
+  const chineseContent = await buildChinesePatchForRestaurant(
+    restaurantRecord,
+    false,
+  );
 
   const { error } = await adminClient
     .from("restaurants")
     .update({
+      ...chineseContent,
       status: "approved",
       is_active: true,
       updated_at: new Date().toISOString(),
@@ -67,8 +135,8 @@ export async function approveRestaurant(id: string) {
   }
 
   await invalidateRestaurantCaches({
-    supplierId: currentRestaurant?.supplier_id,
-    newSlug: currentRestaurant?.slug,
+    supplierId: cleanNullable(restaurantRecord.supplier_id),
+    slug: cleanNullable(restaurantRecord.slug),
   });
 
   revalidateSupplierRequestPaths();
@@ -77,11 +145,13 @@ export async function approveRestaurant(id: string) {
 export async function rejectRestaurant(id: string) {
   await ensureAdmin();
 
-  const { data: currentRestaurant } = await adminClient
+  const { data: restaurant } = await adminClient
     .from("restaurants")
-    .select("id, slug, supplier_id")
+    .select("supplier_id, slug")
     .eq("id", id)
     .maybeSingle();
+
+  const restaurantRecord = restaurant as Record<string, unknown> | null;
 
   const { error } = await adminClient
     .from("restaurants")
@@ -97,8 +167,8 @@ export async function rejectRestaurant(id: string) {
   }
 
   await invalidateRestaurantCaches({
-    supplierId: currentRestaurant?.supplier_id,
-    oldSlug: currentRestaurant?.slug,
+    supplierId: cleanNullable(restaurantRecord?.supplier_id),
+    slug: cleanNullable(restaurantRecord?.slug),
   });
 
   revalidateSupplierRequestPaths();
@@ -118,27 +188,43 @@ export async function approveRestaurantChangeRequest(id: string) {
     throw new Error(requestError?.message || "Change request not found.");
   }
 
-  const newData = request.new_data as Record<string, unknown>;
-  const oldData = request.old_data as Record<string, unknown> | null;
-  const oldSlug =
-    typeof oldData?.slug === "string" ? oldData.slug : undefined;
-  const newSlug = typeof newData.slug === "string" ? newData.slug : oldSlug;
-  const supplierId =
-    typeof request.supplier_id === "string"
-      ? request.supplier_id
-      : typeof newData.supplier_id === "string"
-        ? newData.supplier_id
-        : null;
+  const requestRecord = request as Record<string, unknown>;
+
+  const { data: currentRestaurant } = await adminClient
+    .from("restaurants")
+    .select("*")
+    .eq("id", requestRecord.restaurant_id)
+    .maybeSingle();
+
+  const currentRestaurantRecord =
+    currentRestaurant as Record<string, unknown> | null;
+
+  const newData =
+    typeof requestRecord.new_data === "object" && requestRecord.new_data !== null
+      ? (requestRecord.new_data as Record<string, unknown>)
+      : {};
+
+  const chineseContent = await buildRestaurantChineseContentPatch({
+    source: getSourceFromRestaurant(newData),
+    manual: getExistingChineseContent(newData),
+    existing: getExistingChineseContent(currentRestaurantRecord),
+    regenerate: true,
+  });
+
+  const mergedNewData: Record<string, unknown> = {
+    ...newData,
+    ...chineseContent,
+  };
 
   const { error: updateError } = await adminClient
     .from("restaurants")
     .update({
-      ...newData,
+      ...mergedNewData,
       status: "approved",
       is_active: true,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", request.restaurant_id);
+    .eq("id", requestRecord.restaurant_id);
 
   if (updateError) {
     throw new Error(updateError.message);
@@ -148,6 +234,7 @@ export async function approveRestaurantChangeRequest(id: string) {
     .from("restaurant_change_requests")
     .update({
       status: "approved",
+      new_data: mergedNewData,
       reviewed_by: current.user.id,
       reviewed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -159,9 +246,13 @@ export async function approveRestaurantChangeRequest(id: string) {
   }
 
   await invalidateRestaurantCaches({
-    supplierId,
-    oldSlug,
-    newSlug,
+    supplierId:
+      cleanNullable(mergedNewData.supplier_id) ||
+      cleanNullable(currentRestaurantRecord?.supplier_id) ||
+      cleanNullable(requestRecord.supplier_id),
+    slug:
+      cleanNullable(mergedNewData.slug) ||
+      cleanNullable(currentRestaurantRecord?.slug),
   });
 
   revalidateSupplierRequestPaths();
@@ -172,7 +263,7 @@ export async function rejectRestaurantChangeRequest(id: string) {
 
   const { data: request, error: requestError } = await adminClient
     .from("restaurant_change_requests")
-    .select("id, restaurant_id, supplier_id, old_data, new_data")
+    .select("id, restaurant_id")
     .eq("id", id)
     .eq("status", "pending_review")
     .maybeSingle();
@@ -181,12 +272,15 @@ export async function rejectRestaurantChangeRequest(id: string) {
     throw new Error(requestError?.message || "Change request not found.");
   }
 
-  const oldData = request.old_data as Record<string, unknown> | null;
-  const newData = request.new_data as Record<string, unknown> | null;
-  const oldSlug =
-    typeof oldData?.slug === "string" ? oldData.slug : undefined;
-  const newSlug =
-    typeof newData?.slug === "string" ? newData.slug : oldSlug;
+  const requestRecord = request as Record<string, unknown>;
+
+  const { data: restaurant } = await adminClient
+    .from("restaurants")
+    .select("supplier_id, slug")
+    .eq("id", requestRecord.restaurant_id)
+    .maybeSingle();
+
+  const restaurantRecord = restaurant as Record<string, unknown> | null;
 
   const { error: requestUpdateError } = await adminClient
     .from("restaurant_change_requests")
@@ -208,13 +302,12 @@ export async function rejectRestaurantChangeRequest(id: string) {
       status: "approved",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", request.restaurant_id)
+    .eq("id", requestRecord.restaurant_id)
     .eq("is_active", true);
 
   await invalidateRestaurantCaches({
-    supplierId: request.supplier_id,
-    oldSlug,
-    newSlug,
+    supplierId: cleanNullable(restaurantRecord?.supplier_id),
+    slug: cleanNullable(restaurantRecord?.slug),
   });
 
   revalidateSupplierRequestPaths();

@@ -128,8 +128,10 @@ function hasSourceChanged(
 
   return (
     String(currentRestaurant.name || '') !== next.name ||
-    String(currentRestaurant.short_description || '') !== String(next.shortDescription || '') ||
-    String(currentRestaurant.full_description || '') !== String(next.fullDescription || '') ||
+    String(currentRestaurant.short_description || '') !==
+      String(next.shortDescription || '') ||
+    String(currentRestaurant.full_description || '') !==
+      String(next.fullDescription || '') ||
     String(currentRestaurant.city || '') !== String(next.city || '') ||
     String(currentRestaurant.address || '') !== String(next.address || '')
   );
@@ -169,8 +171,10 @@ export async function createRestaurant(formData: FormData): Promise<void> {
 
   const name = String(formData.get('name') || '').trim();
   const slug = slugify(String(formData.get('slug') || '').trim() || name);
-  const shortDescription = String(formData.get('short_description') || '').trim() || null;
-  const fullDescription = String(formData.get('full_description') || '').trim() || null;
+  const shortDescription =
+    String(formData.get('short_description') || '').trim() || null;
+  const fullDescription =
+    String(formData.get('full_description') || '').trim() || null;
   const city = String(formData.get('city') || '').trim() || null;
   const address = String(formData.get('address') || '').trim() || null;
   const coverImage = String(formData.get('cover_image') || '').trim() || null;
@@ -184,7 +188,9 @@ export async function createRestaurant(formData: FormData): Promise<void> {
   const longitude = toNullableNumber(String(formData.get('longitude') || ''));
   const tags = parseCommaList(String(formData.get('tags') || ''));
   const amenities = parseCommaList(String(formData.get('amenities') || ''));
-  const galleryImages = parseMultilineList(String(formData.get('gallery_images') || ''));
+  const galleryImages = parseMultilineList(
+    String(formData.get('gallery_images') || ''),
+  );
   const openingHours = buildOpeningHours(formData);
 
   if (!name) {
@@ -210,6 +216,7 @@ export async function createRestaurant(formData: FormData): Promise<void> {
       category: tags[0] || null,
     },
     manual: getManualChineseContent(formData),
+    existing: {},
     regenerate: true,
   });
 
@@ -254,8 +261,10 @@ export async function updateRestaurant(formData: FormData): Promise<void> {
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
   const slug = slugify(String(formData.get('slug') || '').trim() || name);
-  const shortDescription = String(formData.get('short_description') || '').trim() || null;
-  const fullDescription = String(formData.get('full_description') || '').trim() || null;
+  const shortDescription =
+    String(formData.get('short_description') || '').trim() || null;
+  const fullDescription =
+    String(formData.get('full_description') || '').trim() || null;
   const city = String(formData.get('city') || '').trim() || null;
   const address = String(formData.get('address') || '').trim() || null;
   const coverImage = String(formData.get('cover_image') || '').trim() || null;
@@ -269,7 +278,9 @@ export async function updateRestaurant(formData: FormData): Promise<void> {
   const longitude = toNullableNumber(String(formData.get('longitude') || ''));
   const tags = parseCommaList(String(formData.get('tags') || ''));
   const amenities = parseCommaList(String(formData.get('amenities') || ''));
-  const galleryImages = parseMultilineList(String(formData.get('gallery_images') || ''));
+  const galleryImages = parseMultilineList(
+    String(formData.get('gallery_images') || ''),
+  );
   const openingHours = buildOpeningHours(formData);
 
   if (!id) {
@@ -294,13 +305,16 @@ export async function updateRestaurant(formData: FormData): Promise<void> {
     .eq('id', id)
     .maybeSingle();
 
-  const regenerateChinese = hasSourceChanged(currentRestaurant, {
-    name,
-    shortDescription,
-    fullDescription,
-    city,
-    address,
-  });
+  const regenerateChinese = hasSourceChanged(
+    currentRestaurant as Record<string, unknown> | null,
+    {
+      name,
+      shortDescription,
+      fullDescription,
+      city,
+      address,
+    },
+  );
 
   const chineseContent = await buildRestaurantChineseContentPatch({
     source: {
@@ -313,7 +327,9 @@ export async function updateRestaurant(formData: FormData): Promise<void> {
       category: tags[0] || null,
     },
     manual: getManualChineseContent(formData),
-    existing: getExistingChineseContent(currentRestaurant),
+    existing: getExistingChineseContent(
+      currentRestaurant as Record<string, unknown> | null,
+    ),
     regenerate: regenerateChinese,
   });
 
