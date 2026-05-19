@@ -213,8 +213,19 @@ select {
   will-change: transform;
 }
 
+.touch-feedback {
+  transition:
+    transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 160ms ease,
+    background-color 160ms ease,
+    opacity 160ms ease,
+    box-shadow 160ms ease;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
 .touch-feedback:active {
-  transform: scale(0.985);
+  transform: scale(0.972);
   opacity: 0.92;
 }
 
@@ -225,4 +236,21 @@ select {
     transform: scale(0.985);
     opacity: 0.94;
   }
+}
+@keyframes tapBounce {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(0.972);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.touch-bounce:active {
+  animation: tapBounce 180ms ease;
 }
