@@ -62,7 +62,6 @@ export default function LoginForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     setError("");
     setMessage("");
 
@@ -146,104 +145,132 @@ export default function LoginForm() {
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: loginError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: cleanPassword,
       });
 
-      if (signInError) {
-        setError(getFriendlyError(signInError.message));
+      if (loginError) {
+        setError(getFriendlyError(loginError.message));
         return;
       }
 
-      router.push("/dashboard/customer");
+      router.push("/dashboard");
       router.refresh();
-    } catch (submitError) {
-      console.error(submitError);
+    } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
+  const isCompactLogin = mode === "login" || mode === "reset";
+
   return (
-    <div className="w-full max-w-[560px] overflow-hidden rounded-[32px] border border-white/10 bg-black/70 backdrop-blur-xl">
-      <div className="bg-gradient-to-br from-yellow-500/20 via-transparent to-orange-500/20 p-6 sm:p-10">
-        <div className="mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400 text-black shadow-[0_0_40px_rgba(250,204,21,0.35)]">
-          ♛
+    <div className="w-full max-w-[500px] overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.07] shadow-2xl shadow-black/30 backdrop-blur-xl md:rounded-[32px]">
+      <div
+        className={
+          isCompactLogin
+            ? "bg-gradient-to-br from-yellow-500/10 via-transparent to-orange-500/10 p-5 md:p-7"
+            : "max-h-[calc(100svh-150px)] overflow-y-auto bg-gradient-to-br from-yellow-500/10 via-transparent to-orange-500/10 p-5 md:max-h-[calc(100svh-160px)] md:p-7"
+        }
+      >
+        <div className={isCompactLogin ? "mb-5 text-center" : "mb-5"}>
+          <div
+            className={
+              isCompactLogin
+                ? "mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-lg text-slate-950 shadow-lg shadow-amber-900/20"
+                : "mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-lg text-slate-950 shadow-lg shadow-amber-900/20"
+            }
+          >
+            ♛
+          </div>
+
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-amber-300">
+            Mvip Booking
+          </p>
+
+          <h1
+            className={
+              isCompactLogin
+                ? "mt-2 text-3xl font-black tracking-tight text-white md:text-4xl"
+                : "mt-2 text-3xl font-black tracking-tight text-white md:text-4xl"
+            }
+          >
+            {mode === "login" && "Welcome Back"}
+            {mode === "register" && "Create Customer Account"}
+            {mode === "reset" && "Reset Password"}
+          </h1>
+
+          <p
+            className={
+              isCompactLogin
+                ? "mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-400"
+                : "mt-2 text-sm leading-6 text-slate-400"
+            }
+          >
+            {mode === "login" &&
+              "Sign in to access the correct dashboard for your account role."}
+            {mode === "register" &&
+              "Join Mvip Booking to discover premium dining and booking offers."}
+            {mode === "reset" &&
+              "Enter your email address and we will send you a password reset link."}
+          </p>
+
+          {refCode && mode === "register" && (
+            <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
+              Referral code applied: {refCode}
+            </div>
+          )}
         </div>
 
-        <div className="mb-3 text-xs font-black uppercase tracking-[0.35em] text-yellow-400">
-          MVIP BOOKING
-        </div>
-
-        <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
-          {mode === "register"
-            ? "Create Account"
-            : mode === "reset"
-              ? "Reset Password"
-              : "Welcome Back"}
-        </h1>
-
-        <p className="mt-4 text-base leading-8 text-white/60 sm:text-lg">
-          {mode === "register"
-            ? "Create your premium customer account and enjoy exclusive booking benefits."
-            : mode === "reset"
-              ? "Enter your email address and we will send you a reset link."
-              : "Sign in to access the correct dashboard for your account role."}
-        </p>
-
-        <form
-          onSubmit={handleSubmit}
-          className="mt-10 space-y-5"
-        >
+        <form onSubmit={handleSubmit} className="space-y-3">
           {mode === "register" && (
             <>
               <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
                 placeholder="Full name"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
                 required
-                className="h-16 w-full rounded-3xl border border-white/10 bg-white/5 px-6 text-lg text-white outline-none transition-all placeholder:text-white/30 focus:border-yellow-400/60 focus:bg-white/10"
               />
 
               <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
                 placeholder="Phone number"
-                required
-                className="h-16 w-full rounded-3xl border border-white/10 bg-white/5 px-6 text-lg text-white outline-none transition-all placeholder:text-white/30 focus:border-yellow-400/60 focus:bg-white/10"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
               />
 
               <input
-                type="tel"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
                 placeholder="WhatsApp (optional)"
-                className="h-16 w-full rounded-3xl border border-white/10 bg-white/5 px-6 text-lg text-white outline-none transition-all placeholder:text-white/30 focus:border-yellow-400/60 focus:bg-white/10"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+                value={whatsapp}
+                onChange={(event) => setWhatsapp(event.target.value)}
               />
 
               <div>
-                <label className="mb-3 block text-sm font-bold uppercase tracking-[0.2em] text-yellow-400">
+                <label
+                  htmlFor="preferred-language"
+                  className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-amber-300"
+                >
                   Preferred Language
                 </label>
 
                 <select
+                  id="preferred-language"
                   value={preferredLanguage}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setPreferredLanguage(
-                      e.target.value === "zh" ? "zh" : "en"
+                      event.target.value === "zh" ? "zh" : "en",
                     )
                   }
-                  className="h-16 w-full rounded-3xl border border-white/10 bg-white/5 px-6 text-lg text-white outline-none transition-all focus:border-yellow-400/60 focus:bg-white/10"
+                  className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm font-bold text-white outline-none transition focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
                 >
-                  <option value="en" className="text-black">
+                  <option value="en" className="text-slate-950">
                     English
                   </option>
-
-                  <option value="zh" className="text-black">
+                  <option value="zh" className="text-slate-950">
                     中文 Chinese
                   </option>
                 </select>
@@ -253,83 +280,109 @@ export default function LoginForm() {
 
           <input
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            inputMode="email"
+            autoComplete="email"
             placeholder="Email address"
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             required
-            className="h-16 w-full rounded-3xl border border-white/10 bg-white/5 px-6 text-lg text-white outline-none transition-all placeholder:text-white/30 focus:border-yellow-400/60 focus:bg-white/10"
           />
 
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            required={mode !== "reset"}
-            className="h-16 w-full rounded-3xl border border-white/10 bg-white/5 px-6 text-lg text-white outline-none transition-all placeholder:text-white/30 focus:border-yellow-400/60 focus:bg-white/10"
-          />
+          {mode !== "reset" && (
+            <input
+              type="password"
+              placeholder="Password"
+              autoComplete={
+                mode === "register" ? "new-password" : "current-password"
+              }
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          )}
 
           {error && (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm font-medium text-red-200">
+            <div className="rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-sm font-bold text-red-200">
               {error}
             </div>
           )}
 
           {message && (
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 text-sm font-medium text-emerald-200">
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-200">
               {message}
             </div>
           )}
 
           <button
-            type="submit"
             disabled={loading}
-            className="h-16 w-full rounded-3xl bg-yellow-400 text-xl font-black text-black transition-all hover:scale-[1.01] hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-2xl bg-amber-300 py-3.5 text-sm font-black text-slate-950 shadow-xl shadow-amber-900/20 transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading
-              ? "Please wait..."
-              : mode === "register"
-                ? "Create Account"
-                : mode === "reset"
-                  ? "Send Reset Link"
-                  : "Sign In"}
+              ? "Processing..."
+              : mode === "login"
+                ? "Sign In"
+                : mode === "register"
+                  ? "Create Account"
+                  : "Send Reset Link"}
           </button>
         </form>
 
-        <div className="mt-8 flex flex-col items-center gap-4 text-center">
-          {mode !== "reset" && (
-            <button
-              type="button"
-              onClick={() => setMode("reset")}
-              className="text-lg font-bold text-white/60 transition hover:text-white"
-            >
-              Forgot password?
-            </button>
-          )}
-
+        <div className="mt-5 space-y-2 text-center">
           {mode === "login" && (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("register");
-                router.push(refCode ? `/login?mode=register&ref=${refCode}` : "/login?mode=register");
-              }}
-              className="text-xl font-black text-yellow-400 transition hover:text-yellow-300"
-            >
-              New customer? Create an account
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setMessage("");
+                  setMode("reset");
+                }}
+                className="block w-full text-sm font-bold text-slate-400 transition hover:text-white"
+              >
+                Forgot password?
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setMessage("");
+                  setMode("register");
+                }}
+                className="block w-full text-sm font-black text-amber-300 transition hover:text-amber-200"
+              >
+                New customer? Create an account
+              </button>
+            </>
           )}
 
           {mode === "register" && (
             <button
               type="button"
               onClick={() => {
+                setError("");
+                setMessage("");
                 setMode("login");
-                router.push(refCode ? `/login?ref=${refCode}` : "/login");
               }}
-              className="text-xl font-black text-yellow-400 transition hover:text-yellow-300"
+              className="w-full text-sm font-black text-amber-300 transition hover:text-amber-200"
             >
-              Already have an account? Sign In
+              Already have an account? Sign in
+            </button>
+          )}
+
+          {mode === "reset" && (
+            <button
+              type="button"
+              onClick={() => {
+                setError("");
+                setMessage("");
+                setMode("login");
+              }}
+              className="w-full text-sm font-black text-amber-300 transition hover:text-amber-200"
+            >
+              Back to sign in
             </button>
           )}
         </div>
