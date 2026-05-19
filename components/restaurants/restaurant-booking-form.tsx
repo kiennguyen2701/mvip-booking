@@ -24,6 +24,15 @@ const HOURS = Array.from({ length: 24 }, (_, index) =>
 
 const MINUTES = ["00", "10", "20", "30", "40", "50"];
 
+function getTodayDateInputValue() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 const bookingText = {
   en: {
     premiumBooking: "Premium Booking",
@@ -84,12 +93,15 @@ export default function RestaurantBookingForm({
     return preferredLanguage === "zh" ? bookingText.zh : bookingText.en;
   }, [preferredLanguage]);
 
+  const todayDate = useMemo(() => getTodayDateInputValue(), []);
+
   const [loading, setLoading] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
 
+  const [bookingDate, setBookingDate] = useState(todayDate);
   const [bookingHour, setBookingHour] = useState("18");
   const [bookingMinute, setBookingMinute] = useState("00");
 
@@ -158,7 +170,7 @@ export default function RestaurantBookingForm({
           phone: String(formData.get("phone") || ""),
           whatsapp: String(formData.get("whatsapp") || ""),
           guests: Number(formData.get("guest_count") || 1),
-          bookingDate: String(formData.get("booking_date") || ""),
+          bookingDate: String(formData.get("booking_date") || bookingDate),
           bookingTime,
           agentRef,
           customerLanguage: preferredLanguage,
@@ -291,6 +303,18 @@ export default function RestaurantBookingForm({
                 name="booking_date"
                 type="date"
                 required
+                min={todayDate}
+                value={bookingDate}
+                onChange={(event) => {
+                  const nextDate = event.target.value;
+
+                  if (!nextDate || nextDate < todayDate) {
+                    setBookingDate(todayDate);
+                    return;
+                  }
+
+                  setBookingDate(nextDate);
+                }}
                 className="booking-input"
               />
             </Field>
