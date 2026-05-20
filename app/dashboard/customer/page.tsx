@@ -2,18 +2,15 @@ import { redirect } from "next/navigation";
 import CustomerDashboardClient from "@/components/customer-dashboard-client";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 type ReviewRow = {
   restaurant_id: string | null;
   rating: number | null;
 };
 
-type RatingInfo = {
-  total: number;
-  count: number;
-};
-
 function buildRatingMap(rows: ReviewRow[]) {
-  const map = new Map<string, RatingInfo>();
+  const map = new Map<string, { total: number; count: number }>();
 
   for (const row of rows) {
     if (!row.restaurant_id) continue;
@@ -68,33 +65,7 @@ export default async function CustomerPage() {
 
   const { data: restaurantsData, error: restaurantsError } = await supabase
     .from("restaurants")
-    .select(
-      `
-        id,
-        name,
-        name_zh,
-        slug,
-        address,
-        address_zh,
-        city,
-        city_zh,
-        cuisine_type,
-        cuisine_type_zh,
-        category,
-        category_zh,
-        description,
-        description_zh,
-        short_description,
-        short_description_zh,
-        cover_image,
-        image_url,
-        latitude,
-        longitude,
-        price_range,
-        discount_percent,
-        created_at
-      `,
-    )
+    .select("*")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
@@ -107,7 +78,7 @@ export default async function CustomerPage() {
     .map((item) => item.id)
     .filter((id): id is string => Boolean(id));
 
-  let ratingMap = new Map<string, RatingInfo>();
+  let ratingMap = new Map<string, { total: number; count: number }>();
 
   if (restaurantIds.length > 0) {
     const allReviewRows: ReviewRow[] = [];
