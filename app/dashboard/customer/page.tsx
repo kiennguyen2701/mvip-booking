@@ -2,15 +2,18 @@ import { redirect } from "next/navigation";
 import CustomerDashboardClient from "@/components/customer-dashboard-client";
 import { createClient } from "@/lib/supabase/server";
 
-export const dynamic = "force-dynamic";
-
 type ReviewRow = {
   restaurant_id: string | null;
   rating: number | null;
 };
 
+type RatingInfo = {
+  total: number;
+  count: number;
+};
+
 function buildRatingMap(rows: ReviewRow[]) {
-  const map = new Map<string, { total: number; count: number }>();
+  const map = new Map<string, RatingInfo>();
 
   for (const row of rows) {
     if (!row.restaurant_id) continue;
@@ -27,6 +30,16 @@ function buildRatingMap(rows: ReviewRow[]) {
   }
 
   return map;
+}
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
 }
 
 export default async function CustomerPage() {
@@ -53,28 +66,68 @@ export default async function CustomerPage() {
     redirect("/dashboard");
   }
 
-  const { data: restaurantsData } = await supabase
+  const { data: restaurantsData, error: restaurantsError } = await supabase
     .from("restaurants")
-    .select("*")
+    .select(
+      `
+        id,
+        name,
+        name_zh,
+        slug,
+        address,
+        address_zh,
+        city,
+        city_zh,
+        cuisine_type,
+        cuisine_type_zh,
+        category,
+        category_zh,
+        description,
+        description_zh,
+        short_description,
+        short_description_zh,
+        cover_image,
+        image_url,
+        latitude,
+        longitude,
+        price_range,
+        discount_percent,
+        created_at
+      `,
+    )
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
-  const restaurants = restaurantsData || [];
-  const restaurantIds = restaurants.map((item) => item.id).filter(Boolean);
+  if (restaurantsError) {
+    console.error("CUSTOMER_DASHBOARD_RESTAURANTS_ERROR:", restaurantsError);
+  }
 
-  let ratingMap = new Map<string, { total: number; count: number }>();
+  const restaurants = restaurantsData || [];
+  const restaurantIds = restaurants
+    .map((item) => item.id)
+    .filter((id): id is string => Boolean(id));
+
+  let ratingMap = new Map<string, RatingInfo>();
 
   if (restaurantIds.length > 0) {
-    const { data: reviewRows, error: reviewError } = await supabase
-      .from("restaurant_reviews")
-      .select("restaurant_id, rating")
-      .in("restaurant_id", restaurantIds);
+    const allReviewRows: ReviewRow[] = [];
+    const chunks = chunkArray(restaurantIds, 150);
 
-    if (reviewError) {
-      console.error("CUSTOMER_DASHBOARD_REVIEW_RATING_ERROR:", reviewError);
-    } else {
-      ratingMap = buildRatingMap((reviewRows || []) as ReviewRow[]);
+    for (const chunk of chunks) {
+      const { data: reviewRows, error: reviewError } = await supabase
+        .from("restaurant_reviews")
+        .select("restaurant_id, rating")
+        .in("restaurant_id", chunk);
+
+      if (reviewError) {
+        console.error("CUSTOMER_DASHBOARD_REVIEW_RATING_ERROR:", reviewError);
+        continue;
+      }
+
+      allReviewRows.push(...((reviewRows || []) as ReviewRow[]));
     }
+
+    ratingMap = buildRatingMap(allReviewRows);
   }
 
   const restaurantsWithRatings = restaurants.map((restaurant) => {

@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { getRestaurantImageUrl } from "@/lib/restaurants/images";
 
 type PreferredLanguage = "en" | "zh";
@@ -56,8 +64,8 @@ const CUSTOMER_COPY = {
     discountText: "顾客账单直接优惠",
     searchPlaceholder: "搜索餐厅、城市或菜系...",
     search: "搜索",
-allCuisines: "全部菜系",
-off: "折扣",
+    allCuisines: "全部菜系",
+    off: "折扣",
     top: "推荐",
     nearby: "附近",
     popular: "热门",
@@ -129,6 +137,10 @@ type Props = {
 };
 
 type SortMode = "top" | "nearby" | "popular";
+
+const INITIAL_VISIBLE_COUNT = 9;
+const LOAD_MORE_COUNT = 9;
+const NEARBY_RADIUS_KM = 1;
 
 function normalizeSearch(value: string) {
   return value
@@ -280,8 +292,12 @@ const RestaurantCard = memo(function RestaurantCard({
   language: PreferredLanguage;
 }) {
   const t = CUSTOMER_COPY[language];
-  const image = getImage(restaurant);
-  const cuisine = getCuisine(restaurant, language, t.signatureDining);
+
+  const image = useMemo(() => getImage(restaurant), [restaurant]);
+  const cuisine = useMemo(
+    () => getCuisine(restaurant, language, t.signatureDining),
+    [restaurant, language, t.signatureDining],
+  );
   const discount = getDiscount(restaurant);
   const rating = getAverageRating(restaurant);
   const restaurantName = getRestaurantName(
@@ -368,10 +384,11 @@ export default function CustomerDashboardClient({
 
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [cuisine, setCuisine] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("top");
   const [nearbyOnly, setNearbyOnly] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(9);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
   const [locationStatus, setLocationStatus] = useState("");
   const [userLocation, setUserLocation] = useState<{
     lat: number;
@@ -380,28 +397,32 @@ export default function CustomerDashboardClient({
 
   useEffect(() => {
     hardLockViewport();
-  }, [query, cuisine, sortMode, nearbyOnly, visibleCount]);
+  }, [deferredQuery, cuisine, sortMode, nearbyOnly, visibleCount]);
 
-  function handleSearch() {
+  const resetVisibleCount = useCallback(() => {
+    setVisibleCount(INITIAL_VISIBLE_COUNT);
+  }, []);
+
+  const handleSearch = useCallback(() => {
     inputRef.current?.blur();
     setQuery(input.trim());
-    setVisibleCount(9);
+    resetVisibleCount();
     setTimeout(hardLockViewport, 80);
-  }
+  }, [input, resetVisibleCount]);
 
-  function clearFilters() {
+  const clearFilters = useCallback(() => {
     inputRef.current?.blur();
     setInput("");
     setQuery("");
     setCuisine("");
     setSortMode("top");
     setNearbyOnly(false);
-    setVisibleCount(9);
+    resetVisibleCount();
     setLocationStatus("");
     setTimeout(hardLockViewport, 80);
-  }
+  }, [resetVisibleCount]);
 
-  function requestLocation() {
+  const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationStatus(t.locationNotSupported);
       return;
@@ -418,7 +439,7 @@ export default function CustomerDashboardClient({
 
         setNearbyOnly(true);
         setSortMode("nearby");
-        setVisibleCount(9);
+        resetVisibleCount();
         setLocationStatus(t.nearbyEnabled);
         setTimeout(hardLockViewport, 80);
       },
@@ -432,9 +453,15 @@ export default function CustomerDashboardClient({
         maximumAge: 1000 * 60 * 5,
       },
     );
-  }
+  }, [
+    resetVisibleCount,
+    t.detectingLocation,
+    t.locationDenied,
+    t.locationNotSupported,
+    t.nearbyEnabled,
+  ]);
 
-  function toggleNearby() {
+  const toggleNearby = useCallback(() => {
     if (!nearbyOnly && !userLocation) {
       requestLocation();
       return;
@@ -442,9 +469,9 @@ export default function CustomerDashboardClient({
 
     setNearbyOnly((current) => !current);
     setSortMode((current) => (current === "nearby" ? "top" : "nearby"));
-    setVisibleCount(9);
+    resetVisibleCount();
     setTimeout(hardLockViewport, 80);
-  }
+  }, [nearbyOnly, requestLocation, resetVisibleCount, userLocation]);
 
   const cuisines = useMemo(() => {
     return Array.from(
@@ -477,12 +504,22 @@ export default function CustomerDashboardClient({
     });
   }, [restaurants, userLocation]);
 
+  const searchableRestaurantMap = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const item of restaurantsWithDistance) {
+      map.set(item.id, normalizeSearch(getSearchableText(item, language)));
+    }
+
+    return map;
+  }, [restaurantsWithDistance, language]);
+
   const filteredRestaurants = useMemo<RestaurantWithDistance[]>(() => {
-    const keyword = normalizeSearch(query);
+    const keyword = normalizeSearch(deferredQuery);
 
     return restaurantsWithDistance
       .filter((item) => {
-        const searchableText = normalizeSearch(getSearchableText(item, language));
+        const searchableText = searchableRestaurantMap.get(item.id) || "";
 
         const matchKeyword = !keyword || searchableText.includes(keyword);
         const matchCuisine =
@@ -491,7 +528,7 @@ export default function CustomerDashboardClient({
         const matchNearby =
           !nearbyOnly ||
           !userLocation ||
-          (item.distance !== null && item.distance <= 1);
+          (item.distance !== null && item.distance <= NEARBY_RADIUS_KM);
 
         return matchKeyword && matchCuisine && matchNearby;
       })
@@ -531,7 +568,8 @@ export default function CustomerDashboardClient({
       });
   }, [
     restaurantsWithDistance,
-    query,
+    searchableRestaurantMap,
+    deferredQuery,
     cuisine,
     sortMode,
     nearbyOnly,
@@ -540,7 +578,9 @@ export default function CustomerDashboardClient({
     t.signatureDining,
   ]);
 
-  const visibleRestaurants = filteredRestaurants.slice(0, visibleCount);
+  const visibleRestaurants = useMemo(() => {
+    return filteredRestaurants.slice(0, visibleCount);
+  }, [filteredRestaurants, visibleCount]);
 
   return (
     <main className="mobile-viewport-lock relative min-h-screen bg-[#050403] pb-10 text-white">
@@ -611,7 +651,7 @@ export default function CustomerDashboardClient({
                   value={cuisine}
                   onChange={(event) => {
                     setCuisine(event.target.value);
-                    setVisibleCount(9);
+                    resetVisibleCount();
                     setTimeout(hardLockViewport, 80);
                   }}
                   className="h-14 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-base font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
@@ -642,7 +682,7 @@ export default function CustomerDashboardClient({
 
                         setSortMode(mode);
                         setNearbyOnly(false);
-                        setVisibleCount(9);
+                        resetVisibleCount();
                       }}
                       className={
                         sortMode === mode
@@ -657,7 +697,8 @@ export default function CustomerDashboardClient({
 
                 <div className="flex min-w-0 flex-wrap items-center gap-3 text-xs font-black text-slate-400">
                   <span>
-                    {t.showing} {filteredRestaurants.length} {t.of} {restaurants.length}
+                    {t.showing} {filteredRestaurants.length} {t.of}{" "}
+                    {restaurants.length}
                   </span>
 
                   <button
@@ -725,7 +766,7 @@ export default function CustomerDashboardClient({
               <button
                 type="button"
                 onClick={() => {
-                  setVisibleCount((current) => current + 9);
+                  setVisibleCount((current) => current + LOAD_MORE_COUNT);
                   setTimeout(hardLockViewport, 80);
                 }}
                 className="rounded-2xl border border-amber-300/40 px-6 py-3 text-sm font-black text-amber-300 transition hover:bg-amber-300 hover:text-slate-950"
