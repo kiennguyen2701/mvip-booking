@@ -76,7 +76,7 @@ export default async function Header() {
       <div className="mx-auto flex h-[92px] w-full max-w-7xl items-center justify-between gap-3 overflow-visible px-4 md:h-[96px] md:px-6">
         <Link
           href={dashboardHref}
-          prefetch={false}
+          prefetch
           className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-xl text-slate-950 shadow-xl shadow-amber-950/20">
@@ -108,7 +108,7 @@ export default async function Header() {
           ) : (
             <Link
               href="/login?mode=register"
-              prefetch={false}
+              prefetch
               className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
             >
               Register
