@@ -20,6 +20,46 @@ function generateBookingCode() {
   return `MVIP-${ymd}-${random}`;
 }
 
+function getRequestOrigin(request: Request) {
+  const url = new URL(request.url);
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost || request.headers.get("host");
+
+  if (forwardedProto && host) {
+    return `${forwardedProto}://${host}`;
+  }
+
+  return url.origin;
+}
+
+async function triggerEmailProcessor(request: Request) {
+  try {
+    const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET;
+    const origin = getRequestOrigin(request);
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    if (secret) {
+      headers.authorization = `Bearer ${secret}`;
+    }
+
+    const response = await fetch(`${origin}/api/email/process`, {
+      method: "POST",
+      headers,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      console.error("TRIGGER_EMAIL_PROCESSOR_ERROR:", response.status, text);
+    }
+  } catch (error) {
+    console.error("TRIGGER_EMAIL_PROCESSOR_EXCEPTION:", error);
+  }
+}
+
 async function getCustomerAgent(userId: string) {
   const { data: userRow } = await adminClient
     .from("users")
@@ -188,23 +228,27 @@ export async function POST(request: Request) {
 
     const supplierEmail = supplier?.email || supplier?.login_email || null;
 
-    enqueueBookingCreatedEmailJob({
-      bookingId: booking.id,
-      customerEmail: user.email || null,
-      customerLanguage,
-      customerName,
-      supplierEmail,
-      adminEmail: process.env.ADMIN_EMAIL || null,
-      restaurantName,
-      bookingCode,
-      bookingDate,
-      bookingTime,
-      guests,
-      phone,
-      whatsapp,
-    }).catch((error: unknown) => {
-      console.error("ENQUEUE_BOOKING_CREATED_EMAIL_ERROR:", error);
-    });
+    try {
+      await enqueueBookingCreatedEmailJob({
+        bookingId: booking.id,
+        customerEmail: user.email || null,
+        customerLanguage,
+        customerName,
+        supplierEmail,
+        adminEmail: process.env.ADMIN_EMAIL || null,
+        restaurantName,
+        bookingCode,
+        bookingDate,
+        bookingTime,
+        guests,
+        phone,
+        whatsapp,
+      });
+
+      await triggerEmailProcessor(request);
+    } catch (error) {
+      console.error("BOOKING_CREATED_EMAIL_QUEUE_ERROR:", error);
+    }
 
     if (supplierId) {
       await deleteCache(cacheKeys.supplierDashboard(supplierId));
