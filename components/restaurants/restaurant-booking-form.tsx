@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type PreferredLanguage = "en" | "zh";
 
@@ -93,6 +99,9 @@ export default function RestaurantBookingForm({
     return preferredLanguage === "zh" ? bookingText.zh : bookingText.en;
   }, [preferredLanguage]);
 
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const profileLoadedRef = useRef(false);
+
   const todayDate = useMemo(() => getTodayDateInputValue(), []);
 
   const [loading, setLoading] = useState(false);
@@ -108,108 +117,157 @@ export default function RestaurantBookingForm({
   const [profileLoading, setProfileLoading] = useState(false);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
 
-  useEffect(() => {
-    async function loadProfile() {
-      try {
-        setProfileLoading(true);
+  const loadProfile = useCallback(async () => {
+    if (profileLoadedRef.current) return;
 
-        const response = await fetch("/api/customer/profile", {
-          cache: "no-store",
-        });
+    profileLoadedRef.current = true;
 
-        if (!response.ok) return;
+    try {
+      setProfileLoading(true);
 
-        const data = await response.json();
+      const response = await fetch("/api/customer/profile", {
+        cache: "no-store",
+      });
 
-        if (!data?.profile) return;
+      if (!response.ok) return;
 
-        setProfile(data.profile);
-      } catch (error) {
-        console.error("LOAD_PROFILE_ERROR:", error);
-      } finally {
-        setProfileLoading(false);
-      }
+      const data = await response.json();
+
+      if (!data?.profile) return;
+
+      setProfile(data.profile);
+    } catch (error) {
+      console.error("LOAD_PROFILE_ERROR:", error);
+    } finally {
+      setProfileLoading(false);
     }
-
-    loadProfile();
   }, []);
 
-  function applyProfile() {
+  useEffect(() => {
+    const currentForm = formRef.current;
+
+    if (!currentForm || typeof IntersectionObserver === "undefined") {
+      const timer = window.setTimeout(() => {
+        void loadProfile();
+      }, 800);
+
+      return () => window.clearTimeout(timer);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((entry) => entry.isIntersecting);
+
+        if (visible) {
+          void loadProfile();
+          observer.disconnect();
+        }
+      },
+      {
+        rootMargin: "300px 0px",
+        threshold: 0.01,
+      },
+    );
+
+    observer.observe(currentForm);
+
+    return () => observer.disconnect();
+  }, [loadProfile]);
+
+  const applyProfile = useCallback(() => {
     if (!profile) return;
 
     setCustomerName(profile.full_name || "");
     setPhone(profile.phone || "");
     setWhatsapp(profile.whatsapp || "");
-  }
+  }, [profile]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const handleSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
 
-    const formData = new FormData(event.currentTarget);
+      if (loading) return;
 
-    const agentRef =
-      localStorage.getItem("agent_ref") ||
-      sessionStorage.getItem("agent_ref") ||
-      "";
+      const formData = new FormData(event.currentTarget);
 
-    const bookingTime = `${bookingHour}:${bookingMinute}`;
+      const agentRef =
+        localStorage.getItem("agent_ref") ||
+        sessionStorage.getItem("agent_ref") ||
+        "";
 
-    setLoading(true);
+      const bookingTime = `${bookingHour}:${bookingMinute}`;
 
-    try {
-      const response = await fetch("/api/booking/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          restaurantId,
-          restaurantName,
-          supplierId,
-          customerName: String(formData.get("customer_name") || ""),
-          phone: String(formData.get("phone") || ""),
-          whatsapp: String(formData.get("whatsapp") || ""),
-          guests: Number(formData.get("guest_count") || 1),
-          bookingDate: String(formData.get("booking_date") || bookingDate),
-          bookingTime,
-          agentRef,
-          customerLanguage: preferredLanguage,
-          preferredLanguage,
-        }),
-      });
-
-      const rawText = await response.text();
-
-      let result: { bookingId?: string; error?: string } = {};
+      setLoading(true);
 
       try {
-        result = rawText ? JSON.parse(rawText) : {};
-      } catch {
-        console.error("BOOKING_API_NON_JSON_RESPONSE:", rawText);
-        alert(t.invalidResponse);
-        return;
-      }
+        const response = await fetch("/api/booking/create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurantId,
+            restaurantName,
+            supplierId,
+            customerName: String(formData.get("customer_name") || ""),
+            phone: String(formData.get("phone") || ""),
+            whatsapp: String(formData.get("whatsapp") || ""),
+            guests: Number(formData.get("guest_count") || 1),
+            bookingDate: String(formData.get("booking_date") || bookingDate),
+            bookingTime,
+            agentRef,
+            customerLanguage: preferredLanguage,
+            preferredLanguage,
+          }),
+        });
 
-      if (!response.ok) {
-        console.error("BOOKING_API_ERROR:", result);
-        alert(result.error || t.unableCreate);
-        return;
-      }
+        const rawText = await response.text();
 
-      if (!result.bookingId) {
-        console.error("BOOKING_API_MISSING_ID:", result);
-        alert(t.missingId);
-        return;
-      }
+        let result: { bookingId?: string; error?: string } = {};
 
-      window.location.href = `/booking/${result.bookingId}`;
-    } catch (error) {
-      console.error("BOOKING_FORM_SUBMIT_ERROR:", error);
-      alert(t.unableCreateTerminal);
-    } finally {
-      setLoading(false);
-    }
-  }
+        try {
+          result = rawText ? JSON.parse(rawText) : {};
+        } catch {
+          console.error("BOOKING_API_NON_JSON_RESPONSE:", rawText);
+          alert(t.invalidResponse);
+          return;
+        }
+
+        if (!response.ok) {
+          console.error("BOOKING_API_ERROR:", result);
+          alert(result.error || t.unableCreate);
+          return;
+        }
+
+        if (!result.bookingId) {
+          console.error("BOOKING_API_MISSING_ID:", result);
+          alert(t.missingId);
+          return;
+        }
+
+        window.location.href = `/booking/${result.bookingId}`;
+      } catch (error) {
+        console.error("BOOKING_FORM_SUBMIT_ERROR:", error);
+        alert(t.unableCreateTerminal);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      bookingDate,
+      bookingHour,
+      bookingMinute,
+      loading,
+      preferredLanguage,
+      restaurantId,
+      restaurantName,
+      supplierId,
+      t.invalidResponse,
+      t.missingId,
+      t.unableCreate,
+      t.unableCreateTerminal,
+    ],
+  );
 
   return (
     <aside className="self-start lg:sticky lg:top-28 lg:h-fit">
@@ -245,18 +303,19 @@ export default function RestaurantBookingForm({
               type="button"
               onClick={applyProfile}
               disabled={profileLoading}
-              className="mt-5 flex w-full items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-300/20"
+              className="mt-5 flex w-full items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-300/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {t.useProfile}
             </button>
           )}
 
-          <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+          <form ref={formRef} onSubmit={handleSubmit} className="mt-7 space-y-4">
             <Field label={t.fullName}>
               <input
                 name="customer_name"
                 placeholder={t.yourName}
                 required
+                autoComplete="name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 className="booking-input"
@@ -268,6 +327,8 @@ export default function RestaurantBookingForm({
                 name="phone"
                 placeholder="090..."
                 required
+                autoComplete="tel"
+                inputMode="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="booking-input"
@@ -278,6 +339,8 @@ export default function RestaurantBookingForm({
               <input
                 name="whatsapp"
                 placeholder="+84..."
+                autoComplete="tel"
+                inputMode="tel"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
                 className="booking-input"

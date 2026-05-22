@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { getRestaurantImageUrl } from "@/lib/restaurants/images";
 import {
@@ -146,7 +152,7 @@ const initialReviewState: ReviewActionState = {
   message: "",
 };
 
-function Stars({
+const Stars = memo(function Stars({
   value,
   onChange,
   readonly = false,
@@ -189,7 +195,7 @@ function Stars({
       })}
     </div>
   );
-}
+});
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
@@ -259,7 +265,8 @@ export default function RestaurantInfoTabs({
   const visibleMenuImages = useMemo(() => {
     return (menuImages || [])
       .map((image) => getRestaurantImageUrl(image) || image)
-      .filter(Boolean);
+      .filter(Boolean)
+      .slice(0, 8);
   }, [menuImages]);
 
   const hasMap =
@@ -270,7 +277,11 @@ export default function RestaurantInfoTabs({
 
   const hasMoreReviews = reviews.length < totalReviews;
 
-  async function loadMoreReviews() {
+  const handleTabChange = useCallback((tab: TabKey) => {
+    setActiveTab((current) => (current === tab ? current : tab));
+  }, []);
+
+  const loadMoreReviews = useCallback(async () => {
     if (loadingMore || !hasMoreReviews) return;
 
     setLoadingMore(true);
@@ -283,6 +294,8 @@ export default function RestaurantInfoTabs({
         },
       );
 
+      if (!response.ok) return;
+
       const data = (await response.json()) as {
         reviews?: RestaurantReview[];
       };
@@ -293,27 +306,33 @@ export default function RestaurantInfoTabs({
     } finally {
       setLoadingMore(false);
     }
-  }
+  }, [hasMoreReviews, loadingMore, restaurantId, reviews.length]);
 
-  function submitReview(formData: FormData) {
-    setReviewState(initialReviewState);
+  const submitReview = useCallback(
+    (formData: FormData) => {
+      setReviewState(initialReviewState);
 
-    startTransition(async () => {
-      const result = await createRestaurantReview(initialReviewState, formData);
+      startTransition(async () => {
+        const result = await createRestaurantReview(
+          initialReviewState,
+          formData,
+        );
 
-      setReviewState(result);
+        setReviewState(result);
 
-      if (result.success) {
-        setComment("");
-        setRating(5);
-        router.refresh();
-      }
-    });
-  }
+        if (result.success) {
+          setComment("");
+          setRating(5);
+          router.refresh();
+        }
+      });
+    },
+    [router],
+  );
 
   return (
     <section className="w-full max-w-full overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.055] p-3 shadow-2xl shadow-black/25 backdrop-blur-2xl md:rounded-[36px] md:p-6">
-      <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/30 p-1">
+      <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/30 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((tab) => {
           const active = activeTab === tab.key;
 
@@ -321,7 +340,8 @@ export default function RestaurantInfoTabs({
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
+              aria-pressed={active}
               className={
                 active
                   ? "shrink-0 whitespace-nowrap rounded-xl bg-amber-300 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-950"
@@ -336,7 +356,7 @@ export default function RestaurantInfoTabs({
 
       <div className="mt-5 max-w-full overflow-hidden">
         {activeTab === "about" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.aboutRestaurant}
             </p>
@@ -355,7 +375,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "hours" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.openingHours}
             </p>
@@ -383,7 +403,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "location" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.location}
             </p>
@@ -407,7 +427,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "food" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.foodType}
             </p>
@@ -441,7 +461,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "menu" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.restaurantMenu}
             </p>
@@ -475,7 +495,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "reviews" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
