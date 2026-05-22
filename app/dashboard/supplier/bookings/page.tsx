@@ -311,8 +311,38 @@ export default async function SupplierBookingsPage() {
 
   const { data: bookingsData, error } = await adminClient
     .from("bookings")
-    .select(`
-      *,
+    .select(
+      `
+      id,
+      booking_code,
+      customer_full_name,
+      customer_name,
+      name,
+      customer_email,
+      email,
+      customer_phone,
+      phone,
+      customer_whatsapp,
+      whatsapp,
+      restaurant_id,
+      supplier_id,
+      service_name,
+      agent_id,
+      booking_date,
+      booking_time,
+      guest_count,
+      guests,
+      note,
+      supplier_note,
+      cancellation_reason,
+      status,
+      total_bill,
+      customer_discount_amount,
+      platform_commission_amount,
+      agent_commission_amount,
+      platform_net_amount,
+      created_at,
+      updated_at,
       restaurants(id,name,slug,city,address),
       booking_status_logs(
         id,
@@ -322,7 +352,8 @@ export default async function SupplierBookingsPage() {
         note,
         created_at
       )
-    `)
+    `,
+    )
     .eq("supplier_id", supplier.id)
     .order("created_at", { ascending: false });
 

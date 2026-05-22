@@ -1,6 +1,13 @@
-import Link from 'next/link';
-import { requireAdmin } from '@/lib/auth';
-import { adminClient } from '@/lib/supabase/admin';
+import Link from "next/link";
+import { requireAdmin } from "@/lib/auth";
+import { adminClient } from "@/lib/supabase/admin";
+import { getCache, setCache } from "@/lib/cache/cache";
+
+type AdminDashboardStats = {
+  bookingsCount: number;
+  agentsCount: number;
+  suppliersCount: number;
+};
 
 type StatCardProps = {
   label: string;
@@ -10,10 +17,14 @@ type StatCardProps = {
   icon: string;
 };
 
+const ADMIN_DASHBOARD_CACHE_KEY = "admin:dashboard:overview:v1";
+const ADMIN_DASHBOARD_CACHE_TTL = 30;
+
 function StatCard({ label, value, description, href, icon }: StatCardProps) {
   return (
     <Link
       href={href}
+      prefetch
       className="group rounded-3xl border border-white/80 bg-white/90 p-6 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-xl"
     >
       <div className="flex items-center justify-between">
@@ -47,6 +58,7 @@ function ActionCard({
   return (
     <Link
       href={href}
+      prefetch
       className="group rounded-3xl border border-white/80 bg-white/90 p-6 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-xl"
     >
       <div className="flex items-start gap-4">
@@ -68,14 +80,32 @@ function ActionCard({
   );
 }
 
+async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
+  const cached = await getCache<AdminDashboardStats>(ADMIN_DASHBOARD_CACHE_KEY);
+
+  if (cached) return cached;
+
+  const [bookingsResult, agentsResult, suppliersResult] = await Promise.all([
+    adminClient.from("bookings").select("id", { count: "exact", head: true }),
+    adminClient.from("agents").select("id", { count: "exact", head: true }),
+    adminClient.from("suppliers").select("id", { count: "exact", head: true }),
+  ]);
+
+  const stats: AdminDashboardStats = {
+    bookingsCount: bookingsResult.count || 0,
+    agentsCount: agentsResult.count || 0,
+    suppliersCount: suppliersResult.count || 0,
+  };
+
+  await setCache(stats ? ADMIN_DASHBOARD_CACHE_KEY : "", stats, ADMIN_DASHBOARD_CACHE_TTL);
+
+  return stats;
+}
+
 export default async function AdminDashboardPage() {
   await requireAdmin();
 
-  const [bookingsResult, agentsResult, suppliersResult] = await Promise.all([
-    adminClient.from('bookings').select('id', { count: 'exact', head: true }),
-    adminClient.from('agents').select('id', { count: 'exact', head: true }),
-    adminClient.from('suppliers').select('id', { count: 'exact', head: true }),
-  ]);
+  const stats = await getAdminDashboardStats();
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#fbf7ef] px-4 py-6 md:px-6">
@@ -107,7 +137,7 @@ export default async function AdminDashboardPage() {
         <section className="grid gap-4 md:grid-cols-3">
           <StatCard
             label="Booking"
-            value={bookingsResult.count || 0}
+            value={stats.bookingsCount}
             description="Tổng booking đã được tạo trong hệ thống."
             href="/dashboard/admin/bookings"
             icon="📅"
@@ -115,7 +145,7 @@ export default async function AdminDashboardPage() {
 
           <StatCard
             label="Agent"
-            value={agentsResult.count || 0}
+            value={stats.agentsCount}
             description="CTV / đại lý đang tham gia hệ thống."
             href="/dashboard/admin/agents"
             icon="👥"
@@ -123,7 +153,7 @@ export default async function AdminDashboardPage() {
 
           <StatCard
             label="Supplier"
-            value={suppliersResult.count || 0}
+            value={stats.suppliersCount}
             description="Nhà cung cấp, nhà hàng và đối tác hợp tác."
             href="/dashboard/admin/suppliers"
             icon="🏢"

@@ -182,7 +182,7 @@ export default async function SupplierDashboardPage() {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/dashboard/supplier/bookings"
-                prefetch={false}
+                prefetch
                 className="inline-flex items-center justify-center rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
               >
                 Booking List →
@@ -190,7 +190,7 @@ export default async function SupplierDashboardPage() {
 
               <Link
                 href="/dashboard/supplier/restaurants"
-                prefetch={false}
+                prefetch
                 className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-black text-white transition hover:bg-white/10"
               >
                 My Restaurants →

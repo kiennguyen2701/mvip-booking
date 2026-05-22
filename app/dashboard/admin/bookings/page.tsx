@@ -57,6 +57,9 @@ type RestaurantRow = {
   name?: string | null;
   slug?: string | null;
   supplier_id?: string | null;
+  city?: string | null;
+  address?: string | null;
+  phone?: string | null;
 };
 
 type AgentRow = {
@@ -112,13 +115,10 @@ function calculateCommission(totalBill: number) {
   };
 }
 
-function getGuestCount(booking: BookingRow) {
-  return booking.guests ?? booking.guest_count ?? 1;
-}
-
 async function triggerEmailWorker() {
   try {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.mvipbooking.com";
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://www.mvipbooking.com";
     const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET || "";
     const url = new URL("/api/email/process", siteUrl);
 
@@ -267,7 +267,9 @@ async function updateBookingStatus(formData: FormData) {
     .eq("id", id);
 
   if (error) {
-    redirect(`/dashboard/admin/bookings?error=${encodeURIComponent(error.message)}`);
+    redirect(
+      `/dashboard/admin/bookings?error=${encodeURIComponent(error.message)}`,
+    );
   }
 
   await adminClient.from("booking_status_logs").insert({
@@ -305,65 +307,27 @@ async function updateBookingStatus(formData: FormData) {
     ]);
 
     await enqueueBookingCompletedEmailJob({
-  bookingId: booking.id,
-
-  customerEmail: booking.email,
-  supplierEmail,
-  agentEmail,
-  adminEmail:
-    process.env.ADMIN_EMAIL ||
-    process.env.EMAIL_TEST_TO ||
-    null,
-
-  customerName:
-    booking.customer_name ||
-    booking.name ||
-    "Customer",
-
-  restaurantName:
-    booking.service_name ||
-    "Restaurant",
-
-  bookingCode:
-    booking.booking_code ||
-    booking.id,
-
-  bookingDate:
-    booking.booking_date || "",
-
-  bookingTime:
-    booking.booking_time || "",
-
-  guests:
-    booking.guests ||
-    booking.guest_count ||
-    1,
-
-  phone:
-    booking.phone || "",
-
-  whatsapp:
-    booking.whatsapp || "",
-
-  totalBill,
-
-  customerDiscountAmount:
-    amounts.customerDiscountAmount,
-
-  platformCommissionAmount:
-    amounts.platformCommissionAmount,
-
-  agentCommissionAmount:
-    amounts.agentCommissionAmount,
-
-  platformNetAmount:
-    amounts.platformNetAmount,
-}).catch((error: unknown) => {
-  console.error(
-    "ENQUEUE_ADMIN_COMPLETED_EMAIL_ERROR:",
-    error,
-  );
-});
+      bookingId: booking.id,
+      customerEmail: booking.email,
+      supplierEmail,
+      agentEmail,
+      adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_TEST_TO || null,
+      customerName: booking.customer_name || booking.name || "Customer",
+      restaurantName: booking.service_name || "Restaurant",
+      bookingCode: booking.booking_code || booking.id,
+      bookingDate: booking.booking_date || "",
+      bookingTime: booking.booking_time || "",
+      guests: booking.guests || booking.guest_count || 1,
+      phone: booking.phone || "",
+      whatsapp: booking.whatsapp || "",
+      totalBill,
+      customerDiscountAmount: amounts.customerDiscountAmount,
+      platformCommissionAmount: amounts.platformCommissionAmount,
+      agentCommissionAmount: amounts.agentCommissionAmount,
+      platformNetAmount: amounts.platformNetAmount,
+    }).catch((error: unknown) => {
+      console.error("ENQUEUE_ADMIN_COMPLETED_EMAIL_ERROR:", error);
+    });
 
     await triggerEmailWorker();
   }
@@ -416,7 +380,9 @@ async function deleteBooking(formData: FormData) {
   const { error } = await adminClient.from("bookings").delete().eq("id", id);
 
   if (error) {
-    redirect(`/dashboard/admin/bookings?error=${encodeURIComponent(error.message)}`);
+    redirect(
+      `/dashboard/admin/bookings?error=${encodeURIComponent(error.message)}`,
+    );
   }
 
   revalidatePath("/dashboard/admin/bookings");
@@ -436,7 +402,29 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
     .from("bookings")
     .select(
       `
-      *,
+      id,
+      booking_code,
+      customer_name,
+      name,
+      phone,
+      email,
+      whatsapp,
+      restaurant_id,
+      supplier_id,
+      service_name,
+      agent_id,
+      status,
+      booking_date,
+      booking_time,
+      guests,
+      guest_count,
+      total_bill,
+      customer_discount_amount,
+      platform_commission_amount,
+      agent_commission_amount,
+      platform_net_amount,
+      cancellation_reason,
+      created_at,
       booking_status_logs(
         id,
         old_status,
@@ -479,12 +467,15 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
     restaurantIds.length
       ? adminClient
           .from("restaurants")
-          .select("id, name, slug, supplier_id")
+          .select("id, name, slug, supplier_id, city, address, phone")
           .in("id", restaurantIds)
       : Promise.resolve({ data: [] }),
 
     agentIds.length
-      ? adminClient.from("agents").select("*").in("id", agentIds)
+      ? adminClient
+          .from("agents")
+          .select("id, name, full_name, email, referral_code, ref_code, agent_code, code")
+          .in("id", agentIds)
       : Promise.resolve({ data: [] }),
   ]);
 
