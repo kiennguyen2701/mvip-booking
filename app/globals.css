@@ -74,6 +74,25 @@ button {
 
 select {
   min-width: 0;
+  color-scheme: light;
+}
+
+select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+select option:checked,
+select option:hover {
+  background-color: #f59e0b;
+  color: #0f172a;
+}
+
+.bg-\[\#181815\] option,
+.bg-\[\#070604\] option,
+.bg-black option {
+  background-color: #ffffff;
+  color: #0f172a;
 }
 
 a {
@@ -192,6 +211,7 @@ svg {
     font-size: 16px !important;
   }
 }
+
 /* =========================================
    Mobile touch feedback
 ========================================= */
@@ -201,16 +221,6 @@ a,
 [role="button"],
 select {
   -webkit-tap-highlight-color: rgba(250, 204, 21, 0.22);
-}
-
-.touch-feedback {
-  transition:
-    transform 160ms ease,
-    border-color 160ms ease,
-    background-color 160ms ease,
-    opacity 160ms ease,
-    box-shadow 160ms ease;
-  will-change: transform;
 }
 
 .touch-feedback {
@@ -237,6 +247,7 @@ select {
     opacity: 0.94;
   }
 }
+
 @keyframes tapBounce {
   0% {
     transform: scale(1);
