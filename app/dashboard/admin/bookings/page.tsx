@@ -29,7 +29,6 @@ type BookingRow = {
   id: string;
   booking_code?: string | null;
   customer_name?: string | null;
-  name?: string | null;
   phone?: string | null;
   email?: string | null;
   whatsapp?: string | null;
@@ -119,7 +118,8 @@ async function triggerEmailWorker() {
   try {
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://www.mvipbooking.com";
-    const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET || "";
+    const secret =
+      process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET || "";
     const url = new URL("/api/email/process", siteUrl);
 
     if (secret) {
@@ -290,7 +290,7 @@ async function updateBookingStatus(formData: FormData) {
     await enqueueBookingConfirmedEmailJob({
       bookingId: id,
       customerEmail: booking.email,
-      customerName: booking.customer_name || booking.name || "Customer",
+      customerName: booking.customer_name || "Customer",
       restaurantName: booking.service_name || "Restaurant",
       bookingCode: booking.booking_code || booking.id,
       bookingDate: booking.booking_date || "",
@@ -312,7 +312,7 @@ async function updateBookingStatus(formData: FormData) {
       supplierEmail,
       agentEmail,
       adminEmail: process.env.ADMIN_EMAIL || process.env.EMAIL_TEST_TO || null,
-      customerName: booking.customer_name || booking.name || "Customer",
+      customerName: booking.customer_name || "Customer",
       restaurantName: booking.service_name || "Restaurant",
       bookingCode: booking.booking_code || booking.id,
       bookingDate: booking.booking_date || "",
@@ -344,7 +344,7 @@ async function updateBookingStatus(formData: FormData) {
       supplierEmail,
       agentEmail,
       adminEmail: process.env.ADMIN_EMAIL || null,
-      customerName: booking.customer_name || booking.name || "Customer",
+      customerName: booking.customer_name || "Customer",
       restaurantName: booking.service_name || "Restaurant",
       bookingCode: booking.booking_code || booking.id,
       bookingDate: booking.booking_date || "",
@@ -405,7 +405,6 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
       id,
       booking_code,
       customer_name,
-      name,
       phone,
       email,
       whatsapp,
@@ -474,7 +473,9 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
     agentIds.length
       ? adminClient
           .from("agents")
-          .select("id, name, full_name, email, referral_code, ref_code, agent_code, code")
+          .select(
+            "id, name, full_name, email, referral_code, ref_code, agent_code, code",
+          )
           .in("id", agentIds)
       : Promise.resolve({ data: [] }),
   ]);
