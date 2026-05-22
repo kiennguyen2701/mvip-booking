@@ -95,7 +95,7 @@ export default function HeaderMobileMenu({
             <>
               <Link
                 href={dashboardHref}
-                prefetch={false}
+                prefetch
                 onClick={() => setOpen(false)}
                 className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
               >
@@ -106,7 +106,7 @@ export default function HeaderMobileMenu({
                 <>
                   <Link
                     href="/dashboard/customer/bookings"
-                    prefetch={false}
+                    prefetch
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
                   >
@@ -115,7 +115,7 @@ export default function HeaderMobileMenu({
 
                   <Link
                     href="/dashboard/customer/profile"
-                    prefetch={false}
+                    prefetch
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-amber-300 px-4 py-4 text-base font-black text-slate-950"
                   >
@@ -128,7 +128,7 @@ export default function HeaderMobileMenu({
                 <>
                   <Link
                     href="/dashboard/supplier/bookings"
-                    prefetch={false}
+                    prefetch
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
                   >
@@ -137,7 +137,7 @@ export default function HeaderMobileMenu({
 
                   <Link
                     href="/dashboard/supplier/restaurants"
-                    prefetch={false}
+                    prefetch
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
                   >
@@ -146,7 +146,7 @@ export default function HeaderMobileMenu({
 
                   <Link
                     href="/dashboard/supplier/profile"
-                    prefetch={false}
+                    prefetch
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-amber-300 px-4 py-4 text-base font-black text-slate-950"
                   >
@@ -155,7 +155,7 @@ export default function HeaderMobileMenu({
 
                   <Link
                     href="/dashboard/supplier/change-password"
-                    prefetch={false}
+                    prefetch
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
                   >
@@ -172,7 +172,7 @@ export default function HeaderMobileMenu({
             <>
               <Link
                 href="/login"
-                prefetch={false}
+                prefetch
                 onClick={() => setOpen(false)}
                 className="block rounded-2xl bg-white/10 px-4 py-4 text-center text-base font-black"
               >
@@ -181,7 +181,7 @@ export default function HeaderMobileMenu({
 
               <Link
                 href="/login?mode=register"
-                prefetch={false}
+                prefetch
                 onClick={() => setOpen(false)}
                 className="block rounded-2xl bg-amber-300 px-4 py-4 text-center text-base font-black text-slate-950"
               >

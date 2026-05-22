@@ -51,29 +51,35 @@ export default async function CustomerPage() {
     redirect("/login");
   }
 
-  const { data: profileRow } = await supabase
-    .from("profiles")
-    .select("full_name, email, role, referred_by_ref_code, preferred_language")
-    .eq("id", user.id)
-    .maybeSingle();
+  const [profileResult, restaurantsResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, email, role, referred_by_ref_code, preferred_language")
+      .eq("id", user.id)
+      .maybeSingle(),
 
+    supabase
+      .from("restaurants")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const profileRow = profileResult.data;
   const role = profileRow?.role || user.user_metadata?.role;
 
   if (role && role !== "customer") {
     redirect("/dashboard");
   }
 
-  const { data: restaurantsData, error: restaurantsError } = await supabase
-    .from("restaurants")
-    .select("*")
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
-
-  if (restaurantsError) {
-    console.error("CUSTOMER_DASHBOARD_RESTAURANTS_ERROR:", restaurantsError);
+  if (restaurantsResult.error) {
+    console.error(
+      "CUSTOMER_DASHBOARD_RESTAURANTS_ERROR:",
+      restaurantsResult.error,
+    );
   }
 
-  const restaurants = restaurantsData || [];
+  const restaurants = restaurantsResult.data || [];
   const restaurantIds = restaurants
     .map((item) => item.id)
     .filter((id): id is string => Boolean(id));
@@ -84,18 +90,22 @@ export default async function CustomerPage() {
     const allReviewRows: ReviewRow[] = [];
     const chunks = chunkArray(restaurantIds, 150);
 
-    for (const chunk of chunks) {
-      const { data: reviewRows, error: reviewError } = await supabase
-        .from("restaurant_reviews")
-        .select("restaurant_id, rating")
-        .in("restaurant_id", chunk);
+    const reviewResults = await Promise.all(
+      chunks.map((chunk) =>
+        supabase
+          .from("restaurant_reviews")
+          .select("restaurant_id, rating")
+          .in("restaurant_id", chunk),
+      ),
+    );
 
-      if (reviewError) {
-        console.error("CUSTOMER_DASHBOARD_REVIEW_RATING_ERROR:", reviewError);
+    for (const result of reviewResults) {
+      if (result.error) {
+        console.error("CUSTOMER_DASHBOARD_REVIEW_RATING_ERROR:", result.error);
         continue;
       }
 
-      allReviewRows.push(...((reviewRows || []) as ReviewRow[]));
+      allReviewRows.push(...((result.data || []) as ReviewRow[]));
     }
 
     ratingMap = buildRatingMap(allReviewRows);

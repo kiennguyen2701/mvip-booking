@@ -292,12 +292,8 @@ const RestaurantCard = memo(function RestaurantCard({
   language: PreferredLanguage;
 }) {
   const t = CUSTOMER_COPY[language];
-
-  const image = useMemo(() => getImage(restaurant), [restaurant]);
-  const cuisine = useMemo(
-    () => getCuisine(restaurant, language, t.signatureDining),
-    [restaurant, language, t.signatureDining],
-  );
+  const image = getImage(restaurant);
+  const cuisine = getCuisine(restaurant, language, t.signatureDining);
   const discount = getDiscount(restaurant);
   const rating = getAverageRating(restaurant);
   const restaurantName = getRestaurantName(
