@@ -1,14 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  memo,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BookingStatusTimeline } from "@/components/dashboard/booking-status-timeline";
 
@@ -74,9 +67,6 @@ export type AdminBookingRow = {
   booking_status_logs?: BookingLog[] | null;
 };
 
-const INITIAL_VISIBLE_COUNT = 35;
-const LOAD_MORE_COUNT = 35;
-
 const FILTERS: { label: string; value: FilterStatus }[] = [
   { label: "Tất cả", value: "all" },
   { label: "Pending", value: "pending" },
@@ -92,19 +82,12 @@ function normalizeStatus(status?: string | null): BookingStatus {
   return "pending";
 }
 
-function normalizeSearch(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .trim();
-}
-
 function getAllowedNextStatuses(status?: string | null): BookingStatus[] {
   const value = normalizeStatus(status);
+
   if (value === "pending") return ["confirmed", "cancelled"];
   if (value === "confirmed") return ["completed", "cancelled"];
+
   return [];
 }
 
@@ -119,9 +102,13 @@ function formatMoney(value?: number | null) {
 
 function getStatusClass(status?: string | null) {
   const value = normalizeStatus(status);
+
   if (value === "confirmed") return "bg-blue-50 text-blue-700 border-blue-200";
-  if (value === "completed") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (value === "completed") {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  }
   if (value === "cancelled") return "bg-red-50 text-red-700 border-red-200";
+
   return "bg-amber-50 text-amber-700 border-amber-200";
 }
 
@@ -130,7 +117,13 @@ function getAgentName(agent?: AgentRow | null) {
 }
 
 function getAgentRef(agent?: AgentRow | null) {
-  return agent?.referral_code || agent?.ref_code || agent?.agent_code || agent?.code || "-";
+  return (
+    agent?.referral_code ||
+    agent?.ref_code ||
+    agent?.agent_code ||
+    agent?.code ||
+    "-"
+  );
 }
 
 function getCustomerName(booking: AdminBookingRow) {
@@ -164,16 +157,20 @@ function getRestaurantPhone(booking: AdminBookingRow) {
 function getRestaurantLocation(booking: AdminBookingRow) {
   const city = booking.restaurants?.city || "";
   const address = booking.restaurants?.address || "";
+
   if (address && city) return `${city} · ${address}`;
   if (address) return address;
   if (city) return city;
+
   return "-";
 }
 
 function getAgentPlatformCommissionAmount(booking: AdminBookingRow) {
   return Number(
     booking.platform_commission_amount ??
-      (Number(booking.total_bill ?? 0) > 0 ? Number(booking.total_bill ?? 0) * 0.1 : 0),
+      (Number(booking.total_bill ?? 0) > 0
+        ? Number(booking.total_bill ?? 0) * 0.1
+        : 0),
   );
 }
 
@@ -187,40 +184,31 @@ function getLogs(booking: AdminBookingRow): BookingLog[] {
       note: log.note,
       created_at: log.created_at,
     }))
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-}
-
-function getSearchText(booking: AdminBookingRow) {
-  return normalizeSearch(
-    [
-      booking.booking_code,
-      booking.id,
-      getCustomerName(booking),
-      booking.email,
-      booking.phone,
-      booking.whatsapp,
-      getRestaurantName(booking),
-      getRestaurantPhone(booking),
-      getAgentName(booking.agent),
-      getAgentRef(booking.agent),
-      booking.booking_date,
-      booking.booking_time,
-      normalizeStatus(booking.status),
-    ]
-      .filter(Boolean)
-      .join(" "),
-  );
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
 }
 
 function StatusBadge({ status }: { status?: string | null }) {
   return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getStatusClass(status)}`}>
+    <span
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getStatusClass(
+        status,
+      )}`}
+    >
       {normalizeStatus(status)}
     </span>
   );
 }
 
-function MessageBlock({ success, error }: { success?: string; error?: string }) {
+function MessageBlock({
+  success,
+  error,
+}: {
+  success?: string;
+  error?: string;
+}) {
   if (success === "updated") {
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
@@ -265,17 +253,29 @@ function MessageBlock({ success, error }: { success?: string; error?: string }) 
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">{label}</p>
+      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
+        {label}
+      </p>
       <p className="mt-2 break-words text-sm font-bold text-white">{value}</p>
     </div>
   );
 }
 
-function MoneyInfo({ label, value }: { label: string; value?: number | null }) {
+function MoneyInfo({
+  label,
+  value,
+}: {
+  label: string;
+  value?: number | null;
+}) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">{label}</p>
-      <p className="mt-2 text-base font-black text-white">{formatMoney(value)}đ</p>
+      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
+        {label}
+      </p>
+      <p className="mt-2 text-base font-black text-white">
+        {formatMoney(value)}đ
+      </p>
     </div>
   );
 }
@@ -283,13 +283,17 @@ function MoneyInfo({ label, value }: { label: string; value?: number | null }) {
 function TextBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/10 p-4">
-      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">{label}</p>
-      <p className="mt-2 break-words text-sm font-semibold leading-6 text-white/90">{value}</p>
+      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
+        {label}
+      </p>
+      <p className="mt-2 break-words text-sm font-semibold leading-6 text-white/90">
+        {value}
+      </p>
     </div>
   );
 }
 
-const QuickUpdateForm = memo(function QuickUpdateForm({
+function QuickUpdateForm({
   booking,
   updateAction,
   dark = false,
@@ -319,7 +323,13 @@ const QuickUpdateForm = memo(function QuickUpdateForm({
       <input type="hidden" name="id" value={booking.id} />
 
       <label className="grid gap-2">
-        <span className={dark ? "text-xs font-black uppercase tracking-[0.18em] text-slate-300" : "text-xs font-black uppercase tracking-wide text-slate-500"}>
+        <span
+          className={
+            dark
+              ? "text-xs font-black uppercase tracking-[0.18em] text-slate-300"
+              : "text-xs font-black uppercase tracking-wide text-slate-500"
+          }
+        >
           Trạng thái
         </span>
 
@@ -347,7 +357,13 @@ const QuickUpdateForm = memo(function QuickUpdateForm({
 
       {normalizeStatus(booking.status) === "confirmed" ? (
         <label className="grid gap-2">
-          <span className={dark ? "text-xs font-black uppercase tracking-[0.18em] text-slate-300" : "text-xs font-black uppercase tracking-wide text-slate-500"}>
+          <span
+            className={
+              dark
+                ? "text-xs font-black uppercase tracking-[0.18em] text-slate-300"
+                : "text-xs font-black uppercase tracking-wide text-slate-500"
+            }
+          >
             Tổng bill nếu completed
           </span>
 
@@ -370,7 +386,13 @@ const QuickUpdateForm = memo(function QuickUpdateForm({
       )}
 
       <label className="grid gap-2">
-        <span className={dark ? "text-xs font-black uppercase tracking-[0.18em] text-slate-300" : "text-xs font-black uppercase tracking-wide text-slate-500"}>
+        <span
+          className={
+            dark
+              ? "text-xs font-black uppercase tracking-[0.18em] text-slate-300"
+              : "text-xs font-black uppercase tracking-wide text-slate-500"
+          }
+        >
           Lý do hủy nếu cancelled
         </span>
 
@@ -397,7 +419,7 @@ const QuickUpdateForm = memo(function QuickUpdateForm({
       </button>
     </form>
   );
-});
+}
 
 function QuickUpdateDetails({
   booking,
@@ -419,6 +441,7 @@ function QuickUpdateDetails({
       <summary className="cursor-pointer text-xs font-black text-slate-700">
         Cập nhật nhanh
       </summary>
+
       <div className="mt-3">
         <QuickUpdateForm booking={booking} updateAction={updateAction} />
       </div>
@@ -454,12 +477,19 @@ function BookingDetailModal({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/70 px-3 py-6 backdrop-blur-md md:px-6">
-      <button type="button" aria-label="Close modal" className="absolute inset-0 cursor-default" onClick={onClose} />
+      <button
+        type="button"
+        aria-label="Close modal"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
 
       <section className="relative z-[81] w-full max-w-6xl overflow-hidden rounded-[32px] border border-white/10 bg-[#11110f] text-white shadow-2xl">
         <header className="flex flex-col gap-4 border-b border-white/10 px-5 py-5 md:flex-row md:items-start md:justify-between md:px-7">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.35em] text-amber-300">Booking Detail</p>
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-amber-300">
+              Booking Detail
+            </p>
             <h2 className="mt-2 break-words text-2xl font-black md:text-3xl">
               {booking.booking_code || booking.id}
             </h2>
@@ -467,6 +497,7 @@ function BookingDetailModal({
 
           <div className="flex items-center gap-3">
             <StatusBadge status={booking.status} />
+
             <button
               type="button"
               onClick={onClose}
@@ -480,7 +511,10 @@ function BookingDetailModal({
         <div className="grid gap-5 p-5 lg:grid-cols-[1fr_380px] lg:p-7">
           <div className="space-y-5">
             <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-              <h3 className="text-base font-black uppercase tracking-[0.25em] text-amber-300">Thông tin booking</h3>
+              <h3 className="text-base font-black uppercase tracking-[0.25em] text-amber-300">
+                Thông tin booking
+              </h3>
+
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <Info label="Khách hàng" value={getCustomerName(booking)} />
                 <Info label="Email" value={getCustomerEmail(booking)} />
@@ -498,12 +532,24 @@ function BookingDetailModal({
             </section>
 
             <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-              <h3 className="text-base font-black uppercase tracking-[0.25em] text-amber-300">Bill & Commission</h3>
+              <h3 className="text-base font-black uppercase tracking-[0.25em] text-amber-300">
+                Bill & Commission
+              </h3>
+
               <div className="mt-5 grid gap-3 md:grid-cols-4">
                 <MoneyInfo label="Total bill" value={booking.total_bill} />
-                <MoneyInfo label="Customer off 5%" value={booking.customer_discount_amount} />
-                <MoneyInfo label="Agent + Platform 10%" value={getAgentPlatformCommissionAmount(booking)} />
-                <MoneyInfo label="Platform net 5%" value={booking.platform_net_amount} />
+                <MoneyInfo
+                  label="Customer off 5%"
+                  value={booking.customer_discount_amount}
+                />
+                <MoneyInfo
+                  label="Agent + Platform 10%"
+                  value={getAgentPlatformCommissionAmount(booking)}
+                />
+                <MoneyInfo
+                  label="Platform net 5%"
+                  value={booking.platform_net_amount}
+                />
               </div>
             </section>
 
@@ -511,26 +557,48 @@ function BookingDetailModal({
               <TextBlock label="Lý do hủy" value={booking.cancellation_reason} />
             ) : null}
 
-            <BookingStatusTimeline logs={logs} />
+            <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+              <h3 className="text-base font-black uppercase tracking-[0.25em] text-amber-300">
+                Timeline
+              </h3>
+
+              <div className="mt-4 rounded-3xl bg-white p-4 text-slate-950">
+                <BookingStatusTimeline logs={logs} />
+              </div>
+            </section>
           </div>
 
           <aside className="space-y-4">
-            <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-              <h3 className="text-base font-black uppercase tracking-[0.25em] text-amber-300">Update Status</h3>
-              {locked ? (
-                <p className="mt-4 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-slate-300">
-                  Booking đã {normalizeStatus(booking.status)} nên không thể cập nhật tiếp.
-                </p>
-              ) : (
-                <div className="mt-4">
-                  <QuickUpdateForm booking={booking} updateAction={updateAction} dark />
-                </div>
-              )}
+            <section className="rounded-[28px] border border-amber-300/30 bg-amber-300/10 p-5">
+              <h3 className="text-lg font-black text-white">
+                Cập nhật trạng thái
+              </h3>
+
+              <p className="mt-2 text-xs leading-5 text-slate-300">
+                Pending chỉ được Confirmed/Cancelled. Confirmed chỉ được
+                Completed/Cancelled.
+              </p>
+
+              <div className="mt-4">
+                {locked ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-4 text-sm font-bold text-slate-300">
+                    Booking đã {normalizeStatus(booking.status)} nên không thể
+                    cập nhật tiếp.
+                  </div>
+                ) : (
+                  <QuickUpdateForm
+                    booking={booking}
+                    updateAction={updateAction}
+                    dark
+                  />
+                )}
+              </div>
             </section>
 
             <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
               <h3 className="text-sm font-black text-white">Quick Rule</h3>
-              <div className="mt-3 space-y-2 text-xs font-semibold leading-5 text-slate-400">
+
+              <div className="mt-3 space-y-2 text-xs font-semibold leading-5 text-slate-300">
                 <p>• Pending → Confirmed / Cancelled</p>
                 <p>• Confirmed → Completed / Cancelled</p>
                 <p>• Completed / Cancelled → Locked</p>
@@ -561,58 +629,62 @@ export function AdminBookingsClient({
   deleteAction: (formData: FormData) => void | Promise<void>;
 }) {
   const router = useRouter();
-
   const [activeStatus, setActiveStatus] = useState<FilterStatus>(initialStatus);
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
-  const [selectedBooking, setSelectedBooking] = useState<AdminBookingRow | null>(null);
+  const [selectedBooking, setSelectedBooking] =
+    useState<AdminBookingRow | null>(null);
   const [isRefreshing, startRefresh] = useTransition();
 
-  const countByStatus = useMemo(() => {
-    const counts = { all: bookings.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
-    for (const booking of bookings) counts[normalizeStatus(booking.status)] += 1;
-    return counts;
-  }, [bookings]);
+  const countByStatus = useMemo(
+    () => ({
+      all: bookings.length,
+      pending: bookings.filter(
+        (item) => normalizeStatus(item.status) === "pending",
+      ).length,
+      confirmed: bookings.filter(
+        (item) => normalizeStatus(item.status) === "confirmed",
+      ).length,
+      completed: bookings.filter(
+        (item) => normalizeStatus(item.status) === "completed",
+      ).length,
+      cancelled: bookings.filter(
+        (item) => normalizeStatus(item.status) === "cancelled",
+      ).length,
+    }),
+    [bookings],
+  );
 
   const totalCompletedRevenue = useMemo(
     () =>
-      bookings.reduce(
-        (sum, item) => sum + (normalizeStatus(item.status) === "completed" ? Number(item.total_bill || 0) : 0),
-        0,
-      ),
+      bookings
+        .filter((item) => normalizeStatus(item.status) === "completed")
+        .reduce((sum, item) => sum + Number(item.total_bill || 0), 0),
     [bookings],
   );
 
   const filteredBookings = useMemo(() => {
-    const keyword = normalizeSearch(deferredSearch);
+    if (activeStatus === "all") return bookings;
 
-    return bookings.filter((booking) => {
-      const statusMatch = activeStatus === "all" || normalizeStatus(booking.status) === activeStatus;
-      const searchMatch = !keyword || getSearchText(booking).includes(keyword);
-      return statusMatch && searchMatch;
-    });
-  }, [activeStatus, bookings, deferredSearch]);
-
-  const visibleBookings = useMemo(
-    () => filteredBookings.slice(0, visibleCount),
-    [filteredBookings, visibleCount],
-  );
+    return bookings.filter(
+      (booking) => normalizeStatus(booking.status) === activeStatus,
+    );
+  }, [activeStatus, bookings]);
 
   const hasLiveBookings = useMemo(
-    () => bookings.some((booking) => ["pending", "confirmed"].includes(normalizeStatus(booking.status))),
+    () =>
+      bookings.some((booking) => {
+        const status = normalizeStatus(booking.status);
+        return status === "pending" || status === "confirmed";
+      }),
     [bookings],
   );
-
-  useEffect(() => {
-    setVisibleCount(INITIAL_VISIBLE_COUNT);
-  }, [activeStatus, deferredSearch]);
 
   useEffect(() => {
     if (!hasLiveBookings) return;
 
     const timer = window.setInterval(() => {
-      startRefresh(() => router.refresh());
+      startRefresh(() => {
+        router.refresh();
+      });
     }, 15000);
 
     return () => window.clearInterval(timer);
@@ -622,8 +694,12 @@ export function AdminBookingsClient({
     <div className="relative mx-auto max-w-7xl space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <p className="text-xs font-black uppercase tracking-wide text-amber-700">Admin Dashboard</p>
-          <h1 className="mt-1 text-2xl font-black text-slate-950">Quản lý booking</h1>
+          <p className="text-xs font-black uppercase tracking-wide text-amber-700">
+            Admin Dashboard
+          </p>
+          <h1 className="mt-1 text-2xl font-black text-slate-950">
+            Quản lý booking
+          </h1>
           <p className="mt-1 text-sm text-slate-500">
             Pending chỉ được confirm/cancel. Confirmed chỉ được completed/cancel.
           </p>
@@ -631,7 +707,6 @@ export function AdminBookingsClient({
 
         <Link
           href="/dashboard/admin"
-          prefetch
           className="w-fit rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
         >
           Tổng quan
@@ -645,7 +720,9 @@ export function AdminBookingsClient({
               Doanh thu completed: {formatMoney(totalCompletedRevenue)}đ
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              {isRefreshing ? "Đang đồng bộ dữ liệu booking mới..." : `Đang hiển thị ${visibleBookings.length}/${filteredBookings.length} booking.`}
+              {isRefreshing
+                ? "Đang đồng bộ dữ liệu booking mới..."
+                : "Tab status xử lý trực tiếp trên client, không reload trang."}
             </p>
           </div>
 
@@ -671,13 +748,6 @@ export function AdminBookingsClient({
             })}
           </div>
         </div>
-
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Tìm booking, khách, SĐT, email, nhà hàng, agent..."
-          className="mt-4 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-300"
-        />
       </section>
 
       <MessageBlock success={success} error={error} />
@@ -699,49 +769,74 @@ export function AdminBookingsClient({
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {visibleBookings.map((booking) => {
+              {filteredBookings.map((booking) => {
                 const agent = booking.agent;
 
                 return (
                   <tr key={booking.id} className="align-top hover:bg-slate-50/70">
                     <td className="px-4 py-4">
-                      <p className="font-black text-slate-950">{booking.booking_code || booking.id.slice(0, 8)}</p>
+                      <p className="font-black text-slate-950">
+                        {booking.booking_code || booking.id.slice(0, 8)}
+                      </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {booking.created_at ? new Date(booking.created_at).toLocaleString("vi-VN") : "-"}
+                        {booking.created_at
+                          ? new Date(booking.created_at).toLocaleString("vi-VN")
+                          : "-"}
                       </p>
                     </td>
 
                     <td className="px-4 py-4">
-                      <p className="font-bold text-slate-950">{getCustomerName(booking)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{booking.phone || "-"}</p>
-                      <p className="mt-1 text-xs text-slate-500">WA: {booking.whatsapp || booking.phone || "-"}</p>
-                      <p className="mt-1 text-xs text-slate-500">{booking.email || "-"}</p>
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <p className="font-bold text-slate-950">{getRestaurantName(booking)}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{getRestaurantPhone(booking)}</p>
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <p className="font-bold text-slate-950">{booking.booking_date || "-"}</p>
+                      <p className="font-bold text-slate-950">
+                        {getCustomerName(booking)}
+                      </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {booking.booking_time || "-"} · {getGuestCount(booking)} khách
+                        {booking.phone || "-"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        WA: {booking.whatsapp || booking.phone || "-"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {booking.email || "-"}
                       </p>
                     </td>
 
                     <td className="px-4 py-4">
-                      <p className="font-bold text-slate-950">{getAgentName(agent)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{getAgentRef(agent)}</p>
+                      <p className="font-bold text-slate-950">
+                        {getRestaurantName(booking)}
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {getRestaurantPhone(booking)}
+                      </p>
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <p className="font-bold text-slate-950">
+                        {booking.booking_date || "-"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {booking.booking_time || "-"} · {getGuestCount(booking)}{" "}
+                        khách
+                      </p>
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <p className="font-bold text-slate-950">
+                        {getAgentName(agent)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {getAgentRef(agent)}
+                      </p>
                     </td>
 
                     <td className="px-4 py-4">
                       <StatusBadge status={booking.status} />
+
                       {normalizeStatus(booking.status) === "cancelled" ? (
                         <p className="mt-2 max-w-[180px] text-xs text-red-600">
                           {booking.cancellation_reason || "Chưa nhập lý do"}
                         </p>
                       ) : null}
+
                       {normalizeStatus(booking.status) === "completed" ? (
                         <p className="mt-2 text-xs font-bold text-emerald-700">
                           Total: {formatMoney(booking.total_bill)}đ
@@ -750,12 +845,16 @@ export function AdminBookingsClient({
                     </td>
 
                     <td className="px-4 py-4">
-                      <p className="font-bold text-slate-950">{formatMoney(booking.total_bill)}đ</p>
+                      <p className="font-bold text-slate-950">
+                        {formatMoney(booking.total_bill)}đ
+                      </p>
                       <p className="mt-1 text-xs text-emerald-700">
-                        Discount: {formatMoney(booking.customer_discount_amount)}đ
+                        Discount: {formatMoney(booking.customer_discount_amount)}
+                        đ
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Platform: {formatMoney(booking.platform_commission_amount)}đ
+                        Platform:{" "}
+                        {formatMoney(booking.platform_commission_amount)}đ
                       </p>
                     </td>
 
@@ -769,11 +868,18 @@ export function AdminBookingsClient({
                           Chi tiết
                         </button>
 
-                        <QuickUpdateDetails booking={booking} updateAction={updateAction} />
+                        <QuickUpdateDetails
+                          booking={booking}
+                          updateAction={updateAction}
+                        />
 
                         <form action={deleteAction}>
                           <input type="hidden" name="id" value={booking.id} />
-                          <input type="hidden" name="current_status" value={activeStatus} />
+                          <input
+                            type="hidden"
+                            name="current_status"
+                            value={activeStatus}
+                          />
                           <button className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50">
                             Xóa
                           </button>
@@ -786,7 +892,10 @@ export function AdminBookingsClient({
 
               {!filteredBookings.length ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td
+                    colSpan={8}
+                    className="px-4 py-10 text-center text-sm text-slate-500"
+                  >
                     Chưa có booking nào trong trạng thái này.
                   </td>
                 </tr>
@@ -794,18 +903,6 @@ export function AdminBookingsClient({
             </tbody>
           </table>
         </div>
-
-        {visibleBookings.length < filteredBookings.length ? (
-          <div className="border-t border-slate-100 p-4 text-center">
-            <button
-              type="button"
-              onClick={() => setVisibleCount((current) => current + LOAD_MORE_COUNT)}
-              className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-black text-white hover:bg-slate-800"
-            >
-              Load more ({visibleBookings.length}/{filteredBookings.length})
-            </button>
-          </div>
-        ) : null}
       </section>
 
       {selectedBooking ? (

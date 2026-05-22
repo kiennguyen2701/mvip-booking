@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { BookingStatusTimeline } from "@/components/dashboard/booking-status-timeline";
@@ -35,40 +29,48 @@ type RestaurantInfo = {
 type BookingRow = {
   id: string;
   booking_code?: string | null;
+
   customer_full_name?: string | null;
   customer_name?: string | null;
   name?: string | null;
+
   customer_email?: string | null;
   email?: string | null;
+
   customer_phone?: string | null;
   phone?: string | null;
+
   customer_whatsapp?: string | null;
   whatsapp?: string | null;
+
   restaurant_id?: string | null;
   supplier_id?: string | null;
   service_name?: string | null;
   agent_id?: string | null;
+
   booking_date?: string | null;
   booking_time?: string | null;
   guest_count?: number | null;
   guests?: number | null;
+
   note?: string | null;
   supplier_note?: string | null;
   cancellation_reason?: string | null;
+
   status?: string | null;
+
   total_bill?: number | null;
   customer_discount_amount?: number | null;
   platform_commission_amount?: number | null;
   agent_commission_amount?: number | null;
   platform_net_amount?: number | null;
+
   created_at?: string | null;
   updated_at?: string | null;
+
   restaurants?: unknown;
   booking_status_logs?: unknown;
 };
-
-const INITIAL_VISIBLE_COUNT = 35;
-const LOAD_MORE_COUNT = 35;
 
 const FILTERS: { label: string; value: FilterStatus }[] = [
   { label: "Tất cả", value: "all" },
@@ -85,19 +87,12 @@ function normalizeStatus(value?: string | null): BookingStatus {
   return "pending";
 }
 
-function normalizeSearch(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .trim();
-}
-
 function getAllowedNextStatuses(status?: string | null): BookingStatus[] {
   const value = normalizeStatus(status);
+
   if (value === "pending") return ["confirmed", "cancelled"];
   if (value === "confirmed") return ["completed", "cancelled"];
+
   return [];
 }
 
@@ -117,11 +112,19 @@ function getRestaurant(booking: BookingRow) {
 function getLogs(booking: BookingRow) {
   return (((booking.booking_status_logs as BookingLog[] | null) ?? []) || [])
     .slice()
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
 }
 
 function getCustomerName(booking: BookingRow) {
-  return booking.customer_full_name || booking.customer_name || booking.name || "Customer";
+  return (
+    booking.customer_full_name ||
+    booking.customer_name ||
+    booking.name ||
+    "Customer"
+  );
 }
 
 function getCustomerEmail(booking: BookingRow) {
@@ -143,61 +146,54 @@ function getGuestCount(booking: BookingRow) {
 function getAgentPlatformCommissionAmount(booking: BookingRow) {
   return Number(
     booking.platform_commission_amount ??
-      (Number(booking.total_bill ?? 0) > 0 ? Number(booking.total_bill ?? 0) * 0.1 : 0),
-  );
-}
-
-function getSearchText(booking: BookingRow) {
-  const restaurant = getRestaurant(booking);
-
-  return normalizeSearch(
-    [
-      booking.booking_code,
-      booking.id,
-      getCustomerName(booking),
-      getCustomerEmail(booking),
-      getCustomerPhone(booking),
-      getCustomerWhatsapp(booking),
-      restaurant?.name,
-      restaurant?.city,
-      booking.service_name,
-      booking.booking_date,
-      booking.booking_time,
-      normalizeStatus(booking.status),
-    ]
-      .filter(Boolean)
-      .join(" "),
+      (Number(booking.total_bill ?? 0) > 0
+        ? Number(booking.total_bill ?? 0) * 0.1
+        : 0),
   );
 }
 
 function getStatusMessage(success?: string | null, error?: string | null) {
   if (success === "updated") {
-    return { type: "success" as const, text: "Cập nhật trạng thái booking thành công." };
+    return {
+      type: "success" as const,
+      text: "Cập nhật trạng thái booking thành công.",
+    };
   }
 
   if (success === "no_change") {
-    return { type: "warning" as const, text: "Trạng thái không thay đổi." };
+    return {
+      type: "warning" as const,
+      text: "Trạng thái không thay đổi.",
+    };
   }
 
   if (!error) return null;
 
   const errorMap: Record<string, string> = {
     missing_total_bill: "Khi chuyển sang completed, anh cần nhập tổng bill.",
-    status_locked: "Booking đã completed hoặc cancelled nên không thể đổi trạng thái nữa.",
+    status_locked:
+      "Booking đã completed hoặc cancelled nên không thể đổi trạng thái nữa.",
     invalid_status_transition:
       "Luồng trạng thái không hợp lệ. Pending chỉ được Confirmed/Cancelled. Confirmed chỉ được Completed/Cancelled.",
     missing_cancellation_reason: "Khi hủy booking, anh cần nhập lý do hủy.",
     missing_id: "Thiếu booking ID.",
   };
 
-  return { type: "error" as const, text: errorMap[error] || decodeURIComponent(error) };
+  return {
+    type: "error" as const,
+    text: errorMap[error] || decodeURIComponent(error),
+  };
 }
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">{label}</p>
-      <p className="mt-2 break-words text-sm font-semibold text-white">{value}</p>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+        {label}
+      </p>
+      <p className="mt-2 break-words text-sm font-semibold text-white">
+        {value}
+      </p>
     </div>
   );
 }
@@ -205,8 +201,12 @@ function Info({ label, value }: { label: string; value: string }) {
 function MoneyInfo({ label, value }: { label: string; value?: number | null }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">{label}</p>
-      <p className="mt-2 text-sm font-black text-white">{formatMoney(value)}</p>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-black text-white">
+        {formatMoney(value)}
+      </p>
     </div>
   );
 }
@@ -214,7 +214,9 @@ function MoneyInfo({ label, value }: { label: string; value?: number | null }) {
 function TextBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">{label}</p>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+        {label}
+      </p>
       <p className="mt-2 break-words text-sm text-slate-300">{value}</p>
     </div>
   );
@@ -234,54 +236,65 @@ function BookingModal({
   const locked = isLockedStatus(booking.status);
   const allowedStatuses = getAllowedNextStatuses(booking.status);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
   return (
     <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 px-4 py-6 text-white backdrop-blur-sm">
-      <button type="button" onClick={onClose} className="fixed inset-0 cursor-default" aria-label="Close booking detail" />
+      <button
+        type="button"
+        onClick={onClose}
+        className="fixed inset-0 cursor-default"
+        aria-label="Close booking detail"
+      />
 
       <section className="relative z-10 mx-auto w-full max-w-5xl overflow-hidden rounded-[32px] border border-white/10 bg-[#11100c] shadow-2xl shadow-black/80">
         <div className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-white/10 bg-[#11100c]/95 px-5 py-4 backdrop-blur md:px-6">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">Booking Detail</p>
-            <h2 className="mt-1 text-2xl font-black text-white">{booking.booking_code || booking.id}</h2>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
+              Booking Detail
+            </p>
+
+            <h2 className="mt-1 text-2xl font-black text-white">
+              {booking.booking_code || booking.id}
+            </h2>
           </div>
 
           <div className="flex items-center gap-3">
             <StatusBadge status={booking.status as BookingStatus} />
+
             <button
               type="button"
               onClick={onClose}
-              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/10 text-2xl font-black hover:bg-white/15"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xl font-black text-slate-300 transition hover:bg-amber-300 hover:text-slate-950"
+              aria-label="Close"
             >
               ×
             </button>
           </div>
         </div>
 
-        <div className="grid gap-5 p-5 lg:grid-cols-[1fr_360px] lg:p-6">
+        <div className="grid gap-5 p-5 md:p-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
-            <section className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
-              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-amber-300">Thông tin khách</h3>
+            <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-amber-300">
+                Thông tin booking
+              </h3>
+
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <Info label="Khách hàng" value={getCustomerName(booking)} />
                 <Info label="Email" value={getCustomerEmail(booking) || "-"} />
                 <Info label="Phone" value={getCustomerPhone(booking)} />
                 <Info label="Whatsapp" value={getCustomerWhatsapp(booking)} />
-                <Info label="Nhà hàng" value={restaurant?.name || booking.service_name || "-"} />
-                <Info label="Địa điểm" value={[restaurant?.city, restaurant?.address].filter(Boolean).join(" · ") || "-"} />
+                <Info
+                  label="Nhà hàng"
+                  value={restaurant?.name || booking.service_name || "-"}
+                />
+                <Info
+                  label="Địa điểm"
+                  value={
+                    [restaurant?.city, restaurant?.address]
+                      .filter(Boolean)
+                      .join(" · ") || "-"
+                  }
+                />
                 <Info label="Ngày" value={booking.booking_date || "-"} />
                 <Info label="Giờ" value={booking.booking_time || "-"} />
                 <Info label="Số khách" value={String(getGuestCount(booking))} />
@@ -289,46 +302,81 @@ function BookingModal({
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
-              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-amber-300">Bill & Commission</h3>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <MoneyInfo label="Total Bill" value={booking.total_bill} />
-                <MoneyInfo label="Customer Discount 5%" value={booking.customer_discount_amount} />
-                <MoneyInfo label="Platform Commission 10%" value={getAgentPlatformCommissionAmount(booking)} />
-                <MoneyInfo label="Agent Commission 5%" value={booking.agent_commission_amount} />
-                <MoneyInfo label="Platform Net 5%" value={booking.platform_net_amount} />
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-amber-300">
+                Bill & Commission
+              </h3>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <MoneyInfo label="Total bill" value={booking.total_bill} />
+                <MoneyInfo
+                  label="Customer off 5%"
+                  value={booking.customer_discount_amount}
+                />
+                <MoneyInfo
+                  label="Agent + Platform 10%"
+                  value={getAgentPlatformCommissionAmount(booking)}
+                />
               </div>
             </section>
 
-            {booking.note ? <TextBlock label="Ghi chú khách" value={booking.note} /> : null}
-            {booking.supplier_note ? <TextBlock label="Ghi chú supplier" value={booking.supplier_note} /> : null}
-            {booking.cancellation_reason ? <TextBlock label="Lý do hủy" value={booking.cancellation_reason} /> : null}
+            {booking.note ? (
+              <TextBlock label="Ghi chú khách" value={booking.note} />
+            ) : null}
 
-            <BookingStatusTimeline logs={logs} />
+            {booking.supplier_note ? (
+              <TextBlock
+                label="Ghi chú supplier"
+                value={booking.supplier_note}
+              />
+            ) : null}
+
+            {booking.cancellation_reason ? (
+              <TextBlock
+                label="Lý do hủy"
+                value={booking.cancellation_reason}
+              />
+            ) : null}
+
+            <div className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
+              <BookingStatusTimeline logs={logs} />
+            </div>
           </div>
 
           <aside className="space-y-4">
-            <section className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
-              <h3 className="text-sm font-black text-white">Update Status</h3>
+            <section className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-4">
+              <h3 className="text-base font-black text-white">
+                Cập nhật trạng thái
+              </h3>
+
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Pending chỉ được Confirmed/Cancelled. Confirmed chỉ được
+                Completed/Cancelled.
+              </p>
 
               {locked ? (
-                <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-slate-400">
-                  Booking đã {normalizeStatus(booking.status)} nên không thể cập nhật tiếp.
-                </p>
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-400">
+                  Booking đã {normalizeStatus(booking.status)} nên không thể cập
+                  nhật tiếp.
+                </div>
               ) : (
                 <form action={updateAction} className="mt-4 grid gap-3">
                   <input type="hidden" name="id" value={booking.id} />
 
                   <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">Trạng thái</span>
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+                      Trạng thái tiếp theo
+                    </span>
+
                     <select
                       name="status"
-                      required
                       defaultValue=""
-                      className="rounded-xl border border-white/10 bg-[#070604] px-3 py-3 text-sm text-white outline-none focus:border-amber-300"
+                      required
+                      className="rounded-xl border border-white/10 bg-[#070604] px-3 py-3 text-sm font-semibold text-white outline-none focus:border-amber-300"
                     >
                       <option value="" disabled>
-                        Chọn trạng thái tiếp theo
+                        Chọn trạng thái
                       </option>
+
                       {allowedStatuses.map((status) => (
                         <option key={status} value={status}>
                           {status}
@@ -337,11 +385,12 @@ function BookingModal({
                     </select>
                   </label>
 
-                  {normalizeStatus(booking.status) === "confirmed" ? (
+                  {normalizeStatus(booking.status) === "confirmed" && (
                     <label className="grid gap-2">
                       <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
                         Tổng bill khi completed
                       </span>
+
                       <input
                         name="total_bill"
                         type="number"
@@ -352,12 +401,13 @@ function BookingModal({
                         className="rounded-xl border border-white/10 bg-[#070604] px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-amber-300"
                       />
                     </label>
-                  ) : (
-                    <input type="hidden" name="total_bill" value="0" />
                   )}
 
                   <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">Lý do hủy nếu cancelled</span>
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+                      Lý do hủy nếu cancelled
+                    </span>
+
                     <input
                       name="cancellation_reason"
                       placeholder="Nhập lý do nếu hủy booking"
@@ -375,6 +425,7 @@ function BookingModal({
 
             <section className="rounded-3xl border border-white/10 bg-[#11100c]/95 p-4">
               <h3 className="text-sm font-black text-white">Quick Rule</h3>
+
               <div className="mt-3 space-y-2 text-xs font-semibold leading-5 text-slate-400">
                 <p>• Pending → Confirmed / Cancelled</p>
                 <p>• Confirmed → Completed / Cancelled</p>
@@ -401,10 +452,9 @@ export function SupplierBookingsClient({
   const searchParams = useSearchParams();
 
   const [activeStatus, setActiveStatus] = useState<FilterStatus>("all");
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
-  const [selectedBooking, setSelectedBooking] = useState<BookingRow | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<BookingRow | null>(
+    null,
+  );
   const [isRefreshing, startRefresh] = useTransition();
 
   const success = searchParams.get("success");
@@ -420,43 +470,46 @@ export function SupplierBookingsClient({
     if (!hasLiveBookings) return;
 
     const timer = window.setInterval(() => {
-      startRefresh(() => router.refresh());
+      startRefresh(() => {
+        router.refresh();
+      });
     }, 15000);
 
     return () => window.clearInterval(timer);
   }, [bookings, router]);
 
-  useEffect(() => {
-    setVisibleCount(INITIAL_VISIBLE_COUNT);
-  }, [activeStatus, deferredSearch]);
-
-  const counts = useMemo(() => {
-    const result = { all: bookings.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
-    for (const booking of bookings) result[normalizeStatus(booking.status)] += 1;
-    return result;
-  }, [bookings]);
+  const counts = useMemo(
+    () => ({
+      all: bookings.length,
+      pending: bookings.filter(
+        (booking) => normalizeStatus(booking.status) === "pending",
+      ).length,
+      confirmed: bookings.filter(
+        (booking) => normalizeStatus(booking.status) === "confirmed",
+      ).length,
+      completed: bookings.filter(
+        (booking) => normalizeStatus(booking.status) === "completed",
+      ).length,
+      cancelled: bookings.filter(
+        (booking) => normalizeStatus(booking.status) === "cancelled",
+      ).length,
+    }),
+    [bookings],
+  );
 
   const filteredBookings = useMemo(() => {
-    const keyword = normalizeSearch(deferredSearch);
+    if (activeStatus === "all") return bookings;
 
-    return bookings.filter((booking) => {
-      const statusMatch = activeStatus === "all" || normalizeStatus(booking.status) === activeStatus;
-      const searchMatch = !keyword || getSearchText(booking).includes(keyword);
-      return statusMatch && searchMatch;
-    });
-  }, [activeStatus, bookings, deferredSearch]);
-
-  const visibleBookings = useMemo(
-    () => filteredBookings.slice(0, visibleCount),
-    [filteredBookings, visibleCount],
-  );
+    return bookings.filter(
+      (booking) => normalizeStatus(booking.status) === activeStatus,
+    );
+  }, [activeStatus, bookings]);
 
   const totalCompletedRevenue = useMemo(
     () =>
-      bookings.reduce(
-        (sum, booking) => sum + (normalizeStatus(booking.status) === "completed" ? Number(booking.total_bill ?? 0) : 0),
-        0,
-      ),
+      bookings
+        .filter((booking) => normalizeStatus(booking.status) === "completed")
+        .reduce((sum, booking) => sum + Number(booking.total_bill ?? 0), 0),
     [bookings],
   );
 
@@ -473,16 +526,23 @@ export function SupplierBookingsClient({
         <section className="rounded-[32px] border border-white/10 bg-[#11100c]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur md:p-7">
           <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Supplier Dashboard</p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-white md:text-5xl">Quản lý booking</h1>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">
+                Supplier Dashboard
+              </p>
+
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-white md:text-5xl">
+                Quản lý booking
+              </h1>
+
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-                Pending chỉ được confirm/cancel. Confirmed chỉ được completed/cancel.
+                Pending chỉ được confirm/cancel. Confirmed chỉ được
+                completed/cancel.
               </p>
             </div>
 
             <Link
               href="/dashboard/supplier"
-              prefetch
+              prefetch={false}
               className="inline-flex w-fit items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-black text-white transition hover:border-amber-300/50 hover:bg-white/10"
             >
               Tổng quan
@@ -494,10 +554,16 @@ export function SupplierBookingsClient({
           <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
             <div>
               <p className="text-sm font-black text-white">
-                Doanh thu completed: <span className="text-amber-300">{formatMoney(totalCompletedRevenue)}</span>
+                Doanh thu completed:{" "}
+                <span className="text-amber-300">
+                  {formatMoney(totalCompletedRevenue)}
+                </span>
               </p>
+
               <p className="mt-1 text-xs font-semibold text-slate-400">
-                {isRefreshing ? "Đang đồng bộ dữ liệu mới..." : `Đang hiển thị ${visibleBookings.length}/${filteredBookings.length} booking.`}
+                {isRefreshing
+                  ? "Đang đồng bộ dữ liệu mới..."
+                  : "Filter xử lý trực tiếp trên trình duyệt, không reload trang."}
               </p>
             </div>
 
@@ -523,13 +589,6 @@ export function SupplierBookingsClient({
               })}
             </div>
           </div>
-
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Tìm booking, khách, SĐT, email, nhà hàng..."
-            className="mt-4 h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300"
-          />
         </section>
 
         {message ? (
@@ -562,38 +621,70 @@ export function SupplierBookingsClient({
               </thead>
 
               <tbody className="divide-y divide-white/10">
-                {visibleBookings.map((booking) => {
+                {filteredBookings.map((booking) => {
                   const restaurant = getRestaurant(booking);
 
                   return (
-                    <tr key={booking.id} className="align-top transition hover:bg-white/[0.04]">
+                    <tr
+                      key={booking.id}
+                      className="align-top transition hover:bg-white/[0.04]"
+                    >
                       <td className="px-5 py-5">
-                        <p className="font-black text-white">{booking.booking_code || booking.id.slice(0, 8)}</p>
+                        <p className="font-black text-white">
+                          {booking.booking_code || booking.id.slice(0, 8)}
+                        </p>
+
                         <p className="mt-1 text-xs font-medium text-slate-500">
-                          {booking.created_at ? new Date(booking.created_at).toLocaleString("vi-VN") : "-"}
+                          {booking.created_at
+                            ? new Date(booking.created_at).toLocaleString(
+                                "vi-VN",
+                              )
+                            : "-"}
                         </p>
                       </td>
 
                       <td className="px-5 py-5">
-                        <p className="font-bold text-white">{getCustomerName(booking)}</p>
-                        <p className="mt-1 text-xs text-slate-400">{getCustomerPhone(booking)}</p>
-                        <p className="mt-1 max-w-[190px] truncate text-xs text-slate-500">{getCustomerEmail(booking) || "-"}</p>
+                        <p className="font-bold text-white">
+                          {getCustomerName(booking)}
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-400">
+                          {getCustomerPhone(booking)}
+                        </p>
+
+                        <p className="mt-1 max-w-[190px] truncate text-xs text-slate-500">
+                          {getCustomerEmail(booking) || "-"}
+                        </p>
                       </td>
 
                       <td className="px-5 py-5">
-                        <p className="font-bold text-white">{restaurant?.name || booking.service_name || "-"}</p>
-                        <p className="mt-1 text-xs text-slate-400">{restaurant?.city || "-"}</p>
+                        <p className="font-bold text-white">
+                          {restaurant?.name || booking.service_name || "-"}
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-400">
+                          {restaurant?.city || "-"}
+                        </p>
                       </td>
 
                       <td className="px-5 py-5">
-                        <p className="font-bold text-white">{booking.booking_date || "-"}</p>
-                        <p className="mt-1 text-xs text-slate-400">{booking.booking_time || "-"}</p>
+                        <p className="font-bold text-white">
+                          {booking.booking_date || "-"}
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-400">
+                          {booking.booking_time || "-"}
+                        </p>
                       </td>
 
-                      <td className="px-5 py-5 font-bold text-slate-200">{getGuestCount(booking)}</td>
+                      <td className="px-5 py-5 font-bold text-slate-200">
+                        {getGuestCount(booking)}
+                      </td>
 
                       <td className="px-5 py-5">
-                        <StatusBadge status={booking.status as BookingStatus} />
+                        <StatusBadge
+                          status={booking.status as BookingStatus}
+                        />
                       </td>
 
                       <td className="px-5 py-5 text-right">
@@ -611,7 +702,10 @@ export function SupplierBookingsClient({
 
                 {!filteredBookings.length && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center text-sm font-semibold text-slate-400">
+                    <td
+                      colSpan={7}
+                      className="px-5 py-12 text-center text-sm font-semibold text-slate-400"
+                    >
                       Không có booking nào ở trạng thái này.
                     </td>
                   </tr>
@@ -619,18 +713,6 @@ export function SupplierBookingsClient({
               </tbody>
             </table>
           </div>
-
-          {visibleBookings.length < filteredBookings.length ? (
-            <div className="border-t border-white/10 p-4 text-center">
-              <button
-                type="button"
-                onClick={() => setVisibleCount((current) => current + LOAD_MORE_COUNT)}
-                className="rounded-2xl bg-amber-300 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
-              >
-                Load more ({visibleBookings.length}/{filteredBookings.length})
-              </button>
-            </div>
-          ) : null}
         </section>
       </div>
 
