@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  memo,
-  useCallback,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { memo, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { getRestaurantImageUrl } from "@/lib/restaurants/images";
 import {
@@ -24,10 +18,15 @@ type RestaurantReview = {
   created_at: string;
 };
 
+type ReviewSummary = {
+  totalReviews: number;
+  averageRating: number;
+  breakdown: Record<1 | 2 | 3 | 4 | 5, number>;
+};
+
 type Props = {
   restaurantId: string;
   slug: string;
-
   shortDescription?: string | null;
   fullDescription?: string | null;
   openingHours?: Record<string, string> | null;
@@ -39,15 +38,13 @@ type Props = {
   amenities?: string[] | null;
   priceRange?: string | null;
   menuImages?: string[] | null;
-
-  initialReviews: RestaurantReview[];
-  totalReviews: number;
-  averageRating: number;
-  canReview: boolean;
-  completedBookingId: string | null;
-  alreadyReviewed: boolean;
-
   preferredLanguage?: PreferredLanguage;
+};
+
+const emptySummary: ReviewSummary = {
+  totalReviews: 0,
+  averageRating: 5,
+  breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
 };
 
 const tabsByLanguage = {
@@ -67,6 +64,69 @@ const tabsByLanguage = {
     { key: "menu", label: "菜单" },
     { key: "reviews", label: "评价" },
   ],
+} as const;
+
+const textByLanguage = {
+  en: {
+    aboutRestaurant: "About Restaurant",
+    introUpdating: "Restaurant introduction is being updated.",
+    openingHours: "Opening Hours",
+    hoursUpdating: "Opening hours are being updated.",
+    location: "Location",
+    locationUpdating: "Restaurant location is being updated.",
+    openGoogleMaps: "Open Google Maps",
+    foodType: "Food Type",
+    restaurantMenu: "Restaurant Menu",
+    menuAlt: "Restaurant menu",
+    menuUpdating: "Menu images are being updated.",
+    guestReviews: "Guest Reviews",
+    reviews: "reviews",
+    basedOn: "Based on",
+    matching: "matching review(s)",
+    clearFilter: "Clear filter",
+    writeReview: "Write your review",
+    reviewPlaceholder: "Share your experience after using the service...",
+    submitting: "Submitting...",
+    submitReview: "Submit review",
+    alreadyReviewed:
+      "You have already reviewed a completed booking at this restaurant.",
+    onlyCompletedBooking:
+      "Only customers with a completed booking at this restaurant can write a review.",
+    noReviews: "There are no reviews for this restaurant yet.",
+    loading: "Loading...",
+    loadMore: "Load more reviews",
+    customer: "Customer",
+    allRatings: "All ratings",
+  },
+  zh: {
+    aboutRestaurant: "餐厅介绍",
+    introUpdating: "餐厅介绍正在更新中。",
+    openingHours: "营业时间",
+    hoursUpdating: "营业时间正在更新中。",
+    location: "位置",
+    locationUpdating: "餐厅位置正在更新中。",
+    openGoogleMaps: "打开 Google 地图",
+    foodType: "菜系",
+    restaurantMenu: "餐厅菜单",
+    menuAlt: "餐厅菜单",
+    menuUpdating: "菜单图片正在更新中。",
+    guestReviews: "顾客评价",
+    reviews: "条评价",
+    basedOn: "基于",
+    matching: "条匹配评价",
+    clearFilter: "清除筛选",
+    writeReview: "撰写评价",
+    reviewPlaceholder: "分享您使用服务后的体验...",
+    submitting: "正在提交...",
+    submitReview: "提交评价",
+    alreadyReviewed: "您已经评价过此餐厅的已完成预订。",
+    onlyCompletedBooking: "只有在此餐厅完成预订的客户才可以撰写评价。",
+    noReviews: "此餐厅暂无评价。",
+    loading: "正在加载...",
+    loadMore: "查看更多评价",
+    customer: "客户",
+    allRatings: "全部评分",
+  },
 } as const;
 
 const dayOrderByLanguage = {
@@ -90,67 +150,9 @@ const dayOrderByLanguage = {
   ],
 } as const;
 
-const textByLanguage = {
-  en: {
-    aboutRestaurant: "About Restaurant",
-    introUpdating: "Restaurant introduction is being updated.",
-    openingHours: "Opening Hours",
-    hoursUpdating: "Opening hours are being updated.",
-    location: "Location",
-    locationUpdating: "Restaurant location is being updated.",
-    openGoogleMaps: "Open Google Maps",
-    foodType: "Food Type",
-    restaurantMenu: "Restaurant Menu",
-    menuAlt: "Restaurant menu",
-    menuUpdating: "Menu images are being updated.",
-    guestReviews: "Guest Reviews",
-    reviews: "reviews",
-    writeReview: "Write your review",
-    reviewPlaceholder: "Share your experience after using the service...",
-    submitting: "Submitting...",
-    submitReview: "Submit review",
-    alreadyReviewed:
-      "You have already reviewed a completed booking at this restaurant.",
-    onlyCompletedBooking:
-      "Only customers with a completed booking at this restaurant can write a review.",
-    noReviews: "There are no reviews for this restaurant yet.",
-    loading: "Loading...",
-    loadMore: "Load more reviews",
-    customer: "Customer",
-  },
-  zh: {
-    aboutRestaurant: "餐厅介绍",
-    introUpdating: "餐厅介绍正在更新中。",
-    openingHours: "营业时间",
-    hoursUpdating: "营业时间正在更新中。",
-    location: "位置",
-    locationUpdating: "餐厅位置正在更新中。",
-    openGoogleMaps: "打开 Google 地图",
-    foodType: "菜系",
-    restaurantMenu: "餐厅菜单",
-    menuAlt: "餐厅菜单",
-    menuUpdating: "菜单图片正在更新中。",
-    guestReviews: "顾客评价",
-    reviews: "条评价",
-    writeReview: "撰写评价",
-    reviewPlaceholder: "分享您使用服务后的体验...",
-    submitting: "正在提交...",
-    submitReview: "提交评价",
-    alreadyReviewed: "您已经评价过此餐厅的已完成预订。",
-    onlyCompletedBooking: "只有在此餐厅完成预订的客户才可以撰写评价。",
-    noReviews: "此餐厅暂无评价。",
-    loading: "正在加载...",
-    loadMore: "查看更多评价",
-    customer: "客户",
-  },
-} as const;
-
 type TabKey = (typeof tabsByLanguage.en)[number]["key"];
 
-const initialReviewState: ReviewActionState = {
-  success: false,
-  message: "",
-};
+const initialReviewState: ReviewActionState = { success: false, message: "" };
 
 const Stars = memo(function Stars({
   value,
@@ -163,43 +165,35 @@ const Stars = memo(function Stars({
 }) {
   return (
     <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map((star) => {
-        const active = star <= value;
-
-        if (readonly) {
-          return (
-            <span
-              key={star}
-              className={active ? "text-amber-300" : "text-slate-700"}
-            >
-              ★
-            </span>
-          );
-        }
-
-        return (
+      {[1, 2, 3, 4, 5].map((star) =>
+        readonly ? (
+          <span
+            key={star}
+            className={star <= value ? "text-amber-300" : "text-slate-700"}
+          >
+            ★
+          </span>
+        ) : (
           <button
             key={star}
             type="button"
             onClick={() => onChange?.(star)}
             className={
-              active
+              star <= value
                 ? "text-2xl text-amber-300 transition hover:scale-110"
                 : "text-2xl text-slate-700 transition hover:scale-110 hover:text-amber-200"
             }
-            aria-label={`${star} stars`}
           >
             ★
           </button>
-        );
-      })}
+        ),
+      )}
     </div>
   );
 });
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
-
   return new Date(value).toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
@@ -221,24 +215,26 @@ export default function RestaurantInfoTabs({
   amenities,
   priceRange,
   menuImages,
-  initialReviews,
-  totalReviews,
-  averageRating,
-  canReview,
-  completedBookingId,
-  alreadyReviewed,
   preferredLanguage = "en",
 }: Props) {
   const router = useRouter();
-
   const language = preferredLanguage === "zh" ? "zh" : "en";
   const tabs = tabsByLanguage[language];
-  const dayOrder = dayOrderByLanguage[language];
   const text = textByLanguage[language];
+  const dayOrder = dayOrderByLanguage[language];
 
   const [activeTab, setActiveTab] = useState<TabKey>("about");
-  const [reviews, setReviews] = useState<RestaurantReview[]>(initialReviews);
+  const [reviews, setReviews] = useState<RestaurantReview[]>([]);
+  const [summary, setSummary] = useState<ReviewSummary>(emptySummary);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [ratingFilter, setRatingFilter] = useState(0);
+  const [canReview, setCanReview] = useState(false);
+  const [completedBookingId, setCompletedBookingId] = useState<string | null>(
+    null,
+  );
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [reviewState, setReviewState] =
@@ -247,18 +243,11 @@ export default function RestaurantInfoTabs({
 
   const hours = useMemo(() => {
     if (!openingHours) return [];
-
     return dayOrder
-      .map((day) => {
-        const value = day.keys
-          .map((key) => openingHours[key])
-          .find((item) => Boolean(item));
-
-        return {
-          label: day.label,
-          value,
-        };
-      })
+      .map((day) => ({
+        label: day.label,
+        value: day.keys.map((key) => openingHours[key]).find(Boolean),
+      }))
       .filter((item) => Boolean(item.value));
   }, [openingHours, dayOrder]);
 
@@ -275,73 +264,101 @@ export default function RestaurantInfoTabs({
     Number.isFinite(latitude) &&
     Number.isFinite(longitude);
 
-  const hasMoreReviews = reviews.length < totalReviews;
+  const hasMoreReviews =
+    reviews.length <
+    (ratingFilter >= 1 && ratingFilter <= 5
+      ? summary.breakdown[ratingFilter as 1 | 2 | 3 | 4 | 5]
+      : summary.totalReviews);
 
-  const handleTabChange = useCallback((tab: TabKey) => {
-    setActiveTab((current) => (current === tab ? current : tab));
-  }, []);
+  const loadReviews = useCallback(
+    async ({ reset = false, ratingValue = ratingFilter } = {}) => {
+      if (reviewsLoading || loadingMore) return;
 
-  const loadMoreReviews = useCallback(async () => {
-    if (loadingMore || !hasMoreReviews) return;
+      const offset = reset ? 0 : reviews.length;
+      const params = new URLSearchParams({
+        offset: String(offset),
+        limit: "10",
+      });
 
-    setLoadingMore(true);
+      if (ratingValue >= 1 && ratingValue <= 5) {
+        params.set("rating", String(ratingValue));
+      }
 
-    try {
-      const response = await fetch(
-        `/api/restaurants/${restaurantId}/reviews?offset=${reviews.length}&limit=10`,
-        {
-          cache: "no-store",
-        },
-      );
+      reset ? setReviewsLoading(true) : setLoadingMore(true);
 
-      if (!response.ok) return;
-
-      const data = (await response.json()) as {
-        reviews?: RestaurantReview[];
-      };
-
-      setReviews((current) => [...current, ...(data.reviews || [])]);
-    } catch (error) {
-      console.error("LOAD_MORE_REVIEWS_ERROR:", error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [hasMoreReviews, loadingMore, restaurantId, reviews.length]);
-
-  const submitReview = useCallback(
-    (formData: FormData) => {
-      setReviewState(initialReviewState);
-
-      startTransition(async () => {
-        const result = await createRestaurantReview(
-          initialReviewState,
-          formData,
+      try {
+        const response = await fetch(
+          `/api/restaurants/${restaurantId}/reviews?${params.toString()}`,
+          { cache: "no-store" },
         );
 
-        setReviewState(result);
+        if (!response.ok) return;
 
-        if (result.success) {
-          setComment("");
-          setRating(5);
-          router.refresh();
-        }
-      });
+        const data = (await response.json()) as {
+          reviews?: RestaurantReview[];
+          summary?: ReviewSummary;
+          canReview?: boolean;
+          completedBookingId?: string | null;
+          alreadyReviewed?: boolean;
+        };
+
+        setSummary(data.summary || emptySummary);
+        setCanReview(Boolean(data.canReview));
+        setCompletedBookingId(data.completedBookingId || null);
+        setAlreadyReviewed(Boolean(data.alreadyReviewed));
+        setReviews((current) =>
+          reset ? data.reviews || [] : [...current, ...(data.reviews || [])],
+        );
+        setReviewsLoaded(true);
+      } catch (error) {
+        console.error("LOAD_REVIEWS_ERROR:", error);
+      } finally {
+        setReviewsLoading(false);
+        setLoadingMore(false);
+      }
     },
-    [router],
+    [
+      loadingMore,
+      ratingFilter,
+      restaurantId,
+      reviews.length,
+      reviewsLoading,
+    ],
   );
+
+  useEffect(() => {
+    if (activeTab === "reviews" && !reviewsLoaded) {
+      void loadReviews({ reset: true });
+    }
+  }, [activeTab, loadReviews, reviewsLoaded]);
+
+  function submitReview(formData: FormData) {
+    setReviewState(initialReviewState);
+
+    startTransition(async () => {
+      const result = await createRestaurantReview(initialReviewState, formData);
+      setReviewState(result);
+
+      if (result.success) {
+        setComment("");
+        setRating(5);
+        setReviewsLoaded(false);
+        await loadReviews({ reset: true });
+        router.refresh();
+      }
+    });
+  }
 
   return (
     <section className="w-full max-w-full overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.055] p-3 shadow-2xl shadow-black/25 backdrop-blur-2xl md:rounded-[36px] md:p-6">
       <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/30 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((tab) => {
           const active = activeTab === tab.key;
-
           return (
             <button
               key={tab.key}
               type="button"
-              onClick={() => handleTabChange(tab.key)}
-              aria-pressed={active}
+              onClick={() => setActiveTab(tab.key)}
               className={
                 active
                   ? "shrink-0 whitespace-nowrap rounded-xl bg-amber-300 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-950"
@@ -360,11 +377,9 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.aboutRestaurant}
             </p>
-
             <p className="mt-4 break-words text-sm font-semibold leading-7 text-slate-300">
               {shortDescription || text.introUpdating}
             </p>
-
             {fullDescription && (
               <div
                 className="mt-5 break-words text-sm leading-7 text-slate-300"
@@ -379,7 +394,6 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.openingHours}
             </p>
-
             {hours.length > 0 ? (
               <div className="mt-4 grid gap-3">
                 {hours.map((item) => (
@@ -407,12 +421,10 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.location}
             </p>
-
             <p className="mt-4 break-words text-sm font-semibold leading-7 text-slate-300">
               {[address, city].filter(Boolean).join(", ") ||
                 text.locationUpdating}
             </p>
-
             {hasMap && (
               <a
                 href={`https://www.google.com/maps?q=${latitude},${longitude}`}
@@ -431,7 +443,6 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.foodType}
             </p>
-
             <div className="mt-4 flex flex-wrap gap-2">
               {(tags || []).map((tag) => (
                 <span
@@ -441,7 +452,6 @@ export default function RestaurantInfoTabs({
                   {tag}
                 </span>
               ))}
-
               {(amenities || []).map((item) => (
                 <span
                   key={item}
@@ -450,7 +460,6 @@ export default function RestaurantInfoTabs({
                   {item}
                 </span>
               ))}
-
               {priceRange && (
                 <span className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-black text-slate-300">
                   {priceRange}
@@ -465,7 +474,6 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.restaurantMenu}
             </p>
-
             {visibleMenuImages.length > 0 ? (
               <div className="mt-5 grid gap-4">
                 {visibleMenuImages.map((image, index) => (
@@ -496,135 +504,223 @@ export default function RestaurantInfoTabs({
 
         {activeTab === "reviews" && (
           <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
-                  {text.guestReviews}
-                </p>
+            {reviewsLoading && !reviewsLoaded ? (
+              <p className="text-sm font-bold text-slate-400">
+                {text.loading}
+              </p>
+            ) : (
+              <>
+                <div className="grid gap-6 md:grid-cols-[1fr_220px] md:items-center">
+                  <div className="space-y-2">
+                    {[5, 4, 3, 2, 1].map((star) => {
+                      const count =
+                        summary.breakdown[star as 1 | 2 | 3 | 4 | 5] || 0;
+                      const percent =
+                        summary.totalReviews > 0
+                          ? (count / summary.totalReviews) * 100
+                          : 0;
 
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <p className="text-3xl font-black text-white">
-                    {averageRating.toFixed(1)}
-                  </p>
+                      return (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => {
+                            const next = ratingFilter === star ? 0 : star;
+                            setRatingFilter(next);
+                            void loadReviews({
+                              reset: true,
+                              ratingValue: next,
+                            });
+                          }}
+                          className="grid w-full grid-cols-[86px_1fr_32px] items-center gap-3 text-left text-xs font-black text-slate-300"
+                        >
+                          <span className="text-amber-300">
+                            {"★".repeat(star)}
+                            <span className="text-slate-700">
+                              {"★".repeat(5 - star)}
+                            </span>
+                          </span>
+                          <span className="h-2 overflow-hidden rounded-full bg-white/10">
+                            <span
+                              className="block h-full rounded-full bg-amber-300"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </span>
+                          <span>{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                  <Stars value={Math.round(averageRating)} readonly />
-
-                  <p className="text-sm font-bold text-slate-400">
-                    {totalReviews} {text.reviews}
-                  </p>
+                  <div className="text-center">
+                    <p className="text-6xl font-black leading-none text-white">
+                      {summary.averageRating.toFixed(1)}
+                    </p>
+                    <div className="mt-3 flex justify-center text-xl">
+                      <Stars
+                        value={Math.round(summary.averageRating)}
+                        readonly
+                      />
+                    </div>
+                    <p className="mt-2 text-xs font-bold text-slate-400">
+                      {text.basedOn} {summary.totalReviews} {text.reviews}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              {canReview && completedBookingId ? (
-                <form action={submitReview} className="space-y-4">
-                  <input type="hidden" name="restaurantId" value={restaurantId} />
-                  <input type="hidden" name="bookingId" value={completedBookingId} />
-                  <input type="hidden" name="slug" value={slug} />
-                  <input type="hidden" name="rating" value={rating} />
+                <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+                  <select
+                    value={ratingFilter}
+                    onChange={(event) => {
+                      const next = Number(event.target.value);
+                      setRatingFilter(next);
+                      void loadReviews({ reset: true, ratingValue: next });
+                    }}
+                    className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 text-sm font-bold text-white outline-none"
+                  >
+                    <option value={0} className="text-slate-950">
+                      {text.allRatings}
+                    </option>
+                    {[5, 4, 3, 2, 1].map((star) => (
+                      <option
+                        key={star}
+                        value={star}
+                        className="text-slate-950"
+                      >
+                        {star} ★
+                      </option>
+                    ))}
+                  </select>
 
-                  <div>
-                    <p className="text-sm font-black text-white">
-                      {text.writeReview}
-                    </p>
+                  <p className="text-xs font-bold text-slate-400">
+                    {reviews.length} {text.matching}
+                  </p>
 
-                    <div className="mt-3">
-                      <Stars value={rating} onChange={setRating} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <textarea
-                      name="comment"
-                      value={comment}
-                      onChange={(event) => {
-                        if (event.target.value.length <= 200) {
-                          setComment(event.target.value);
-                        }
+                  {ratingFilter > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRatingFilter(0);
+                        void loadReviews({ reset: true, ratingValue: 0 });
                       }}
-                      maxLength={200}
-                      rows={3}
-                      placeholder={text.reviewPlaceholder}
-                      className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60"
-                    />
+                      className="text-xs font-black text-amber-300"
+                    >
+                      {text.clearFilter}
+                    </button>
+                  )}
+                </div>
 
-                    <p className="mt-2 text-right text-xs font-bold text-slate-500">
-                      {comment.length}/200
+                <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                  {canReview && completedBookingId ? (
+                    <form action={submitReview} className="space-y-4">
+                      <input
+                        type="hidden"
+                        name="restaurantId"
+                        value={restaurantId}
+                      />
+                      <input
+                        type="hidden"
+                        name="bookingId"
+                        value={completedBookingId}
+                      />
+                      <input type="hidden" name="slug" value={slug} />
+                      <input type="hidden" name="rating" value={rating} />
+
+                      <p className="text-sm font-black text-white">
+                        {text.writeReview}
+                      </p>
+
+                      <Stars value={rating} onChange={setRating} />
+
+                      <textarea
+                        name="comment"
+                        value={comment}
+                        onChange={(event) => {
+                          if (event.target.value.length <= 200) {
+                            setComment(event.target.value);
+                          }
+                        }}
+                        maxLength={200}
+                        rows={3}
+                        placeholder={text.reviewPlaceholder}
+                        className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-amber-300/60"
+                      />
+
+                      <p className="text-right text-xs font-bold text-slate-500">
+                        {comment.length}/200
+                      </p>
+
+                      <button
+                        type="submit"
+                        disabled={isPending}
+                        className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-60"
+                      >
+                        {isPending ? text.submitting : text.submitReview}
+                      </button>
+                    </form>
+                  ) : (
+                    <p className="text-sm font-semibold leading-6 text-slate-400">
+                      {alreadyReviewed
+                        ? text.alreadyReviewed
+                        : text.onlyCompletedBooking}
                     </p>
-                  </div>
+                  )}
 
+                  {reviewState.message && (
+                    <p
+                      className={
+                        reviewState.success
+                          ? "mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-200"
+                          : "mt-4 rounded-2xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm font-bold text-red-200"
+                      }
+                    >
+                      {reviewState.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {reviews.length > 0 ? (
+                    reviews.map((review) => (
+                      <article
+                        key={review.id}
+                        className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-black text-white">
+                              {review.customer_name || text.customer}
+                            </p>
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              {formatDate(review.created_at)}
+                            </p>
+                          </div>
+                          <Stars value={review.rating} readonly />
+                        </div>
+
+                        <p className="mt-3 break-words text-sm font-semibold leading-7 text-slate-300">
+                          {review.comment}
+                        </p>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-semibold text-slate-400">
+                      {text.noReviews}
+                    </p>
+                  )}
+                </div>
+
+                {hasMoreReviews && (
                   <button
-                    type="submit"
-                    disabled={isPending}
-                    className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    onClick={() => loadReviews()}
+                    disabled={loadingMore}
+                    className="mt-5 w-full rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-100 disabled:opacity-60"
                   >
-                    {isPending ? text.submitting : text.submitReview}
+                    {loadingMore ? text.loading : text.loadMore}
                   </button>
-                </form>
-              ) : (
-                <p className="text-sm font-semibold leading-6 text-slate-400">
-                  {alreadyReviewed
-                    ? text.alreadyReviewed
-                    : text.onlyCompletedBooking}
-                </p>
-              )}
-
-              {reviewState.message && (
-                <p
-                  className={
-                    reviewState.success
-                      ? "mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-200"
-                      : "mt-4 rounded-2xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm font-bold text-red-200"
-                  }
-                >
-                  {reviewState.message}
-                </p>
-              )}
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {reviews.length > 0 ? (
-                reviews.map((review) => (
-                  <article
-                    key={review.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-                  >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="font-black text-white">
-                          {review.customer_name || text.customer}
-                        </p>
-
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
-                          {formatDate(review.created_at)}
-                        </p>
-                      </div>
-
-                      <Stars value={review.rating} readonly />
-                    </div>
-
-                    <p className="mt-3 break-words text-sm font-semibold leading-7 text-slate-300">
-                      {review.comment}
-                    </p>
-                  </article>
-                ))
-              ) : (
-                <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-semibold text-slate-400">
-                  {text.noReviews}
-                </p>
-              )}
-            </div>
-
-            {hasMoreReviews && (
-              <button
-                type="button"
-                onClick={loadMoreReviews}
-                disabled={loadingMore}
-                className="mt-5 w-full rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loadingMore ? text.loading : text.loadMore}
-              </button>
+                )}
+              </>
             )}
           </div>
         )}
