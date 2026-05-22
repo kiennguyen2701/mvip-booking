@@ -41,7 +41,7 @@ export default function RestaurantGallery({
           alt={name}
           fill
           sizes="(max-width: 768px) 100vw, 780px"
-          quality={76}
+          quality={68}
           priority={activeIndex === 0}
           className="object-cover"
         />
@@ -73,8 +73,9 @@ export default function RestaurantGallery({
                   src={image}
                   alt={`${name} ${index + 1}`}
                   fill
-                  sizes="128px"
-                  quality={55}
+                  sizes="96px"
+                  quality={42}
+                  loading="lazy"
                   className="object-cover"
                 />
               </button>

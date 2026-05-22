@@ -66,23 +66,23 @@ export default function RestaurantCard({
       prefetch={false}
       className="block overflow-hidden rounded-2xl border bg-white"
     >
-      <div className="relative h-44 w-full">
-        {image && (
+      <div className="relative h-44 w-full bg-gray-100">
+        {image ? (
           <Image
             src={image}
             alt={name}
             fill
-            sizes="100vw"
-            quality={60}
+            sizes="(max-width: 768px) 92vw, (max-width: 1200px) 45vw, 360px"
+            quality={58}
             loading="lazy"
             className="object-cover"
           />
-        )}
+        ) : null}
       </div>
 
       <div className="p-3">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-bold">{name}</h3>
+          <h3 className="line-clamp-2 font-bold">{name}</h3>
 
           <span className="shrink-0 rounded-xl bg-amber-100 px-2 py-1 text-xs font-black text-amber-700">
             {rating} ★
@@ -95,7 +95,9 @@ export default function RestaurantCard({
           </p>
         ) : null}
 
-        {address ? <p className="mt-1 text-sm text-gray-500">{address}</p> : null}
+        {address ? (
+          <p className="mt-1 line-clamp-1 text-sm text-gray-500">{address}</p>
+        ) : null}
       </div>
     </Link>
   );

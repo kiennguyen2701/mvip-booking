@@ -7,44 +7,28 @@ export type PublicRestaurant = {
   name: string | null;
   name_zh?: string | null;
   slug: string | null;
-
   address: string | null;
   address_zh?: string | null;
-
   city: string | null;
   city_zh?: string | null;
-
   cover_image: string | null;
   image_url?: string | null;
-
   discount_percent?: number | null;
-
   cuisine_type?: string | null;
   cuisine_type_zh?: string | null;
-
   cuisine?: string | null;
-
   category?: string | null;
   category_zh?: string | null;
-
   description?: string | null;
   description_zh?: string | null;
-
   short_description?: string | null;
   short_description_zh?: string | null;
-
-  full_description?: string | null;
-  full_description_zh?: string | null;
-
   price_range?: string | null;
   tags?: string[] | null;
-
   latitude?: number | null;
   longitude?: number | null;
-
   is_active?: boolean | null;
   created_at?: string | null;
-
   average_rating: number;
   total_reviews: number;
 };
@@ -87,20 +71,28 @@ function buildRatingMap(rows: ReviewRatingRow[]) {
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) continue;
 
     const current = map.get(row.restaurant_id) || { total: 0, count: 0 };
-
     current.total += rating;
     current.count += 1;
-
     map.set(row.restaurant_id, current);
   }
 
   return map;
 }
 
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
 function getCacheKey(params: Required<GetPublicRestaurantsParams>) {
   return [
     "public-restaurants",
-    "ratings-v5-zh-fields",
+    "ratings-v6-light-list",
     params.query,
     params.city,
     params.tag,
@@ -131,8 +123,8 @@ export async function getPublicRestaurants({
 
   const hasClientSideFilter = Boolean(query || city || tag);
   const safeLimit = hasClientSideFilter
-    ? Math.min(Math.max(limit * 4, 120), 300)
-    : Math.min(Math.max(limit, 1), 120);
+    ? Math.min(Math.max(limit * 3, 90), 240)
+    : Math.min(Math.max(limit, 1), 90);
 
   let request = supabase
     .from("restaurants")
@@ -158,8 +150,6 @@ export async function getPublicRestaurants({
       description_zh,
       short_description,
       short_description_zh,
-      full_description,
-      full_description_zh,
       price_range,
       tags,
       latitude,
@@ -193,16 +183,29 @@ export async function getPublicRestaurants({
   let ratingMap = new Map<string, { total: number; count: number }>();
 
   if (restaurantIds.length > 0) {
-    const { data: reviewRows, error: reviewError } = await supabase
-      .from("restaurant_reviews")
-      .select("restaurant_id, rating")
-      .in("restaurant_id", restaurantIds);
+    const allReviewRows: ReviewRatingRow[] = [];
 
-    if (reviewError) {
-      console.error("getPublicRestaurants review error:", reviewError);
-    } else {
-      ratingMap = buildRatingMap((reviewRows || []) as ReviewRatingRow[]);
+    const chunks = chunkArray(restaurantIds, 150);
+
+    const reviewResults = await Promise.all(
+      chunks.map((chunk) =>
+        supabase
+          .from("restaurant_reviews")
+          .select("restaurant_id, rating")
+          .in("restaurant_id", chunk),
+      ),
+    );
+
+    for (const result of reviewResults) {
+      if (result.error) {
+        console.error("getPublicRestaurants review error:", result.error);
+        continue;
+      }
+
+      allReviewRows.push(...((result.data || []) as ReviewRatingRow[]));
     }
+
+    ratingMap = buildRatingMap(allReviewRows);
   }
 
   const normalizedQuery = normalizeText(query);
@@ -265,7 +268,7 @@ export async function getPublicRestaurants({
   await setCache(
     cacheKey,
     restaurants,
-    Math.min(CACHE_TTL.PUBLIC_RESTAURANTS, 60),
+    Math.min(CACHE_TTL.PUBLIC_RESTAURANTS, 90),
   );
 
   return restaurants;
