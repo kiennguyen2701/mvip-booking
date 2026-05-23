@@ -265,3 +265,38 @@ select {
 .touch-bounce:active {
   animation: tapBounce 180ms ease;
 }
+
+/* =========================================
+   Light dashboard form color fix
+========================================= */
+
+.bg-white input,
+.bg-white textarea,
+.bg-white select,
+.bg-white\/90 input,
+.bg-white\/90 textarea,
+.bg-white\/90 select,
+.bg-white\/95 input,
+.bg-white\/95 textarea,
+.bg-white\/95 select,
+.bg-slate-50 input,
+.bg-slate-50 textarea,
+.bg-slate-50 select,
+.bg-\[\#fbf7ef\] input,
+.bg-\[\#fbf7ef\] textarea,
+.bg-\[\#fbf7ef\] select {
+  color: #0f172a;
+}
+
+.bg-white input::placeholder,
+.bg-white textarea::placeholder,
+.bg-white\/90 input::placeholder,
+.bg-white\/90 textarea::placeholder,
+.bg-white\/95 input::placeholder,
+.bg-white\/95 textarea::placeholder,
+.bg-slate-50 input::placeholder,
+.bg-slate-50 textarea::placeholder,
+.bg-\[\#fbf7ef\] input::placeholder,
+.bg-\[\#fbf7ef\] textarea::placeholder {
+  color: #64748b;
+}
