@@ -1,9 +1,11 @@
-import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { adminClient } from '@/lib/supabase/admin';
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { adminClient } from "@/lib/supabase/admin";
+import { getCache, setCache } from "@/lib/cache/cache";
+import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type AgentRow = {
@@ -31,18 +33,26 @@ type BookingRow = {
   created_at?: string | null;
 };
 
+type AgentDashboardCache = {
+  customersCount: number;
+  totalBookings: number;
+  pendingBookings: number;
+  totalCommission: number;
+  recentBookings: BookingRow[];
+};
+
 function money(value?: number | null) {
-  return Number(value || 0).toLocaleString('vi-VN');
+  return Number(value || 0).toLocaleString("vi-VN");
 }
 
 function getBaseUrl() {
   const raw =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
-    'http://localhost:3000';
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
+    "http://localhost:3000";
 
-  return raw.replace(/\/$/, '');
+  return raw.replace(/\/$/, "");
 }
 
 function getRefCode(agent: AgentRow) {
@@ -51,7 +61,7 @@ function getRefCode(agent: AgentRow) {
     agent.ref_code ||
     agent.agent_code ||
     agent.code ||
-    ''
+    ""
   );
 }
 
@@ -59,6 +69,76 @@ function getRefLink(refCode: string) {
   return `${getBaseUrl()}/api/ref?code=${encodeURIComponent(
     refCode,
   )}&redirect=/register`;
+}
+
+async function getAgentDashboardData(agentId: string, refCode: string) {
+  const cacheKey = cacheKeys.agentDashboard(agentId);
+  const cached = await getCache<AgentDashboardCache>(cacheKey);
+
+  if (cached) return cached;
+
+  const [
+    customersResult,
+    totalBookingsResult,
+    pendingBookingsResult,
+    completedBookingsResult,
+    recentBookingsResult,
+  ] = await Promise.all([
+    adminClient
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "customer")
+      .eq("ref_code", refCode),
+
+    adminClient
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("agent_id", agentId),
+
+    adminClient
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("agent_id", agentId)
+      .in("status", ["pending", "confirmed"]),
+
+    adminClient
+      .from("bookings")
+      .select("agent_commission_amount")
+      .eq("agent_id", agentId)
+      .eq("status", "completed"),
+
+    adminClient
+      .from("bookings")
+      .select(
+        "id, booking_code, customer_name, phone, status, total_bill, agent_commission_amount, created_at",
+      )
+      .eq("agent_id", agentId)
+      .order("created_at", { ascending: false })
+      .limit(30),
+  ]);
+
+  const completedBookings =
+    (completedBookingsResult.data || []) as Pick<
+      BookingRow,
+      "agent_commission_amount"
+    >[];
+
+  const totalCommission = completedBookings.reduce(
+    (sum, booking) => sum + Number(booking.agent_commission_amount || 0),
+    0,
+  );
+
+  const data: AgentDashboardCache = {
+    customersCount: customersResult.count || 0,
+    totalBookings: totalBookingsResult.count || 0,
+    pendingBookings: pendingBookingsResult.count || 0,
+    totalCommission,
+    recentBookings: (recentBookingsResult.data || []) as BookingRow[],
+  };
+
+  await setCache(cacheKey, data, CACHE_TTL.AGENT_DASHBOARD);
+
+  return data;
 }
 
 function Card({
@@ -90,31 +170,31 @@ export default async function AgentDashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect('/login');
+  if (!user) redirect("/login");
 
   const { data: profile } = await adminClient
-    .from('users')
-    .select('*')
-    .eq('id', user.id)
+    .from("users")
+    .select("*")
+    .eq("id", user.id)
     .maybeSingle();
 
   const role = profile?.role || user.user_metadata?.role;
 
-  if (role !== 'agent') redirect('/dashboard');
+  if (role !== "agent") redirect("/dashboard");
 
   const { data: agentByUserId } = await adminClient
-    .from('agents')
-    .select('*')
-    .eq('user_id', user.id)
+    .from("agents")
+    .select("*")
+    .eq("user_id", user.id)
     .maybeSingle();
 
   let agent = agentByUserId as AgentRow | null;
 
   if (!agent && user.email) {
     const { data: agentByEmail } = await adminClient
-      .from('agents')
-      .select('*')
-      .eq('email', user.email.toLowerCase())
+      .from("agents")
+      .select("*")
+      .eq("email", user.email.toLowerCase())
       .maybeSingle();
 
     agent = agentByEmail as AgentRow | null;
@@ -133,44 +213,13 @@ export default async function AgentDashboardPage() {
   }
 
   const refCode = getRefCode(agent);
-
   const registerLink = getRefLink(refCode);
 
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
     registerLink,
   )}`;
 
-  const { data: customers } = await adminClient
-    .from('users')
-    .select('id, full_name, email, ref_code')
-    .eq('role', 'customer')
-    .eq('ref_code', refCode);
-
-  const { data: bookingsData } = await adminClient
-    .from('bookings')
-    .select('*')
-    .eq('agent_id', agent.id)
-    .order('created_at', { ascending: false });
-
-  const bookings = (bookingsData || []) as BookingRow[];
-
-  const totalBookings = bookings.length;
-
-  const pendingBookings = bookings.filter(
-    (booking) =>
-      booking.status === 'pending' ||
-      booking.status === 'confirmed',
-  ).length;
-
-  const completedBookings = bookings.filter(
-    (booking) => booking.status === 'completed',
-  );
-
-  const totalCommission = completedBookings.reduce(
-    (sum, booking) =>
-      sum + Number(booking.agent_commission_amount || 0),
-    0,
-  );
+  const dashboardData = await getAgentDashboardData(agent.id, refCode);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#fbf7ef] px-4 py-6 md:px-6">
@@ -182,10 +231,7 @@ export default async function AgentDashboardPage() {
             </p>
 
             <h1 className="mt-1 text-3xl font-black text-slate-950">
-              {agent.full_name ||
-                agent.name ||
-                profile?.full_name ||
-                'Agent'}
+              {agent.full_name || agent.name || profile?.full_name || "Agent"}
             </h1>
 
             <p className="mt-2 text-sm text-slate-500">
@@ -194,10 +240,8 @@ export default async function AgentDashboardPage() {
           </div>
 
           <span className="rounded-full border border-amber-300 bg-amber-50 px-5 py-2 text-sm font-bold text-amber-700">
-            Status:{' '}
-            {agent.is_active === false
-              ? 'inactive'
-              : agent.status || 'active'}
+            Status:{" "}
+            {agent.is_active === false ? "inactive" : agent.status || "active"}
           </span>
         </div>
 
@@ -210,25 +254,25 @@ export default async function AgentDashboardPage() {
 
           <Card
             title="Customer"
-            value={customers?.length || 0}
+            value={dashboardData.customersCount}
             desc="Khách đăng ký qua mã ref"
           />
 
           <Card
             title="Booking"
-            value={totalBookings}
+            value={dashboardData.totalBookings}
             desc="Booking phát sinh"
           />
 
           <Card
             title="Pending"
-            value={pendingBookings}
+            value={dashboardData.pendingBookings}
             desc="Booking đang xử lý"
           />
 
           <Card
             title="Commission"
-            value={`${money(totalCommission)}đ`}
+            value={`${money(dashboardData.totalCommission)}đ`}
             desc="Hoa hồng completed"
           />
         </section>
@@ -240,8 +284,8 @@ export default async function AgentDashboardPage() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              Link này trỏ thẳng đến trang đăng ký. Hệ thống tự lưu
-              ref và gắn customer vào Agent.
+              Link này trỏ thẳng đến trang đăng ký. Hệ thống tự lưu ref và gắn
+              customer vào Agent.
             </p>
 
             <div className="mt-5">
@@ -314,37 +358,33 @@ export default async function AgentDashboardPage() {
               </thead>
 
               <tbody>
-                {bookings.map((booking) => (
-                  <tr
-                    key={booking.id}
-                    className="border-b border-slate-100"
-                  >
+                {dashboardData.recentBookings.map((booking) => (
+                  <tr key={booking.id} className="border-b border-slate-100">
                     <td className="px-3 py-3 font-bold text-slate-900">
-                      {booking.booking_code ||
-                        booking.id.slice(0, 8)}
+                      {booking.booking_code || booking.id.slice(0, 8)}
                     </td>
 
                     <td className="px-3 py-3 font-medium text-slate-700">
-                      {booking.customer_name || '-'}
+                      {booking.customer_name || "-"}
                     </td>
 
                     <td className="px-3 py-3 font-medium text-slate-700">
-                      {booking.phone || '-'}
+                      {booking.phone || "-"}
                     </td>
 
                     <td className="px-3 py-3">
                       <span
                         className={
-                          booking.status === 'completed'
-                            ? 'rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700'
-                            : booking.status === 'confirmed'
-                              ? 'rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700'
-                              : booking.status === 'cancelled'
-                                ? 'rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700'
-                                : 'rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700'
+                          booking.status === "completed"
+                            ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700"
+                            : booking.status === "confirmed"
+                              ? "rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700"
+                              : booking.status === "cancelled"
+                                ? "rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700"
+                                : "rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700"
                         }
                       >
-                        {booking.status || 'pending'}
+                        {booking.status || "pending"}
                       </span>
                     </td>
 
@@ -353,15 +393,12 @@ export default async function AgentDashboardPage() {
                     </td>
 
                     <td className="px-3 py-3 font-black text-emerald-700">
-                      {money(
-                        booking.agent_commission_amount,
-                      )}
-                      đ
+                      {money(booking.agent_commission_amount)}đ
                     </td>
                   </tr>
                 ))}
 
-                {!bookings.length && (
+                {!dashboardData.recentBookings.length && (
                   <tr>
                     <td
                       colSpan={6}

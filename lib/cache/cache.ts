@@ -1,7 +1,7 @@
 import { redis } from "@/lib/cache/redis";
 
 export async function getCache<T>(key: string): Promise<T | null> {
-  if (!redis) return null;
+  if (!redis || !key) return null;
 
   try {
     return await redis.get<T>(key);
@@ -16,7 +16,7 @@ export async function setCache<T>(
   value: T,
   ttlSeconds: number,
 ) {
-  if (!redis) return;
+  if (!redis || !key || ttlSeconds <= 0) return;
 
   try {
     await redis.set(key, value, {
@@ -28,7 +28,7 @@ export async function setCache<T>(
 }
 
 export async function deleteCache(key: string) {
-  if (!redis) return;
+  if (!redis || !key) return;
 
   try {
     await redis.del(key);
@@ -38,7 +38,7 @@ export async function deleteCache(key: string) {
 }
 
 export async function deleteCacheByPattern(pattern: string) {
-  if (!redis) return;
+  if (!redis || !pattern) return;
 
   try {
     const keys = await redis.keys(pattern);

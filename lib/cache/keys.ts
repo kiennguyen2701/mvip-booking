@@ -1,12 +1,15 @@
-// lib/cache/keys.ts
-
 export const CACHE_TTL = {
+  ADMIN_DASHBOARD: 30,
   SUPPLIER_DASHBOARD: 30,
+  AGENT_DASHBOARD: 30,
+
   PUBLIC_RESTAURANTS: 300,
   PUBLIC_RESTAURANT_DETAIL: 600,
 } as const;
 
 export const cacheKeys = {
+  adminDashboard: () => "admin:dashboard",
+
   supplierDashboard: (supplierId: string) =>
     `supplier:${supplierId}:dashboard`,
 
@@ -16,15 +19,19 @@ export const cacheKeys = {
   supplierRestaurants: (supplierId: string) =>
     `supplier:${supplierId}:restaurants`,
 
-  publicRestaurants: (suffix = "all") =>
-    `public:restaurants:${suffix}`,
+  agentDashboard: (agentId: string) => `agent:${agentId}:dashboard`,
 
-  publicRestaurantDetail: (slug: string) =>
-    `public:restaurant:${slug}`,
+  agentBookings: (agentId: string) => `agent:${agentId}:bookings`,
+
+  agentCustomers: (refCode: string) => `agent:${refCode}:customers`,
+
+  publicRestaurants: (suffix = "all") => `public:restaurants:${suffix}`,
+
+  publicRestaurantDetail: (slug: string) => `public:restaurant:${slug}`,
 };
 
 export const cachePatterns = {
-  admin: "admin:*",
+  admin: () => "admin:*",
 
   supplierDashboard: (supplierId: string) =>
     `supplier:${supplierId}:dashboard`,
@@ -35,8 +42,11 @@ export const cachePatterns = {
   supplierRestaurants: (supplierId: string) =>
     `supplier:${supplierId}:restaurants`,
 
+  agentDashboard: (agentId: string) => `agent:${agentId}:dashboard`,
+
+  agentAll: (agentId: string) => `agent:${agentId}:*`,
+
   publicRestaurants: () => "public:restaurants:*",
 
-  publicRestaurantDetail: (slug: string) =>
-    `public:restaurant:${slug}`,
+  publicRestaurantDetail: (slug: string) => `public:restaurant:${slug}`,
 };
