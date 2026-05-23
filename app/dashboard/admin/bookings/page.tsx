@@ -46,6 +46,7 @@ type BookingRow = {
   platform_commission_amount?: number | null;
   agent_commission_amount?: number | null;
   platform_net_amount?: number | null;
+  supplier_note?: string | null;
   cancellation_reason?: string | null;
   created_at?: string | null;
   booking_status_logs?: unknown;
@@ -63,6 +64,7 @@ type RestaurantRow = {
 
 type AgentRow = {
   id: string;
+  user_id?: string | null;
   name?: string | null;
   full_name?: string | null;
   email?: string | null;
@@ -70,6 +72,13 @@ type AgentRow = {
   ref_code?: string | null;
   agent_code?: string | null;
   code?: string | null;
+};
+
+type CustomerUserRow = {
+  id: string;
+  email?: string | null;
+  ref_code?: string | null;
+  agent_id?: string | null;
 };
 
 function normalizeStatus(status?: string | null): BookingStatus {
@@ -112,6 +121,80 @@ function calculateCommission(totalBill: number) {
     agentCommissionAmount: totalBill * 0.05,
     platformNetAmount: totalBill * 0.05,
   };
+}
+
+function normalizeEmail(value?: string | null) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeCode(value?: string | null) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function getAgentCodes(agent: AgentRow) {
+  return [
+    agent.referral_code,
+    agent.ref_code,
+    agent.agent_code,
+    agent.code,
+  ]
+    .map(normalizeCode)
+    .filter(Boolean);
+}
+
+function extractAgentRefFromSupplierNote(value?: string | null) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  const match =
+    text.match(/agent\s*ref\s*:\s*([A-Za-z0-9_-]+)/i) ||
+    text.match(/ref\s*:\s*([A-Za-z0-9_-]+)/i);
+
+  return normalizeCode(match?.[1] || "");
+}
+
+function findAgentForBooking({
+  booking,
+  agentById,
+  agentByUserId,
+  agentByCode,
+  customerUserByEmail,
+}: {
+  booking: BookingRow;
+  agentById: Map<string, AgentRow>;
+  agentByUserId: Map<string, AgentRow>;
+  agentByCode: Map<string, AgentRow>;
+  customerUserByEmail: Map<string, CustomerUserRow>;
+}) {
+  if (booking.agent_id) {
+    const directAgent =
+      agentById.get(booking.agent_id) || agentByUserId.get(booking.agent_id);
+
+    if (directAgent) return directAgent;
+  }
+
+  const customerUser = customerUserByEmail.get(normalizeEmail(booking.email));
+
+  if (customerUser?.agent_id) {
+    const userAgent =
+      agentById.get(customerUser.agent_id) ||
+      agentByUserId.get(customerUser.agent_id);
+
+    if (userAgent) return userAgent;
+  }
+
+  if (customerUser?.ref_code) {
+    const refAgent = agentByCode.get(normalizeCode(customerUser.ref_code));
+    if (refAgent) return refAgent;
+  }
+
+  const noteRef = extractAgentRefFromSupplierNote(booking.supplier_note);
+  if (noteRef) {
+    const noteAgent = agentByCode.get(noteRef);
+    if (noteAgent) return noteAgent;
+  }
+
+  return null;
 }
 
 async function triggerEmailWorker() {
@@ -422,6 +505,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
       platform_commission_amount,
       agent_commission_amount,
       platform_net_amount,
+      supplier_note,
       cancellation_reason,
       created_at,
       booking_status_logs(
@@ -458,38 +542,71 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
     new Set(allBookings.map((item) => item.restaurant_id).filter(Boolean)),
   ) as string[];
 
-  const agentIds = Array.from(
-    new Set(allBookings.map((item) => item.agent_id).filter(Boolean)),
-  ) as string[];
+  const customerEmails = Array.from(
+    new Set(
+      allBookings
+        .map((item) => normalizeEmail(item.email))
+        .filter(Boolean),
+    ),
+  );
 
-  const [{ data: restaurantsData }, { data: agentsData }] = await Promise.all([
-    restaurantIds.length
-      ? adminClient
-          .from("restaurants")
-          .select("id, name, slug, supplier_id, city, address, phone")
-          .in("id", restaurantIds)
-      : Promise.resolve({ data: [] }),
+  const [{ data: restaurantsData }, { data: agentsData }, { data: usersData }] =
+    await Promise.all([
+      restaurantIds.length
+        ? adminClient
+            .from("restaurants")
+            .select("id, name, slug, supplier_id, city, address, phone")
+            .in("id", restaurantIds)
+        : Promise.resolve({ data: [] }),
 
-    agentIds.length
-      ? adminClient
-          .from("agents")
-          .select(
-            "id, name, full_name, email, referral_code, ref_code, agent_code, code",
-          )
-          .in("id", agentIds)
-      : Promise.resolve({ data: [] }),
-  ]);
+      adminClient.from("agents").select("*"),
+
+      customerEmails.length
+        ? adminClient
+            .from("users")
+            .select("id, email, ref_code, agent_id")
+            .in("email", customerEmails)
+        : Promise.resolve({ data: [] }),
+    ]);
 
   const restaurants = (restaurantsData || []) as RestaurantRow[];
   const agents = (agentsData || []) as AgentRow[];
+  const customerUsers = (usersData || []) as CustomerUserRow[];
 
   const restaurantMap = new Map(restaurants.map((item) => [item.id, item]));
-  const agentMap = new Map(agents.map((item) => [item.id, item]));
+
+  const agentById = new Map<string, AgentRow>();
+  const agentByUserId = new Map<string, AgentRow>();
+  const agentByCode = new Map<string, AgentRow>();
+
+  for (const agent of agents) {
+    if (agent.id) agentById.set(agent.id, agent);
+    if (agent.user_id) agentByUserId.set(agent.user_id, agent);
+
+    for (const code of getAgentCodes(agent)) {
+      agentByCode.set(code, agent);
+    }
+  }
+
+  const customerUserByEmail = new Map<string, CustomerUserRow>();
+
+  for (const customerUser of customerUsers) {
+    const email = normalizeEmail(customerUser.email);
+    if (email) customerUserByEmail.set(email, customerUser);
+  }
 
   const bookings: AdminBookingRow[] = allBookings.map((booking) => {
     const rawLogs = Array.isArray(booking.booking_status_logs)
       ? booking.booking_status_logs
       : [];
+
+    const agent = findAgentForBooking({
+      booking,
+      agentById,
+      agentByUserId,
+      agentByCode,
+      customerUserByEmail,
+    });
 
     return {
       ...booking,
@@ -497,7 +614,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
       restaurants: booking.restaurant_id
         ? restaurantMap.get(booking.restaurant_id) || null
         : null,
-      agent: booking.agent_id ? agentMap.get(booking.agent_id) || null : null,
+      agent,
     };
   });
 
