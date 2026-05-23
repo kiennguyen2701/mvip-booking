@@ -73,10 +73,12 @@ function Card({
   return (
     <div className="rounded-3xl border border-white/80 bg-white/95 p-6 shadow-sm">
       <p className="text-sm font-bold text-slate-500">{title}</p>
+
       <p className="mt-3 break-words text-3xl font-black text-slate-950">
         {value}
       </p>
-      <p className="mt-3 text-sm text-slate-400">{desc}</p>
+
+      <p className="mt-3 text-sm text-slate-500">{desc}</p>
     </div>
   );
 }
@@ -131,7 +133,9 @@ export default async function AgentDashboardPage() {
   }
 
   const refCode = getRefCode(agent);
+
   const registerLink = getRefLink(refCode);
+
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
     registerLink,
   )}`;
@@ -151,9 +155,11 @@ export default async function AgentDashboardPage() {
   const bookings = (bookingsData || []) as BookingRow[];
 
   const totalBookings = bookings.length;
+
   const pendingBookings = bookings.filter(
     (booking) =>
-      booking.status === 'pending' || booking.status === 'confirmed',
+      booking.status === 'pending' ||
+      booking.status === 'confirmed',
   ).length;
 
   const completedBookings = bookings.filter(
@@ -161,7 +167,8 @@ export default async function AgentDashboardPage() {
   );
 
   const totalCommission = completedBookings.reduce(
-    (sum, booking) => sum + Number(booking.agent_commission_amount || 0),
+    (sum, booking) =>
+      sum + Number(booking.agent_commission_amount || 0),
     0,
   );
 
@@ -173,9 +180,14 @@ export default async function AgentDashboardPage() {
             <p className="text-xs font-black uppercase tracking-wide text-amber-700">
               Agent Dashboard
             </p>
+
             <h1 className="mt-1 text-3xl font-black text-slate-950">
-              {agent.full_name || agent.name || profile?.full_name || 'Agent'}
+              {agent.full_name ||
+                agent.name ||
+                profile?.full_name ||
+                'Agent'}
             </h1>
+
             <p className="mt-2 text-sm text-slate-500">
               Theo dõi khách giới thiệu, booking và hoa hồng realtime.
             </p>
@@ -190,11 +202,35 @@ export default async function AgentDashboardPage() {
         </div>
 
         <section className="grid gap-4 md:grid-cols-5">
-          <Card title="Referral Code" value={refCode} desc="Mã giới thiệu cá nhân" />
-          <Card title="Customer" value={customers?.length || 0} desc="Khách đăng ký qua mã ref" />
-          <Card title="Booking" value={totalBookings} desc="Booking phát sinh" />
-          <Card title="Pending" value={pendingBookings} desc="Booking đang xử lý" />
-          <Card title="Commission" value={`${money(totalCommission)}đ`} desc="Hoa hồng completed" />
+          <Card
+            title="Referral Code"
+            value={refCode}
+            desc="Mã giới thiệu cá nhân"
+          />
+
+          <Card
+            title="Customer"
+            value={customers?.length || 0}
+            desc="Khách đăng ký qua mã ref"
+          />
+
+          <Card
+            title="Booking"
+            value={totalBookings}
+            desc="Booking phát sinh"
+          />
+
+          <Card
+            title="Pending"
+            value={pendingBookings}
+            desc="Booking đang xử lý"
+          />
+
+          <Card
+            title="Commission"
+            value={`${money(totalCommission)}đ`}
+            desc="Hoa hồng completed"
+          />
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[1fr_300px]">
@@ -204,74 +240,133 @@ export default async function AgentDashboardPage() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              Link này trỏ thẳng đến trang đăng ký. Hệ thống tự lưu ref và gắn
-              customer vào Agent.
+              Link này trỏ thẳng đến trang đăng ký. Hệ thống tự lưu
+              ref và gắn customer vào Agent.
             </p>
 
             <div className="mt-5">
-              <p className="mb-2 text-xs font-black uppercase text-slate-400">
+              <p className="mb-2 text-xs font-black uppercase text-slate-500">
                 Mã ref
               </p>
+
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 font-black text-amber-700">
                 {refCode}
               </div>
             </div>
 
             <div className="mt-5">
-              <p className="mb-2 text-xs font-black uppercase text-slate-400">
+              <p className="mb-2 text-xs font-black uppercase text-slate-500">
                 Link đăng ký
               </p>
-              <div className="break-all rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+
+              <div className="break-all rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
                 {registerLink}
               </div>
             </div>
           </div>
 
           <div className="rounded-3xl border border-white/80 bg-white/95 p-6 shadow-sm">
-            <h3 className="text-center text-2xl font-black">QR Code</h3>
+            <h3 className="text-center text-2xl font-black text-slate-950">
+              QR Code
+            </h3>
+
             <img
               src={qrCodeUrl}
               alt="Agent QR"
-              className="mx-auto mt-5 h-52 w-52 rounded-2xl border bg-white p-2"
+              className="mx-auto mt-5 h-52 w-52 rounded-2xl border border-slate-200 bg-white p-2"
             />
           </div>
         </section>
 
         <section className="rounded-3xl border border-white/80 bg-white/95 p-6 shadow-sm">
-          <h3 className="text-2xl font-black text-slate-950">Booking gần đây</h3>
+          <h3 className="text-2xl font-black text-slate-950">
+            Booking gần đây
+          </h3>
 
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
-              <thead className="border-b bg-slate-50">
-                <tr className="text-left text-slate-500">
-                  <th className="px-3 py-3">Mã</th>
-                  <th className="px-3 py-3">Khách</th>
-                  <th className="px-3 py-3">Phone</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Bill</th>
-                  <th className="px-3 py-3">Hoa hồng</th>
+              <thead className="border-b border-slate-200 bg-slate-50">
+                <tr>
+                  <th className="px-3 py-3 text-left font-bold text-slate-600">
+                    Mã
+                  </th>
+
+                  <th className="px-3 py-3 text-left font-bold text-slate-600">
+                    Khách
+                  </th>
+
+                  <th className="px-3 py-3 text-left font-bold text-slate-600">
+                    Phone
+                  </th>
+
+                  <th className="px-3 py-3 text-left font-bold text-slate-600">
+                    Status
+                  </th>
+
+                  <th className="px-3 py-3 text-left font-bold text-slate-600">
+                    Bill
+                  </th>
+
+                  <th className="px-3 py-3 text-left font-bold text-slate-600">
+                    Hoa hồng
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
                 {bookings.map((booking) => (
-                  <tr key={booking.id} className="border-b">
-                    <td className="px-3 py-3 font-bold">
-                      {booking.booking_code || booking.id.slice(0, 8)}
+                  <tr
+                    key={booking.id}
+                    className="border-b border-slate-100"
+                  >
+                    <td className="px-3 py-3 font-bold text-slate-900">
+                      {booking.booking_code ||
+                        booking.id.slice(0, 8)}
                     </td>
-                    <td className="px-3 py-3">{booking.customer_name || '-'}</td>
-                    <td className="px-3 py-3">{booking.phone || '-'}</td>
-                    <td className="px-3 py-3">{booking.status || 'pending'}</td>
-                    <td className="px-3 py-3">{money(booking.total_bill)}đ</td>
-                    <td className="px-3 py-3 font-bold text-emerald-700">
-                      {money(booking.agent_commission_amount)}đ
+
+                    <td className="px-3 py-3 font-medium text-slate-700">
+                      {booking.customer_name || '-'}
+                    </td>
+
+                    <td className="px-3 py-3 font-medium text-slate-700">
+                      {booking.phone || '-'}
+                    </td>
+
+                    <td className="px-3 py-3">
+                      <span
+                        className={
+                          booking.status === 'completed'
+                            ? 'rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700'
+                            : booking.status === 'confirmed'
+                              ? 'rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700'
+                              : booking.status === 'cancelled'
+                                ? 'rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700'
+                                : 'rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700'
+                        }
+                      >
+                        {booking.status || 'pending'}
+                      </span>
+                    </td>
+
+                    <td className="px-3 py-3 font-semibold text-slate-800">
+                      {money(booking.total_bill)}đ
+                    </td>
+
+                    <td className="px-3 py-3 font-black text-emerald-700">
+                      {money(
+                        booking.agent_commission_amount,
+                      )}
+                      đ
                     </td>
                   </tr>
                 ))}
 
                 {!bookings.length && (
                   <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
+                    <td
+                      colSpan={6}
+                      className="px-3 py-8 text-center text-slate-500"
+                    >
                       Chưa có booking nào
                     </td>
                   </tr>
