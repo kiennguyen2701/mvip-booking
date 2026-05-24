@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { signInWithEmail } from "@/app/actions/auth";
 
 type AuthMode = "login" | "register" | "reset";
 type PreferredLanguage = "en" | "zh";
@@ -107,7 +108,6 @@ function getFriendlyError(message: string, language: PreferredLanguage) {
 }
 
 export default function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
 
@@ -231,23 +231,20 @@ export default function LoginForm() {
           return;
         }
 
-        router.push("/dashboard/customer");
-        router.refresh();
+        window.location.href = "/dashboard/customer";
         return;
       }
 
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: cleanPassword,
-      });
+      const formData = new FormData();
+      formData.append("email", cleanEmail);
+      formData.append("password", cleanPassword);
 
-      if (loginError) {
-        setError(getFriendlyError(loginError.message, preferredLanguage));
+      const result = await signInWithEmail(formData);
+
+      if (result?.error) {
+        setError(getFriendlyError(result.error, preferredLanguage));
         return;
       }
-
-      router.push("/dashboard");
-      router.refresh();
     } catch {
       setError(t.genericError);
     } finally {
