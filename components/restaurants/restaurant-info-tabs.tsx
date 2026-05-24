@@ -1,6 +1,13 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { getRestaurantImageUrl } from "@/lib/restaurants/images";
 import {
@@ -192,8 +199,45 @@ const Stars = memo(function Stars({
   );
 });
 
+const ReviewSkeleton = memo(function ReviewSkeleton() {
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-6 md:grid-cols-[1fr_220px] md:items-center">
+        <div className="space-y-3">
+          {[5, 4, 3, 2, 1].map((item) => (
+            <div
+              key={item}
+              className="grid grid-cols-[86px_1fr_32px] items-center gap-3"
+            >
+              <div className="h-4 rounded-full bg-white/10" />
+              <div className="h-2 rounded-full bg-white/10" />
+              <div className="h-4 rounded-full bg-white/10" />
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          <div className="mx-auto h-16 w-24 rounded-2xl bg-white/10" />
+          <div className="mx-auto h-4 w-32 rounded-full bg-white/10" />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+        <div className="h-4 w-40 rounded-full bg-white/10" />
+        <div className="mt-4 h-20 rounded-2xl bg-white/10" />
+      </div>
+
+      <div className="space-y-3">
+        <div className="h-24 rounded-2xl border border-white/10 bg-white/[0.04]" />
+        <div className="h-24 rounded-2xl border border-white/10 bg-white/[0.04]" />
+      </div>
+    </div>
+  );
+});
+
 function formatDate(value?: string | null) {
   if (!value) return "-";
+
   return new Date(value).toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
@@ -243,6 +287,7 @@ export default function RestaurantInfoTabs({
 
   const hours = useMemo(() => {
     if (!openingHours) return [];
+
     return dayOrder
       .map((day) => ({
         label: day.label,
@@ -275,6 +320,7 @@ export default function RestaurantInfoTabs({
       if (reviewsLoading || loadingMore) return;
 
       const offset = reset ? 0 : reviews.length;
+
       const params = new URLSearchParams({
         offset: String(offset),
         limit: "10",
@@ -326,6 +372,15 @@ export default function RestaurantInfoTabs({
     ],
   );
 
+  const preloadReviews = useCallback(() => {
+    if (reviewsLoaded || reviewsLoading || loadingMore) return;
+
+    void loadReviews({
+      reset: true,
+      ratingValue: ratingFilter,
+    });
+  }, [loadReviews, loadingMore, ratingFilter, reviewsLoaded, reviewsLoading]);
+
   useEffect(() => {
     if (activeTab === "reviews" && !reviewsLoaded) {
       void loadReviews({ reset: true });
@@ -354,11 +409,24 @@ export default function RestaurantInfoTabs({
       <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/30 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((tab) => {
           const active = activeTab === tab.key;
+
           return (
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key)}
+              onMouseEnter={() => {
+                if (tab.key === "reviews") preloadReviews();
+              }}
+              onFocus={() => {
+                if (tab.key === "reviews") preloadReviews();
+              }}
+              onTouchStart={() => {
+                if (tab.key === "reviews") preloadReviews();
+              }}
+              onClick={() => {
+                if (tab.key === "reviews") preloadReviews();
+                setActiveTab(tab.key);
+              }}
               className={
                 active
                   ? "shrink-0 whitespace-nowrap rounded-xl bg-amber-300 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-950"
@@ -377,9 +445,11 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.aboutRestaurant}
             </p>
+
             <p className="mt-4 break-words text-sm font-semibold leading-7 text-slate-300">
               {shortDescription || text.introUpdating}
             </p>
+
             {fullDescription && (
               <div
                 className="mt-5 break-words text-sm leading-7 text-slate-300"
@@ -394,6 +464,7 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.openingHours}
             </p>
+
             {hours.length > 0 ? (
               <div className="mt-4 grid gap-3">
                 {hours.map((item) => (
@@ -421,10 +492,12 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.location}
             </p>
+
             <p className="mt-4 break-words text-sm font-semibold leading-7 text-slate-300">
               {[address, city].filter(Boolean).join(", ") ||
                 text.locationUpdating}
             </p>
+
             {hasMap && (
               <a
                 href={`https://www.google.com/maps?q=${latitude},${longitude}`}
@@ -443,6 +516,7 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.foodType}
             </p>
+
             <div className="mt-4 flex flex-wrap gap-2">
               {(tags || []).map((tag) => (
                 <span
@@ -452,6 +526,7 @@ export default function RestaurantInfoTabs({
                   {tag}
                 </span>
               ))}
+
               {(amenities || []).map((item) => (
                 <span
                   key={item}
@@ -460,6 +535,7 @@ export default function RestaurantInfoTabs({
                   {item}
                 </span>
               ))}
+
               {priceRange && (
                 <span className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-black text-slate-300">
                   {priceRange}
@@ -474,6 +550,7 @@ export default function RestaurantInfoTabs({
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.restaurantMenu}
             </p>
+
             {visibleMenuImages.length > 0 ? (
               <div className="mt-5 grid gap-4">
                 {visibleMenuImages.map((image, index) => (
@@ -505,9 +582,7 @@ export default function RestaurantInfoTabs({
         {activeTab === "reviews" && (
           <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
             {reviewsLoading && !reviewsLoaded ? (
-              <p className="text-sm font-bold text-slate-400">
-                {text.loading}
-              </p>
+              <ReviewSkeleton />
             ) : (
               <>
                 <div className="grid gap-6 md:grid-cols-[1fr_220px] md:items-center">
@@ -515,6 +590,7 @@ export default function RestaurantInfoTabs({
                     {[5, 4, 3, 2, 1].map((star) => {
                       const count =
                         summary.breakdown[star as 1 | 2 | 3 | 4 | 5] || 0;
+
                       const percent =
                         summary.totalReviews > 0
                           ? (count / summary.totalReviews) * 100
@@ -540,12 +616,14 @@ export default function RestaurantInfoTabs({
                               {"★".repeat(5 - star)}
                             </span>
                           </span>
+
                           <span className="h-2 overflow-hidden rounded-full bg-white/10">
                             <span
                               className="block h-full rounded-full bg-amber-300"
                               style={{ width: `${percent}%` }}
                             />
                           </span>
+
                           <span>{count}</span>
                         </button>
                       );
@@ -556,12 +634,14 @@ export default function RestaurantInfoTabs({
                     <p className="text-6xl font-black leading-none text-white">
                       {summary.averageRating.toFixed(1)}
                     </p>
+
                     <div className="mt-3 flex justify-center text-xl">
                       <Stars
                         value={Math.round(summary.averageRating)}
                         readonly
                       />
                     </div>
+
                     <p className="mt-2 text-xs font-bold text-slate-400">
                       {text.basedOn} {summary.totalReviews} {text.reviews}
                     </p>
@@ -581,6 +661,7 @@ export default function RestaurantInfoTabs({
                     <option value={0} className="text-slate-950">
                       {text.allRatings}
                     </option>
+
                     {[5, 4, 3, 2, 1].map((star) => (
                       <option
                         key={star}
@@ -691,10 +772,12 @@ export default function RestaurantInfoTabs({
                             <p className="font-black text-white">
                               {review.customer_name || text.customer}
                             </p>
+
                             <p className="mt-1 text-xs font-semibold text-slate-500">
                               {formatDate(review.created_at)}
                             </p>
                           </div>
+
                           <Stars value={review.rating} readonly />
                         </div>
 

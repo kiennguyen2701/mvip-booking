@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { deleteCacheByPattern } from "@/lib/cache/cache";
 
 export type ReviewActionState = {
   success: boolean;
@@ -111,7 +112,11 @@ export async function createRestaurantReview(
       };
     }
 
-    revalidatePath(`/restaurants/${slug}`);
+    await Promise.all([
+      deleteCacheByPattern(`public:restaurant:${restaurantId}:reviews:*`),
+      deleteCacheByPattern(`public:restaurants:*`),
+      revalidatePath(`/restaurants/${slug}`),
+    ]);
 
     return {
       success: true,
