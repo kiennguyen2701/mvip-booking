@@ -15,40 +15,41 @@ function getDashboardPath(role?: string | null) {
   return '/dashboard/customer';
 }
 
+function isDashboardRole(value?: string | null): value is DashboardRole {
+  return (
+    value === 'admin' ||
+    value === 'supplier' ||
+    value === 'agent' ||
+    value === 'customer'
+  );
+}
+
 async function resolveUserRole(userId: string, fallbackRole?: string | null) {
-  if (fallbackRole) return fallbackRole as DashboardRole;
+  if (
+    fallbackRole === 'admin' ||
+    fallbackRole === 'supplier' ||
+    fallbackRole === 'agent'
+  ) {
+    return fallbackRole;
+  }
 
-  const { data: profile } = await adminClient
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .maybeSingle();
+  const [profileResult, userResult] = await Promise.all([
+    adminClient.from('profiles').select('role').eq('id', userId).maybeSingle(),
+    adminClient.from('users').select('role').eq('id', userId).maybeSingle(),
+  ]);
 
-  if (profile?.role) return profile.role as DashboardRole;
+  if (isDashboardRole(profileResult.data?.role)) return profileResult.data.role;
+  if (isDashboardRole(userResult.data?.role)) return userResult.data.role;
 
-  const { data: userRow } = await adminClient
-    .from('users')
-    .select('role')
-    .eq('id', userId)
-    .maybeSingle();
+  if (fallbackRole === 'customer') return 'customer';
 
-  if (userRow?.role) return userRow.role as DashboardRole;
+  const [supplierResult, agentResult] = await Promise.all([
+    adminClient.from('suppliers').select('id').eq('user_id', userId).maybeSingle(),
+    adminClient.from('agents').select('id').eq('user_id', userId).maybeSingle(),
+  ]);
 
-  const { data: supplier } = await adminClient
-    .from('suppliers')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (supplier) return 'supplier';
-
-  const { data: agent } = await adminClient
-    .from('agents')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (agent) return 'agent';
+  if (supplierResult.data) return 'supplier';
+  if (agentResult.data) return 'agent';
 
   return 'customer';
 }
@@ -64,14 +65,17 @@ export async function signInWithEmail(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: error.message, redirectTo: null };
   }
 
   const role = data.user
     ? await resolveUserRole(data.user.id, data.user.user_metadata?.role)
     : 'customer';
 
-  redirect(getDashboardPath(role));
+  return {
+    error: null,
+    redirectTo: getDashboardPath(role),
+  };
 }
 
 export async function signUpWithEmail(formData: FormData) {
@@ -80,6 +84,8 @@ export async function signUpWithEmail(formData: FormData) {
   const fullName = String(formData.get('full_name') || '').trim();
   const phone = String(formData.get('phone') || '').trim();
   const whatsapp = String(formData.get('whatsapp') || '').trim();
+  const preferredLanguage =
+    String(formData.get('preferred_language') || 'en') === 'zh' ? 'zh' : 'en';
 
   const supabase = await createClient();
   const cookieStore = await cookies();
@@ -92,6 +98,7 @@ export async function signUpWithEmail(formData: FormData) {
       data: {
         full_name: fullName,
         role: 'customer',
+        preferred_language: preferredLanguage,
       },
     },
   });
@@ -120,6 +127,7 @@ export async function signUpWithEmail(formData: FormData) {
       phone: phone || null,
       whatsapp: whatsapp || null,
       role: 'customer',
+      preferred_language: preferredLanguage,
       referred_by_ref_code: refCode,
       referred_by_agent_id: referredByAgentId,
     });

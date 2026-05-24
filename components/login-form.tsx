@@ -180,15 +180,18 @@ export default function LoginForm() {
 
         if (resetError) {
           setError(getFriendlyError(resetError.message, preferredLanguage));
+          setLoading(false);
           return;
         }
 
         setMessage(t.resetSent);
+        setLoading(false);
         return;
       }
 
       if (cleanPassword.length < 6) {
         setError(t.minPassword);
+        setLoading(false);
         return;
       }
 
@@ -218,6 +221,7 @@ export default function LoginForm() {
 
         if (!registerResponse.ok) {
           setError(registerResult.error || t.registerFailed);
+          setLoading(false);
           return;
         }
 
@@ -228,10 +232,11 @@ export default function LoginForm() {
 
         if (loginError) {
           setError(getFriendlyError(loginError.message, preferredLanguage));
+          setLoading(false);
           return;
         }
 
-        window.location.href = "/dashboard/customer";
+        window.location.assign("/dashboard/customer");
         return;
       }
 
@@ -241,26 +246,22 @@ export default function LoginForm() {
 
       const result = await signInWithEmail(formData);
 
-if (result?.error) {
-  setError(getFriendlyError(result.error, preferredLanguage));
-  setLoading(false);
-  return;
-}
+      if (result?.error) {
+        setError(getFriendlyError(result.error, preferredLanguage));
+        setLoading(false);
+        return;
+      }
 
-return;
-    } catch (error) {
-  const message =
-    error instanceof Error ? error.message : String(error || "");
+      window.location.assign(result?.redirectTo || "/dashboard/customer");
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error
+          ? caughtError.message
+          : String(caughtError || "");
 
-  if (
-    message.includes("NEXT_REDIRECT") ||
-    message.includes("NEXT_NOT_FOUND")
-  ) {
-    return;
-  }
+      if (message.includes("NEXT_REDIRECT")) return;
 
-  setError(t.genericError);
-} finally {
+      setError(t.genericError);
       setLoading(false);
     }
   }
