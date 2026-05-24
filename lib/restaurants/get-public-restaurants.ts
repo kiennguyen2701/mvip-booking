@@ -1,34 +1,47 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCache, setCache } from "@/lib/cache/cache";
-import { CACHE_TTL } from "@/lib/cache/keys";
+import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
 
 export type PublicRestaurant = {
   id: string;
   name: string | null;
   name_zh?: string | null;
   slug: string | null;
+
   address: string | null;
   address_zh?: string | null;
+
   city: string | null;
   city_zh?: string | null;
+
   cover_image: string | null;
   image_url?: string | null;
+
   discount_percent?: number | null;
+
   cuisine_type?: string | null;
   cuisine_type_zh?: string | null;
+
   cuisine?: string | null;
+
   category?: string | null;
   category_zh?: string | null;
+
   description?: string | null;
   description_zh?: string | null;
+
   short_description?: string | null;
   short_description_zh?: string | null;
+
   price_range?: string | null;
   tags?: string[] | null;
+
   latitude?: number | null;
   longitude?: number | null;
+
   is_active?: boolean | null;
   created_at?: string | null;
+
   average_rating: number;
   total_reviews: number;
 };
@@ -90,15 +103,16 @@ function chunkArray<T>(items: T[], size: number) {
 }
 
 function getCacheKey(params: Required<GetPublicRestaurantsParams>) {
-  return [
-    "public-restaurants",
-    "ratings-v6-light-list",
-    params.query,
-    params.city,
-    params.tag,
-    params.priceRange,
+  const suffix = [
+    "v7",
+    normalizeText(params.query || "all"),
+    normalizeText(params.city || "all"),
+    normalizeText(params.tag || "all"),
+    normalizeText(params.priceRange || "all"),
     params.limit,
   ].join(":");
+
+  return cacheKeys.publicRestaurants(suffix);
 }
 
 export async function getPublicRestaurants({
@@ -169,7 +183,7 @@ export async function getPublicRestaurants({
   const { data, error } = await request;
 
   if (error) {
-    console.error("getPublicRestaurants error:", error);
+    console.error("GET_PUBLIC_RESTAURANTS_ERROR:", error);
     return [];
   }
 
@@ -184,7 +198,6 @@ export async function getPublicRestaurants({
 
   if (restaurantIds.length > 0) {
     const allReviewRows: ReviewRatingRow[] = [];
-
     const chunks = chunkArray(restaurantIds, 150);
 
     const reviewResults = await Promise.all(
@@ -198,7 +211,7 @@ export async function getPublicRestaurants({
 
     for (const result of reviewResults) {
       if (result.error) {
-        console.error("getPublicRestaurants review error:", result.error);
+        console.error("GET_PUBLIC_RESTAURANTS_REVIEWS_ERROR:", result.error);
         continue;
       }
 
@@ -265,11 +278,7 @@ export async function getPublicRestaurants({
     })
     .slice(0, limit);
 
-  await setCache(
-    cacheKey,
-    restaurants,
-    Math.min(CACHE_TTL.PUBLIC_RESTAURANTS, 90),
-  );
+  await setCache(cacheKey, restaurants, CACHE_TTL.PUBLIC_RESTAURANTS);
 
   return restaurants;
 }

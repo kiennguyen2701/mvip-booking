@@ -14,29 +14,12 @@ type PageProps = {
 
 type PreferredLanguage = "en" | "zh";
 
-type RestaurantReview = {
-  id: string;
-  customer_name: string;
-  rating: number;
-  comment: string;
-  created_at: string;
-};
-
-type ReviewSummary = {
-  reviews: RestaurantReview[];
-  totalReviews: number;
-  averageRating: number;
-  canReview: boolean;
-  completedBookingId: string | null;
-  alreadyReviewed: boolean;
-};
-
 const DETAIL_COPY = {
   en: {
     previewMode:
       "Preview Mode — this restaurant is currently inactive and only visible to owner/admin.",
     luxuryDiningPartner: "Luxury Dining Partner",
-    reviews: "reviews",
+    reviews: "Reviews",
     exclusiveOffer: "Exclusive Offer",
     instantCustomerDiscount: "Instant customer discount",
     supplierPreview: "Supplier Preview",
@@ -49,7 +32,7 @@ const DETAIL_COPY = {
   zh: {
     previewMode: "预览模式 — 此餐厅当前未启用，仅供应商/管理员可见。",
     luxuryDiningPartner: "高端餐饮合作伙伴",
-    reviews: "条评价",
+    reviews: "评价",
     exclusiveOffer: "专属优惠",
     instantCustomerDiscount: "客户即时折扣",
     supplierPreview: "供应商预览",
@@ -103,106 +86,15 @@ async function getPreferredLanguage(): Promise<PreferredLanguage> {
   }
 }
 
-async function getRestaurantReviewSummary(
-  restaurantId: string,
-): Promise<ReviewSummary> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const [
-    reviewsResult,
-    countResult,
-    averageResult,
-    completedBookingResult,
-  ] = await Promise.all([
-    adminClient
-      .from("restaurant_reviews")
-      .select("id, customer_name, rating, comment, created_at")
-      .eq("restaurant_id", restaurantId)
-      .order("created_at", { ascending: false })
-      .limit(10),
-
-    adminClient
-      .from("restaurant_reviews")
-      .select("id", { count: "exact", head: true })
-      .eq("restaurant_id", restaurantId),
-
-    adminClient
-      .from("restaurant_reviews")
-      .select("rating")
-      .eq("restaurant_id", restaurantId),
-
-    user?.email
-      ? adminClient
-          .from("bookings")
-          .select("id")
-          .eq("restaurant_id", restaurantId)
-          .eq("email", user.email)
-          .eq("status", "completed")
-          .order("created_at", { ascending: false })
-          .limit(5)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  const reviews = (reviewsResult.data || []) as RestaurantReview[];
-  const totalReviews = countResult.count || 0;
-
-  const ratings = (averageResult.data || []) as { rating: number }[];
-  const averageRating = ratings.length
-    ? ratings.reduce((sum, item) => sum + Number(item.rating || 0), 0) /
-      ratings.length
-    : 5;
-
-  const completedBookings =
-    (completedBookingResult.data || []) as { id: string }[];
-
-  let completedBookingId: string | null = null;
-  let alreadyReviewed = false;
-
-  if (user?.id && completedBookings.length > 0) {
-    const bookingIds = completedBookings.map((booking) => booking.id);
-
-    const { data: existingReviews } = await adminClient
-      .from("restaurant_reviews")
-      .select("booking_id")
-      .in("booking_id", bookingIds);
-
-    const reviewedBookingIds = new Set(
-      (existingReviews || []).map((item) => item.booking_id),
-    );
-
-    const availableBooking = completedBookings.find(
-      (booking) => !reviewedBookingIds.has(booking.id),
-    );
-
-    completedBookingId = availableBooking?.id || null;
-    alreadyReviewed = !availableBooking && reviewedBookingIds.size > 0;
-  }
-
-  return {
-    reviews,
-    totalReviews,
-    averageRating,
-    canReview: Boolean(user?.id && completedBookingId),
-    completedBookingId,
-    alreadyReviewed,
-  };
-}
-
 export default async function RestaurantDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
-  const restaurant = await getPublicRestaurantDetail(slug);
-
-  if (!restaurant) notFound();
-
-  const [reviewSummary, preferredLanguage] = await Promise.all([
-    getRestaurantReviewSummary(String(restaurant.id)),
+  const [restaurant, preferredLanguage] = await Promise.all([
+    getPublicRestaurantDetail(slug),
     getPreferredLanguage(),
   ]);
+
+  if (!restaurant) notFound();
 
   const language = preferredLanguage === "zh" ? "zh" : "en";
   const t = DETAIL_COPY[language];
@@ -288,12 +180,14 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
 
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <div className="rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-100">
-                  ★ {reviewSummary.averageRating.toFixed(1)} / 5
+                  ★ {t.reviews}
                 </div>
 
-                <div className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-slate-300">
-                  {reviewSummary.totalReviews} {t.reviews}
-                </div>
+                {city && (
+                  <div className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-slate-300">
+                    📍 {city}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -335,12 +229,6 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
               amenities={amenities}
               priceRange={priceRange}
               menuImages={restaurant.menu_images || []}
-              initialReviews={reviewSummary.reviews}
-              totalReviews={reviewSummary.totalReviews}
-              averageRating={reviewSummary.averageRating}
-              canReview={reviewSummary.canReview}
-              completedBookingId={reviewSummary.completedBookingId}
-              alreadyReviewed={reviewSummary.alreadyReviewed}
               preferredLanguage={language}
             />
           </div>

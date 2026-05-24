@@ -43,7 +43,7 @@ export async function deleteCacheByPattern(pattern: string) {
   try {
     const keys = await redis.keys(pattern);
 
-    if (keys.length) {
+    if (keys.length > 0) {
       await redis.del(...keys);
     }
   } catch (error) {

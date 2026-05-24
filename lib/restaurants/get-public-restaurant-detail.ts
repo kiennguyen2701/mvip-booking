@@ -4,7 +4,11 @@ import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
 
 export async function getPublicRestaurantDetail(slug: string) {
   const supabase = await createClient();
-  const cacheKey = `${cacheKeys.publicRestaurantDetail(slug)}:i18n-v2`;
+  const normalizedSlug = String(slug || "").trim();
+
+  if (!normalizedSlug) return null;
+
+  const cacheKey = `${cacheKeys.publicRestaurantDetail(normalizedSlug)}:v7`;
 
   const cached = await getCache<Record<string, unknown>>(cacheKey);
 
@@ -15,7 +19,7 @@ export async function getPublicRestaurantDetail(slug: string) {
   const { data: restaurant, error } = await supabase
     .from("restaurants")
     .select("*")
-    .eq("slug", slug)
+    .eq("slug", normalizedSlug)
     .maybeSingle();
 
   if (error || !restaurant) return null;
@@ -31,15 +35,21 @@ export async function getPublicRestaurantDetail(slug: string) {
 
   if (!user) return null;
 
+  const role = user.user_metadata?.role;
+
+  if (role === "admin") {
+    return restaurant;
+  }
+
   const { data: supplier } = await supabase
     .from("suppliers")
     .select("id")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!supplier) return null;
+  if (supplier?.id === restaurant.supplier_id) {
+    return restaurant;
+  }
 
-  if (restaurant.supplier_id !== supplier.id) return null;
-
-  return restaurant;
+  return null;
 }

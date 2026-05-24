@@ -5,6 +5,7 @@ export const CACHE_TTL = {
 
   PUBLIC_RESTAURANTS: 300,
   PUBLIC_RESTAURANT_DETAIL: 600,
+  CUSTOMER_RESTAURANT_FEED: 120,
 } as const;
 
 export const cacheKeys = {
@@ -27,6 +28,9 @@ export const cacheKeys = {
 
   publicRestaurants: (suffix = "all") => `public:restaurants:${suffix}`,
 
+  customerRestaurantFeed: (suffix = "default") =>
+    `customer:restaurant-feed:${suffix}`,
+
   publicRestaurantDetail: (slug: string) => `public:restaurant:${slug}`,
 };
 
@@ -47,6 +51,8 @@ export const cachePatterns = {
   agentAll: (agentId: string) => `agent:${agentId}:*`,
 
   publicRestaurants: () => "public:restaurants:*",
+
+  customerRestaurantFeed: () => "customer:restaurant-feed:*",
 
   publicRestaurantDetail: (slug: string) => `public:restaurant:${slug}`,
 };
