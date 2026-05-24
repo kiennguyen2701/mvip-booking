@@ -241,13 +241,26 @@ export default function LoginForm() {
 
       const result = await signInWithEmail(formData);
 
-      if (result?.error) {
-        setError(getFriendlyError(result.error, preferredLanguage));
-        return;
-      }
-    } catch {
-      setError(t.genericError);
-    } finally {
+if (result?.error) {
+  setError(getFriendlyError(result.error, preferredLanguage));
+  setLoading(false);
+  return;
+}
+
+return;
+    } catch (error) {
+  const message =
+    error instanceof Error ? error.message : String(error || "");
+
+  if (
+    message.includes("NEXT_REDIRECT") ||
+    message.includes("NEXT_NOT_FOUND")
+  ) {
+    return;
+  }
+
+  setError(t.genericError);
+} finally {
       setLoading(false);
     }
   }
