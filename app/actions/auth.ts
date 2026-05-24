@@ -5,18 +5,73 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { adminClient } from '@/lib/supabase/admin';
 
+type DashboardRole = 'admin' | 'supplier' | 'agent' | 'customer';
+
+function getDashboardPath(role?: string | null) {
+  if (role === 'admin') return '/dashboard/admin';
+  if (role === 'supplier') return '/dashboard/supplier';
+  if (role === 'agent') return '/dashboard/agent';
+
+  return '/dashboard/customer';
+}
+
+async function resolveUserRole(userId: string, fallbackRole?: string | null) {
+  if (fallbackRole) return fallbackRole as DashboardRole;
+
+  const { data: profile } = await adminClient
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (profile?.role) return profile.role as DashboardRole;
+
+  const { data: userRow } = await adminClient
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (userRow?.role) return userRow.role as DashboardRole;
+
+  const { data: supplier } = await adminClient
+    .from('suppliers')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (supplier) return 'supplier';
+
+  const { data: agent } = await adminClient
+    .from('agents')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (agent) return 'agent';
+
+  return 'customer';
+}
+
 export async function signInWithEmail(formData: FormData) {
   const email = String(formData.get('email') || '').trim().toLowerCase();
   const password = String(formData.get('password') || '');
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
   if (error) {
     return { error: error.message };
   }
 
-  redirect('/dashboard');
+  const role = data.user
+    ? await resolveUserRole(data.user.id, data.user.user_metadata?.role)
+    : 'customer';
+
+  redirect(getDashboardPath(role));
 }
 
 export async function signUpWithEmail(formData: FormData) {
