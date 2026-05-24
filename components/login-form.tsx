@@ -11,15 +11,12 @@ const COPY = {
   en: {
     brand: "Mvip Booking",
     loginTitle: "Welcome Back",
-    registerTitle: "Create Customer Account",
+    registerTitle: "Create Account",
     resetTitle: "Reset Password",
-    loginSubtitle:
-      "Sign in to access the correct dashboard for your account role.",
-    registerSubtitle:
-      "Join Mvip Booking to discover premium dining and booking offers.",
-    resetSubtitle:
-      "Enter your email address and we will send you a password reset link.",
-    referralApplied: "Referral code applied",
+    loginSubtitle: "Sign in to access your dashboard.",
+    registerSubtitle: "Create your account to unlock premium dining benefits.",
+    resetSubtitle: "Enter your email to receive a reset link.",
+    referralApplied: "Referral applied",
     fullName: "Full name",
     phone: "Phone number",
     whatsapp: "WhatsApp (optional)",
@@ -30,7 +27,7 @@ const COPY = {
     createAccount: "Create Account",
     sendReset: "Send Reset Link",
     forgotPassword: "Forgot password?",
-    newCustomer: "New customer? Create an account",
+    newCustomer: "New customer? Create account",
     alreadyHaveAccount: "Already have an account? Sign in",
     backToSignIn: "Back to sign in",
     invalidEmail: "Please enter a valid email address.",
@@ -39,17 +36,17 @@ const COPY = {
     registerFailed: "Unable to register customer.",
     genericError: "Something went wrong. Please try again.",
     invalidLogin: "Email or password is incorrect.",
-    rateLimit: "Too many requests. Please wait a few minutes and try again.",
-    alreadyRegistered: "This email is already registered. Please sign in instead.",
+    rateLimit: "Too many requests. Please wait and try again.",
+    alreadyRegistered: "This email is already registered. Please sign in.",
   },
   zh: {
     brand: "Mvip Booking",
     loginTitle: "欢迎回来",
-    registerTitle: "创建客户账户",
+    registerTitle: "创建账户",
     resetTitle: "重置密码",
-    loginSubtitle: "登录后系统会自动进入对应身份的后台。",
-    registerSubtitle: "加入 Mvip Booking，探索高端餐饮与专属预订优惠。",
-    resetSubtitle: "请输入邮箱，我们会发送密码重置链接。",
+    loginSubtitle: "登录后进入您的专属后台。",
+    registerSubtitle: "创建账户，解锁高端餐饮会员权益。",
+    resetSubtitle: "请输入邮箱，我们会发送重置链接。",
     referralApplied: "已应用推荐码",
     fullName: "姓名",
     phone: "电话号码",
@@ -64,8 +61,8 @@ const COPY = {
     newCustomer: "新客户？创建账户",
     alreadyHaveAccount: "已有账户？登录",
     backToSignIn: "返回登录",
-    invalidEmail: "请输入有效的邮箱地址。",
-    minPassword: "密码至少需要 6 个字符。",
+    invalidEmail: "请输入有效邮箱。",
+    minPassword: "密码至少 6 位。",
     resetSent: "密码重置邮件已发送。",
     registerFailed: "无法创建客户账户。",
     genericError: "发生错误，请重试。",
@@ -79,30 +76,10 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
-function getFriendlyError(message: string, language: PreferredLanguage) {
-  const lowerMessage = message.toLowerCase();
-  const t = COPY[language];
-
-  if (lowerMessage.includes("invalid login credentials")) {
-    return t.invalidLogin;
-  }
-
-  if (lowerMessage.includes("rate limit")) {
-    return t.rateLimit;
-  }
-
-  if (lowerMessage.includes("already registered")) {
-    return t.alreadyRegistered;
-  }
-
-  return message;
-}
-
 function getStoredLanguage(): PreferredLanguage {
   if (typeof window === "undefined") return "en";
 
   const localValue = window.localStorage.getItem("preferred_language");
-
   if (localValue === "zh") return "zh";
 
   const cookieValue = document.cookie
@@ -118,6 +95,17 @@ function persistLanguage(language: PreferredLanguage) {
   document.cookie = `preferred_language=${language}; path=/; max-age=31536000; SameSite=Lax`;
 }
 
+function getFriendlyError(message: string, language: PreferredLanguage) {
+  const lowerMessage = message.toLowerCase();
+  const t = COPY[language];
+
+  if (lowerMessage.includes("invalid login credentials")) return t.invalidLogin;
+  if (lowerMessage.includes("rate limit")) return t.rateLimit;
+  if (lowerMessage.includes("already registered")) return t.alreadyRegistered;
+
+  return message;
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -127,15 +115,14 @@ export default function LoginForm() {
   const urlMode = searchParams.get("mode");
 
   const [mode, setMode] = useState<AuthMode>("login");
+  const [preferredLanguage, setPreferredLanguage] =
+    useState<PreferredLanguage>("en");
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const [preferredLanguage, setPreferredLanguage] =
-    useState<PreferredLanguage>("en");
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -161,6 +148,12 @@ export default function LoginForm() {
     persistLanguage(language);
   }
 
+  function switchMode(nextMode: AuthMode) {
+    setError("");
+    setMessage("");
+    setMode(nextMode);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -168,9 +161,6 @@ export default function LoginForm() {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
-    const cleanFullName = fullName.trim();
-    const cleanPhone = phone.trim();
-    const cleanWhatsapp = whatsapp.trim();
     const cleanPreferredLanguage: PreferredLanguage =
       preferredLanguage === "zh" ? "zh" : "en";
 
@@ -214,9 +204,9 @@ export default function LoginForm() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            fullName: cleanFullName,
-            phone: cleanPhone,
-            whatsapp: cleanWhatsapp,
+            fullName: fullName.trim(),
+            phone: phone.trim(),
+            whatsapp: whatsapp.trim(),
             email: cleanEmail,
             password: cleanPassword,
             refCode,
@@ -265,7 +255,19 @@ export default function LoginForm() {
     }
   }
 
-  const isCompactLogin = mode === "login" || mode === "reset";
+  const cardTitle =
+    mode === "login"
+      ? t.loginTitle
+      : mode === "register"
+        ? t.registerTitle
+        : t.resetTitle;
+
+  const cardSubtitle =
+    mode === "login"
+      ? t.loginSubtitle
+      : mode === "register"
+        ? t.registerSubtitle
+        : t.resetSubtitle;
 
   return (
     <>
@@ -275,7 +277,7 @@ export default function LoginForm() {
           onChange={(event) =>
             updateLanguage(event.target.value === "zh" ? "zh" : "en")
           }
-          className="rounded-2xl border border-amber-300/30 bg-[#11100c]/95 px-4 py-3 text-sm font-black text-white shadow-xl shadow-black/30 outline-none backdrop-blur-xl transition focus:border-amber-300"
+          className="h-12 rounded-2xl border border-amber-300/60 bg-[#11100c]/95 px-4 text-sm font-black text-white shadow-xl shadow-black/30 outline-none backdrop-blur-xl transition focus:border-amber-300"
           aria-label="Select language"
         >
           <option value="en" className="text-slate-950">
@@ -288,65 +290,37 @@ export default function LoginForm() {
       </div>
 
       <div className="w-full max-w-[500px] overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.07] shadow-2xl shadow-black/30 backdrop-blur-xl md:rounded-[32px]">
-        <div
-          className={
-            isCompactLogin
-              ? "bg-gradient-to-br from-yellow-500/10 via-transparent to-orange-500/10 p-5 md:p-7"
-              : "max-h-[calc(100svh-150px)] overflow-y-auto bg-gradient-to-br from-yellow-500/10 via-transparent to-orange-500/10 p-5 md:max-h-[calc(100svh-160px)] md:p-7"
-          }
-        >
-          <div className={isCompactLogin ? "mb-5 text-center" : "mb-5"}>
-            <div
-              className={
-                isCompactLogin
-                  ? "mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-[16px] text-slate-950 shadow-lg shadow-amber-900/20"
-                  : "mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-[16px] text-slate-950 shadow-lg shadow-amber-900/20"
-              }
-            >
+        <div className="bg-gradient-to-br from-yellow-500/10 via-transparent to-orange-500/10 p-5 md:p-6">
+          <div className="mb-4">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-[15px] text-slate-950 shadow-lg shadow-amber-900/20">
               ♛
             </div>
 
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-amber-300">
+            <p className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-300">
               {t.brand}
             </p>
 
-            <h1
-              className={
-                isCompactLogin
-                  ? "mt-2 text-3xl font-black tracking-tight text-white md:text-4xl"
-                  : "mt-2 text-3xl font-black tracking-tight text-white md:text-4xl"
-              }
-            >
-              {mode === "login" && t.loginTitle}
-              {mode === "register" && t.registerTitle}
-              {mode === "reset" && t.resetTitle}
+            <h1 className="mt-2 text-[2rem] font-black leading-[1.05] tracking-tight text-white md:text-[2.45rem]">
+              {cardTitle}
             </h1>
 
-            <p
-              className={
-                isCompactLogin
-                  ? "mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-400"
-                  : "mt-2 text-sm leading-6 text-slate-400"
-              }
-            >
-              {mode === "login" && t.loginSubtitle}
-              {mode === "register" && t.registerSubtitle}
-              {mode === "reset" && t.resetSubtitle}
+            <p className="mt-2 text-sm leading-5 text-slate-400">
+              {cardSubtitle}
             </p>
 
             {refCode && mode === "register" && (
-              <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
+              <div className="mt-3 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-2.5 text-xs font-bold text-amber-100">
                 {t.referralApplied}: {refCode}
               </div>
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} className="space-y-2.5">
             {mode === "register" && (
               <>
                 <input
                   placeholder={t.fullName}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
                   required
@@ -354,14 +328,14 @@ export default function LoginForm() {
 
                 <input
                   placeholder={t.phone}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
                 />
 
                 <input
                   placeholder={t.whatsapp}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
                   value={whatsapp}
                   onChange={(event) => setWhatsapp(event.target.value)}
                 />
@@ -373,7 +347,7 @@ export default function LoginForm() {
               inputMode="email"
               autoComplete="email"
               placeholder={t.email}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+              className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
@@ -386,7 +360,7 @@ export default function LoginForm() {
                 autoComplete={
                   mode === "register" ? "new-password" : "current-password"
                 }
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
+                className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40 focus:ring-4 focus:ring-amber-300/10"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
@@ -394,20 +368,20 @@ export default function LoginForm() {
             )}
 
             {error && (
-              <div className="rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-sm font-bold text-red-200">
+              <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-2.5 text-sm font-bold text-red-200">
                 {error}
               </div>
             )}
 
             {message && (
-              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-200">
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-200">
                 {message}
               </div>
             )}
 
             <button
               disabled={loading}
-              className="w-full rounded-2xl bg-amber-300 py-3.5 text-[18px] font-black text-slate-950 shadow-xl shadow-amber-900/20 transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-12 w-full rounded-2xl bg-amber-300 text-[17px] font-black text-slate-950 shadow-xl shadow-amber-900/20 transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading
                 ? t.processing
@@ -419,16 +393,12 @@ export default function LoginForm() {
             </button>
           </form>
 
-          <div className="mt-5 space-y-2 text-center">
+          <div className="mt-4 space-y-1.5 text-center">
             {mode === "login" && (
               <>
                 <button
                   type="button"
-                  onClick={() => {
-                    setError("");
-                    setMessage("");
-                    setMode("reset");
-                  }}
+                  onClick={() => switchMode("reset")}
                   className="block w-full text-sm font-bold text-slate-400 transition hover:text-white"
                 >
                   {t.forgotPassword}
@@ -436,11 +406,7 @@ export default function LoginForm() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setError("");
-                    setMessage("");
-                    setMode("register");
-                  }}
+                  onClick={() => switchMode("register")}
                   className="block w-full text-sm font-black text-amber-300 transition hover:text-amber-200"
                 >
                   {t.newCustomer}
@@ -451,11 +417,7 @@ export default function LoginForm() {
             {mode === "register" && (
               <button
                 type="button"
-                onClick={() => {
-                  setError("");
-                  setMessage("");
-                  setMode("login");
-                }}
+                onClick={() => switchMode("login")}
                 className="w-full text-sm font-black text-amber-300 transition hover:text-amber-200"
               >
                 {t.alreadyHaveAccount}
@@ -465,11 +427,7 @@ export default function LoginForm() {
             {mode === "reset" && (
               <button
                 type="button"
-                onClick={() => {
-                  setError("");
-                  setMessage("");
-                  setMode("login");
-                }}
+                onClick={() => switchMode("login")}
                 className="w-full text-sm font-black text-amber-300 transition hover:text-amber-200"
               >
                 {t.backToSignIn}
