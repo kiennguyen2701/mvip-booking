@@ -6,6 +6,46 @@ type PageProps = {
   params: Promise<{ id: string }>;
 };
 
+type RestaurantLocation = {
+  id: string;
+  name: string | null;
+  address: string | null;
+  city: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+function buildGoogleMapsUrl({
+  restaurantName,
+  address,
+  city,
+  latitude,
+  longitude,
+}: {
+  restaurantName?: string | null;
+  address?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}) {
+  if (
+    typeof latitude === "number" &&
+    typeof longitude === "number" &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude)
+  ) {
+    return `https://www.google.com/maps?q=${latitude},${longitude}`;
+  }
+
+  const query = [restaurantName, address, city].filter(Boolean).join(", ");
+
+  if (!query) return "";
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    query,
+  )}`;
+}
+
 export default async function BookingDetailPage({ params }: PageProps) {
   const { id } = await params;
 
@@ -23,12 +63,43 @@ export default async function BookingDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  let restaurant: RestaurantLocation | null = null;
+
+  if (booking.restaurant_id) {
+    const { data: restaurantData, error: restaurantError } = await adminClient
+      .from("restaurants")
+      .select("id, name, address, city, latitude, longitude")
+      .eq("id", booking.restaurant_id)
+      .maybeSingle();
+
+    if (restaurantError) {
+      console.error("BOOKING_RESTAURANT_LOCATION_ERROR:", restaurantError.message);
+    }
+
+    restaurant = restaurantData as RestaurantLocation | null;
+  }
+
   const guests =
     booking.guests ||
     booking.number_of_guests ||
     booking.pax ||
     booking.quantity ||
     "—";
+
+  const restaurantName =
+    restaurant?.name || booking.service_name || "Restaurant";
+
+  const restaurantAddress = [restaurant?.address, restaurant?.city]
+    .filter(Boolean)
+    .join(", ");
+
+  const googleMapsUrl = buildGoogleMapsUrl({
+    restaurantName,
+    address: restaurant?.address,
+    city: restaurant?.city,
+    latitude: restaurant?.latitude,
+    longitude: restaurant?.longitude,
+  });
 
   return (
     <main className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[#080704] px-4 py-6 text-white md:px-6 md:py-10">
@@ -61,12 +132,26 @@ export default async function BookingDetailPage({ params }: PageProps) {
           <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-black/20 md:mt-8">
             <Row label="Booking Code" value={booking.booking_code} />
             <Row label="Customer Name" value={booking.customer_name} />
-            <Row label="Restaurant" value={booking.service_name} />
+            <Row label="Restaurant" value={restaurantName} />
+            <Row label="Address" value={restaurantAddress || "—"} />
             <Row label="Guests" value={guests} />
             <Row label="Date" value={booking.booking_date} />
             <Row label="Time" value={booking.booking_time} />
             <Row label="Status" value={booking.status} />
           </div>
+
+          {googleMapsUrl ? (
+            <div className="mt-4">
+              <a
+                href={googleMapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex w-full items-center justify-center rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-4 text-sm font-black text-amber-100 transition hover:border-amber-300/60 hover:bg-amber-300/15"
+              >
+                📍 Open Restaurant Location
+              </a>
+            </div>
+          ) : null}
 
           <div className="mt-5 rounded-3xl border border-emerald-300/20 bg-emerald-400/10 p-4 md:mt-6 md:p-5">
             <p className="text-sm font-black text-emerald-200">
