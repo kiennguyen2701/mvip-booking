@@ -2,13 +2,45 @@ import { createClient } from "@/lib/supabase/server";
 import { getCache, setCache } from "@/lib/cache/cache";
 import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
 
+const DETAIL_SELECT = `
+  id,
+  slug,
+  name,
+  name_zh,
+  supplier_id,
+  is_active,
+  cover_image,
+  gallery_images,
+  menu_images,
+  short_description,
+  short_description_zh,
+  full_description,
+  full_description_zh,
+  address,
+  address_zh,
+  city,
+  city_zh,
+  latitude,
+  longitude,
+  tags,
+  tags_zh,
+  amenities,
+  amenities_zh,
+  opening_hours,
+  opening_hours_zh,
+  price_range,
+  price_range_zh,
+  created_at,
+  updated_at
+`;
+
 export async function getPublicRestaurantDetail(slug: string) {
   const supabase = await createClient();
   const normalizedSlug = String(slug || "").trim();
 
   if (!normalizedSlug) return null;
 
-  const cacheKey = `${cacheKeys.publicRestaurantDetail(normalizedSlug)}:v7`;
+  const cacheKey = `${cacheKeys.publicRestaurantDetail(normalizedSlug)}:v8`;
 
   const cached = await getCache<Record<string, unknown>>(cacheKey);
 
@@ -16,11 +48,24 @@ export async function getPublicRestaurantDetail(slug: string) {
     return cached;
   }
 
-  const { data: restaurant, error } = await supabase
+  let { data: restaurant, error } = await supabase
     .from("restaurants")
-    .select("*")
+    .select(DETAIL_SELECT)
     .eq("slug", normalizedSlug)
     .maybeSingle();
+
+  if (error) {
+    console.error("GET_RESTAURANT_DETAIL_OPTIMIZED_SELECT_ERROR:", error);
+
+    const fallback = await supabase
+      .from("restaurants")
+      .select("*")
+      .eq("slug", normalizedSlug)
+      .maybeSingle();
+
+    restaurant = fallback.data;
+    error = fallback.error;
+  }
 
   if (error || !restaurant) return null;
 

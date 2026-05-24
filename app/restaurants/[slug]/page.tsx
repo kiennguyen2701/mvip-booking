@@ -1,10 +1,35 @@
+import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
-import RestaurantGallery from "@/components/restaurants/restaurant-gallery";
-import RestaurantBookingForm from "@/components/restaurants/restaurant-booking-form";
-import RestaurantInfoTabs from "@/components/restaurants/restaurant-info-tabs";
-import { getPublicRestaurantDetail } from "@/lib/restaurants/get-public-restaurant-detail";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { getPublicRestaurantDetail } from "@/lib/restaurants/get-public-restaurant-detail";
+
+const RestaurantGallery = dynamic(
+  () => import("@/components/restaurants/restaurant-gallery"),
+  {
+    loading: () => (
+      <div className="h-[235px] w-full rounded-[28px] border border-white/10 bg-white/[0.06] sm:h-[320px] md:h-[500px]" />
+    ),
+  },
+);
+
+const RestaurantInfoTabs = dynamic(
+  () => import("@/components/restaurants/restaurant-info-tabs"),
+  {
+    loading: () => (
+      <div className="h-[360px] w-full rounded-[28px] border border-white/10 bg-white/[0.06]" />
+    ),
+  },
+);
+
+const RestaurantBookingForm = dynamic(
+  () => import("@/components/restaurants/restaurant-booking-form"),
+  {
+    loading: () => (
+      <div className="h-[620px] w-full rounded-[34px] border border-white/10 bg-white/[0.06]" />
+    ),
+  },
+);
 
 type PageProps = {
   params: Promise<{
@@ -149,6 +174,19 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
     "price_range_zh",
   );
 
+  const coverImage =
+    typeof restaurantRecord.cover_image === "string"
+      ? restaurantRecord.cover_image
+      : null;
+
+  const galleryImages = Array.isArray(restaurantRecord.gallery_images)
+    ? (restaurantRecord.gallery_images as string[])
+    : [];
+
+  const menuImages = Array.isArray(restaurantRecord.menu_images)
+    ? (restaurantRecord.menu_images as string[])
+    : [];
+
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[#070604] pb-24 text-white">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -211,24 +249,32 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
           <div className="min-w-0 space-y-5">
             <RestaurantGallery
               name={restaurantName}
-              coverImage={restaurant.cover_image}
-              galleryImages={restaurant.gallery_images || []}
+              coverImage={coverImage}
+              galleryImages={galleryImages}
             />
 
             <RestaurantInfoTabs
-              restaurantId={restaurant.id}
-              slug={restaurant.slug}
+              restaurantId={String(restaurantRecord.id)}
+              slug={String(restaurantRecord.slug)}
               shortDescription={shortDescription}
               fullDescription={fullDescription}
               openingHours={openingHours}
               address={address}
               city={city}
-              latitude={restaurant.latitude}
-              longitude={restaurant.longitude}
+              latitude={
+                typeof restaurantRecord.latitude === "number"
+                  ? restaurantRecord.latitude
+                  : null
+              }
+              longitude={
+                typeof restaurantRecord.longitude === "number"
+                  ? restaurantRecord.longitude
+                  : null
+              }
               tags={tags}
               amenities={amenities}
               priceRange={priceRange}
-              menuImages={restaurant.menu_images || []}
+              menuImages={menuImages}
               preferredLanguage={language}
             />
           </div>
@@ -236,9 +282,13 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
           <div id="booking-form" className="min-w-0 scroll-mt-28">
             {restaurant.is_active ? (
               <RestaurantBookingForm
-                restaurantId={restaurant.id}
+                restaurantId={String(restaurantRecord.id)}
                 restaurantName={restaurantName}
-                supplierId={restaurant.supplier_id}
+                supplierId={
+                  typeof restaurantRecord.supplier_id === "string"
+                    ? restaurantRecord.supplier_id
+                    : null
+                }
                 preferredLanguage={language}
               />
             ) : (

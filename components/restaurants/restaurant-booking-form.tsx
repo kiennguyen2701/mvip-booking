@@ -89,7 +89,87 @@ const bookingText = {
   },
 } as const;
 
-export default function RestaurantBookingForm({
+export default function RestaurantBookingForm(props: Props) {
+  const mountRef = useRef<HTMLDivElement | null>(null);
+  const [shouldMountForm, setShouldMountForm] = useState(false);
+
+  useEffect(() => {
+    const target = mountRef.current;
+
+    if (!target || typeof IntersectionObserver === "undefined") {
+      const timer = window.setTimeout(() => setShouldMountForm(true), 900);
+      return () => window.clearTimeout(timer);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((entry) => entry.isIntersecting);
+
+        if (visible) {
+          setShouldMountForm(true);
+          observer.disconnect();
+        }
+      },
+      {
+        rootMargin: "700px 0px",
+        threshold: 0.01,
+      },
+    );
+
+    observer.observe(target);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={mountRef}>
+      {shouldMountForm ? (
+        <RestaurantBookingFormInner {...props} />
+      ) : (
+        <BookingFormSkeleton preferredLanguage={props.preferredLanguage} />
+      )}
+    </div>
+  );
+}
+
+function BookingFormSkeleton({
+  preferredLanguage = "en",
+}: {
+  preferredLanguage?: PreferredLanguage;
+}) {
+  const t = preferredLanguage === "zh" ? bookingText.zh : bookingText.en;
+
+  return (
+    <aside className="self-start lg:sticky lg:top-28 lg:h-fit">
+      <section className="relative overflow-hidden rounded-[34px] border border-white/15 bg-gradient-to-br from-[#15110b]/95 via-[#0b0906]/95 to-[#211509]/95 p-1 shadow-2xl shadow-black/30">
+        <div className="relative rounded-[30px] border border-white/10 bg-white/[0.07] p-6 backdrop-blur-2xl">
+          <div className="text-center">
+            <div className="mx-auto h-14 w-14 rounded-2xl bg-amber-300/20" />
+            <p className="mx-auto mt-4 h-3 w-36 rounded-full bg-amber-300/20" />
+            <h2 className="mx-auto mt-3 h-8 w-48 rounded-full bg-white/10" />
+            <p className="mx-auto mt-3 h-4 w-56 rounded-full bg-white/10" />
+
+            <div className="mx-auto mt-4 w-fit rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-200">
+              {t.instantDiscount}
+            </div>
+          </div>
+
+          <div className="mt-7 space-y-4">
+            {[1, 2, 3, 4, 5].map((item) => (
+              <div
+                key={item}
+                className="h-14 rounded-2xl border border-white/10 bg-white/[0.05]"
+              />
+            ))}
+            <div className="h-14 rounded-2xl bg-amber-300/30" />
+          </div>
+        </div>
+      </section>
+    </aside>
+  );
+}
+
+function RestaurantBookingFormInner({
   restaurantId,
   restaurantName,
   supplierId,
