@@ -282,7 +282,7 @@ export default function LoginForm() {
 
   return (
     <>
-      <div className="fixed right-4 top-[104px] z-[70] md:right-10 md:top-[112px]">
+      <div className="pointer-events-auto fixed right-4 top-[104px] z-[70] md:right-10 md:top-[112px]">
         <select
           value={preferredLanguage}
           onChange={(event) =>
@@ -300,11 +300,13 @@ export default function LoginForm() {
         </select>
       </div>
 
-      <div className="w-full max-w-[500px] overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.07] shadow-2xl shadow-black/30 backdrop-blur-xl md:rounded-[32px]">
+      <div className="mx-auto w-full max-w-[500px] overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.07] shadow-2xl shadow-black/30 backdrop-blur-xl md:rounded-[32px]">
         <div className="bg-gradient-to-br from-yellow-500/10 via-transparent to-orange-500/10 p-5 md:p-6">
-          <div className="mb-4">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-[15px] text-slate-950 shadow-lg shadow-amber-900/20">
-              ♛
+          <div className="mb-4 text-center">
+            <div className="mb-3 flex justify-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-600 text-[15px] text-slate-950 shadow-lg shadow-amber-900/20">
+                ♛
+              </div>
             </div>
 
             <p className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-300">
@@ -315,7 +317,7 @@ export default function LoginForm() {
               {cardTitle}
             </h1>
 
-            <p className="mt-2 text-sm leading-5 text-slate-400">
+            <p className="mx-auto mt-2 max-w-[420px] text-sm leading-5 text-slate-400">
               {cardSubtitle}
             </p>
 
