@@ -6,6 +6,12 @@ import { Footer } from "@/components/footer";
 export const metadata: Metadata = {
   title: "Mvip Booking",
   description: "Premium booking platform",
+
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export const viewport: Viewport = {
