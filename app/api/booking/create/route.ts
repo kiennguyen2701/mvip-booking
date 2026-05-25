@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { enqueueBookingCreatedEmailJob } from "@/lib/email/email-queue";
 import { deleteCache, deleteCacheByPattern } from "@/lib/cache/cache";
 import { cacheKeys, cachePatterns } from "@/lib/cache/keys";
+import { requireUser } from "@/lib/auth/guards";
+import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,19 @@ function getRequestOrigin(request: Request) {
   }
 
   return url.origin;
+}
+
+function getTodayInputValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function isValidBookingTime(value: string) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 async function triggerEmailProcessor(request: Request) {
@@ -95,23 +109,38 @@ async function getCustomerAgent(userId: string) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const user = await requireUser();
+    const clientIp = getClientIp(request);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const ipLimit = rateLimit({
+      key: `booking:create:ip:${clientIp}`,
+      limit: 30,
+      windowMs: 60 * 60 * 1000,
+    });
 
-    if (!user) {
+    if (!ipLimit.success) {
       return NextResponse.json(
-        { error: "Please sign in before creating a booking." },
-        { status: 401 },
+        { error: "Too many booking requests. Please try again later." },
+        { status: 429 },
+      );
+    }
+
+    const userLimit = rateLimit({
+      key: `booking:create:user:${user.id}`,
+      limit: 12,
+      windowMs: 10 * 60 * 1000,
+    });
+
+    if (!userLimit.success) {
+      return NextResponse.json(
+        { error: "Too many booking requests. Please wait before trying again." },
+        { status: 429 },
       );
     }
 
     const body = await request.json();
 
     const restaurantId = String(body.restaurantId || "").trim();
-    const supplierIdFromBody = String(body.supplierId || "").trim();
 
     const customerName = String(body.customerName || "").trim();
     const phone = String(body.phone || "").trim();
@@ -134,14 +163,48 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: restaurant } = await adminClient
+    if (!Number.isInteger(guests) || guests < 1 || guests > 20) {
+      return NextResponse.json(
+        { error: "Invalid guest count." },
+        { status: 400 },
+      );
+    }
+
+    if (bookingDate < getTodayInputValue()) {
+      return NextResponse.json(
+        { error: "Booking date cannot be in the past." },
+        { status: 400 },
+      );
+    }
+
+    if (!isValidBookingTime(bookingTime)) {
+      return NextResponse.json(
+        { error: "Invalid booking time." },
+        { status: 400 },
+      );
+    }
+
+    const { data: restaurant, error: restaurantError } = await adminClient
       .from("restaurants")
-      .select("id, name, supplier_id")
+      .select("id, name, supplier_id, is_active")
       .eq("id", restaurantId)
       .maybeSingle();
 
-    const supplierId =
-      supplierIdFromBody || String(restaurant?.supplier_id || "").trim();
+    if (restaurantError || !restaurant) {
+      return NextResponse.json(
+        { error: "Restaurant not found." },
+        { status: 404 },
+      );
+    }
+
+    if (restaurant.is_active === false) {
+      return NextResponse.json(
+        { error: "This restaurant is not available for booking." },
+        { status: 403 },
+      );
+    }
+
+    const supplierId = String(restaurant.supplier_id || "").trim();
 
     const { data: supplier } = supplierId
       ? await adminClient
@@ -263,6 +326,13 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("CREATE_BOOKING_ERROR:", error);
+
+    if (error instanceof Error && error.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { error: "Please sign in before creating a booking." },
+        { status: 401 },
+      );
+    }
 
     return NextResponse.json(
       { error: "Unable to create booking." },

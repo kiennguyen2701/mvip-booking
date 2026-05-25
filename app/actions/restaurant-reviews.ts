@@ -1,9 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { deleteCacheByPattern } from "@/lib/cache/cache";
+import { requireUser } from "@/lib/auth/guards";
+import { rateLimit } from "@/lib/security/rate-limit";
 
 export type ReviewActionState = {
   success: boolean;
@@ -14,18 +16,53 @@ function cleanText(value: FormDataEntryValue | null) {
   return String(value || "").trim();
 }
 
+async function getActionIp() {
+  const headerStore = await headers();
+  const forwardedFor = headerStore.get("x-forwarded-for");
+  const realIp = headerStore.get("x-real-ip");
+
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+
+  return realIp || "unknown";
+}
+
 export async function createRestaurantReview(
   _prevState: ReviewActionState,
   formData: FormData,
 ): Promise<ReviewActionState> {
   try {
-    const supabase = await createClient();
+    const user = await requireUser();
+    const clientIp = await getActionIp();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const ipLimit = rateLimit({
+      key: `review:create:ip:${clientIp}`,
+      limit: 40,
+      windowMs: 60 * 60 * 1000,
+    });
 
-    if (!user?.id || !user.email) {
+    if (!ipLimit.success) {
+      return {
+        success: false,
+        message: "Anh gửi review quá nhanh. Vui lòng thử lại sau.",
+      };
+    }
+
+    const userLimit = rateLimit({
+      key: `review:create:user:${user.id}`,
+      limit: 8,
+      windowMs: 60 * 60 * 1000,
+    });
+
+    if (!userLimit.success) {
+      return {
+        success: false,
+        message: "Anh đã gửi nhiều review trong thời gian ngắn.",
+      };
+    }
+
+    if (!user.email) {
       return {
         success: false,
         message: "Anh cần đăng nhập để viết review.",
@@ -114,6 +151,7 @@ export async function createRestaurantReview(
 
     await Promise.all([
       deleteCacheByPattern(`public:restaurant:${restaurantId}:reviews:*`),
+      deleteCacheByPattern(`public:restaurant:*:reviews:*`),
       deleteCacheByPattern(`public:restaurants:*`),
       revalidatePath(`/restaurants/${slug}`),
     ]);
@@ -124,6 +162,13 @@ export async function createRestaurantReview(
     };
   } catch (error) {
     console.error("CREATE_RESTAURANT_REVIEW_ERROR:", error);
+
+    if (error instanceof Error && error.message === "UNAUTHORIZED") {
+      return {
+        success: false,
+        message: "Anh cần đăng nhập để viết review.",
+      };
+    }
 
     return {
       success: false,
