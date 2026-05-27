@@ -109,6 +109,8 @@ type Restaurant = {
   address_zh?: string | null;
   city?: string | null;
   city_zh?: string | null;
+  district?: string | null;
+  country?: string | null;
   cuisine_type?: string | null;
   cuisine_type_zh?: string | null;
   category?: string | null;
@@ -117,12 +119,25 @@ type Restaurant = {
   description_zh?: string | null;
   short_description?: string | null;
   short_description_zh?: string | null;
+  // Các cột ảnh theo schema thực tế
   cover_image?: string | null;
+  cover_image_url?: string | null;
   image_url?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   price_range?: string | null;
+  price_from?: number | null;
   discount_percent?: number | null;
+  customer_discount_percent?: number | null;
+  is_featured?: boolean | null;
+  is_top_30_for_foreign_guests?: boolean | null;
+  has_rooftop?: boolean | null;
+  has_buffet?: boolean | null;
+  has_fine_dining?: boolean | null;
+  tier?: string | null;
+  booking_priority_score?: number | null;
+  tags?: string[] | null;
+  category_tags?: string[] | null;
   average_rating?: number | null;
   total_reviews?: number | null;
 };
@@ -250,15 +265,18 @@ function getSearchableText(item: Restaurant, language: PreferredLanguage) {
 }
 
 function getImage(item: Restaurant) {
+  // Thử tất cả cột ảnh theo thứ tự ưu tiên — đúng với schema thực tế
   return (
     getRestaurantImageUrl(item.cover_image) ||
+    getRestaurantImageUrl(item.cover_image_url) ||
     getRestaurantImageUrl(item.image_url) ||
     ""
   );
 }
 
 function getDiscount(item: Restaurant) {
-  return Number(item.discount_percent ?? 5);
+  // Ưu tiên customer_discount_percent (cột mới) rồi mới đến discount_percent
+  return Number(item.customer_discount_percent ?? item.discount_percent ?? 5);
 }
 
 function getAverageRating(item: Restaurant) {

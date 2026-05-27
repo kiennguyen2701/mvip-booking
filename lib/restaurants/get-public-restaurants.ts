@@ -2,10 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCache, setCache } from "@/lib/cache/cache";
 import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
 
-// FIX #1: Chỉ select đúng các cột cần thiết cho danh sách nhà hàng.
-// Bỏ: full_description, gallery_images, menu_images, opening_hours,
-//     amenities, updated_at, v.v. — những cột này chỉ cần ở trang detail.
-// Kết quả: giảm 40–60% payload size mỗi request.
+// Chỉ select các cột cần thiết cho danh sách — đúng với schema thực tế trên DB.
+// Loại bỏ: full_description, gallery_images, menu_images, opening_hours,
+//          amenities, admin_note, verification_note, v.v.
 const LIST_SELECT = `
   id,
   name,
@@ -16,21 +15,35 @@ const LIST_SELECT = `
   address,
   address_zh,
   cover_image,
+  cover_image_url,
   image_url,
   short_description,
   short_description_zh,
   description,
-  description_zh,
   cuisine_type,
   cuisine_type_zh,
   category,
   category_zh,
   tags,
+  category_tags,
   latitude,
   longitude,
   price_range,
+  price_from,
+  discount_percent,
+  customer_discount_percent,
   is_active,
-  created_at
+  is_featured,
+  is_top_30_for_foreign_guests,
+  has_rooftop,
+  has_buffet,
+  has_fine_dining,
+  tier,
+  district,
+  country,
+  booking_priority_score,
+  created_at,
+  updated_at
 ` as const;
 
 export type PublicRestaurant = {
@@ -39,35 +52,49 @@ export type PublicRestaurant = {
   name_zh?: string | null;
   slug: string | null;
 
-  address: string | null;
-  address_zh?: string | null;
   city: string | null;
   city_zh?: string | null;
+  address: string | null;
+  address_zh?: string | null;
+  district?: string | null;
+  country?: string | null;
 
   cover_image: string | null;
+  cover_image_url?: string | null;
   image_url?: string | null;
+
+  short_description?: string | null;
+  short_description_zh?: string | null;
+  description?: string | null;
 
   cuisine_type?: string | null;
   cuisine_type_zh?: string | null;
-  cuisine?: string | null;
-
   category?: string | null;
   category_zh?: string | null;
 
-  description?: string | null;
-  description_zh?: string | null;
-  short_description?: string | null;
-  short_description_zh?: string | null;
-
-  price_range?: string | null;
-
   tags?: string[] | null;
+  category_tags?: string[] | null;
 
   latitude?: number | null;
   longitude?: number | null;
 
+  price_range?: string | null;
+  price_from?: number | null;
+  discount_percent?: number | null;
+  customer_discount_percent?: number | null;
+
   is_active?: boolean | null;
+  is_featured?: boolean | null;
+  is_top_30_for_foreign_guests?: boolean | null;
+  has_rooftop?: boolean | null;
+  has_buffet?: boolean | null;
+  has_fine_dining?: boolean | null;
+
+  tier?: string | null;
+  booking_priority_score?: number | null;
+
   created_at?: string | null;
+  updated_at?: string | null;
 
   average_rating: number;
   total_reviews: number;
@@ -101,7 +128,6 @@ function includesNormalized(
   keyword: string,
 ) {
   if (!keyword) return true;
-
   return normalizeText(source || "").includes(keyword);
 }
 
@@ -110,19 +136,12 @@ function buildRatingMap(rows: ReviewRatingRow[]) {
 
   for (const row of rows) {
     if (!row.restaurant_id) continue;
-
     const rating = Number(row.rating || 0);
-
     if (!Number.isFinite(rating)) continue;
 
-    const current = map.get(row.restaurant_id) || {
-      total: 0,
-      count: 0,
-    };
-
+    const current = map.get(row.restaurant_id) || { total: 0, count: 0 };
     current.total += rating;
     current.count += 1;
-
     map.set(row.restaurant_id, current);
   }
 
@@ -148,29 +167,20 @@ export async function getPublicRestaurants({
   priceRange = "",
   limit = 60,
 }: GetPublicRestaurantsParams = {}) {
-  const cacheKey = getCacheKey({
-    query,
-    city,
-    tag,
-    priceRange,
-    limit,
-  });
+  const cacheKey = getCacheKey({ query, city, tag, priceRange, limit });
 
   const cached = await getCache<PublicRestaurant[]>(cacheKey);
-
-  if (cached) {
-    return cached;
-  }
+  if (cached) return cached;
 
   const supabase = await createClient();
 
-  // FIX #1: Dùng LIST_SELECT thay vì "*"
   let request = supabase
     .from("restaurants")
     .select(LIST_SELECT)
-    .order("created_at", {
-      ascending: false,
-    })
+    .eq("is_active", true)
+    .order("booking_priority_score", { ascending: false, nullsFirst: false })
+    .order("is_featured", { ascending: false, nullsFirst: false })
+    .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(limit);
 
   if (priceRange) {
@@ -208,12 +218,15 @@ export async function getPublicRestaurants({
   const normalizedCity = normalizeText(city);
   const normalizedTag = normalizeText(tag);
 
+  const allTags = (item: PublicRestaurant) => [
+    ...(Array.isArray(item.tags) ? item.tags : []),
+    ...(Array.isArray(item.category_tags) ? item.category_tags : []),
+  ];
+
   const restaurants = restaurantsRaw
     .map((restaurant) => {
       const ratingInfo = ratingMap.get(restaurant.id);
-
       const totalReviews = ratingInfo?.count || 0;
-
       const averageRating =
         totalReviews > 0 ? ratingInfo!.total / totalReviews : 5;
 
@@ -224,9 +237,7 @@ export async function getPublicRestaurants({
       };
     })
     .filter((restaurant) => {
-      const tags = Array.isArray(restaurant.tags)
-        ? restaurant.tags
-        : [];
+      const tags = allTags(restaurant);
 
       const matchQuery =
         !normalizedQuery ||
@@ -236,66 +247,34 @@ export async function getPublicRestaurants({
         includesNormalized(restaurant.address_zh, normalizedQuery) ||
         includesNormalized(restaurant.city, normalizedQuery) ||
         includesNormalized(restaurant.city_zh, normalizedQuery) ||
-        includesNormalized(
-          restaurant.cuisine_type,
-          normalizedQuery,
-        ) ||
-        includesNormalized(
-          restaurant.cuisine_type_zh,
-          normalizedQuery,
-        ) ||
+        includesNormalized(restaurant.district, normalizedQuery) ||
+        includesNormalized(restaurant.cuisine_type, normalizedQuery) ||
+        includesNormalized(restaurant.cuisine_type_zh, normalizedQuery) ||
         includesNormalized(restaurant.category, normalizedQuery) ||
         includesNormalized(restaurant.category_zh, normalizedQuery) ||
-        includesNormalized(
-          restaurant.description,
-          normalizedQuery,
-        ) ||
-        includesNormalized(
-          restaurant.description_zh,
-          normalizedQuery,
-        ) ||
-        includesNormalized(
-          restaurant.short_description,
-          normalizedQuery,
-        ) ||
-        includesNormalized(
-          restaurant.short_description_zh,
-          normalizedQuery,
-        ) ||
-        tags.some((item) =>
-          includesNormalized(item, normalizedQuery),
-        );
+        includesNormalized(restaurant.description, normalizedQuery) ||
+        includesNormalized(restaurant.short_description, normalizedQuery) ||
+        includesNormalized(restaurant.short_description_zh, normalizedQuery) ||
+        tags.some((t) => includesNormalized(t, normalizedQuery));
 
       const matchCity =
         !normalizedCity ||
         includesNormalized(restaurant.city, normalizedCity) ||
-        includesNormalized(restaurant.city_zh, normalizedCity);
+        includesNormalized(restaurant.city_zh, normalizedCity) ||
+        includesNormalized(restaurant.district, normalizedCity);
 
       const matchTag =
         !normalizedTag ||
-        tags.some((item) =>
-          includesNormalized(item, normalizedTag),
-        ) ||
-        includesNormalized(
-          restaurant.cuisine_type,
-          normalizedTag,
-        ) ||
-        includesNormalized(
-          restaurant.cuisine_type_zh,
-          normalizedTag,
-        ) ||
+        tags.some((t) => includesNormalized(t, normalizedTag)) ||
+        includesNormalized(restaurant.cuisine_type, normalizedTag) ||
+        includesNormalized(restaurant.cuisine_type_zh, normalizedTag) ||
         includesNormalized(restaurant.category, normalizedTag) ||
         includesNormalized(restaurant.category_zh, normalizedTag);
 
       return matchQuery && matchCity && matchTag;
     });
 
-  // FIX #3: TTL đã được tăng lên 3600s trong keys.ts
-  await setCache(
-    cacheKey,
-    restaurants,
-    CACHE_TTL.PUBLIC_RESTAURANTS,
-  );
+  await setCache(cacheKey, restaurants, CACHE_TTL.PUBLIC_RESTAURANTS);
 
   return restaurants;
 }
