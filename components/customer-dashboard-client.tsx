@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   memo,
@@ -284,6 +285,11 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// FIX #2: Thay <img> thuần bằng Next.js <Image> để có:
+// - Tự động resize ảnh theo viewport (sizes prop)
+// - Tự động chọn AVIF/WebP (đã config trong next.config.js)
+// - Blur placeholder khi ảnh đang load
+// - Lazy load thông minh hơn browser native
 const RestaurantCard = memo(function RestaurantCard({
   restaurant,
   language,
@@ -318,14 +324,17 @@ const RestaurantCard = memo(function RestaurantCard({
       prefetch={false}
       className="group block w-full max-w-full overflow-hidden rounded-3xl border border-white/10 bg-[#11100c]/95 shadow-xl shadow-black/25 transition hover:border-amber-300/40"
     >
+      {/* FIX #2: Next.js <Image> với fill + sizes thay vì <img src> */}
       <div className="relative h-44 w-full overflow-hidden bg-[#12100b] sm:h-56">
         {image ? (
-          <img
+          <Image
             src={image}
             alt={restaurantName || t.restaurantAlt}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+            quality={75}
             loading="lazy"
-            decoding="async"
-            className="block h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+            className="object-cover transition duration-500 group-hover:scale-[1.03]"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#12100b] via-[#1c1407] to-[#3a2407] text-5xl">

@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { getRestaurantImageUrl } from "@/lib/restaurants/images";
@@ -66,6 +68,7 @@ export default function RestaurantCard({
       prefetch={false}
       className="block overflow-hidden rounded-2xl border bg-white"
     >
+      {/* FIX #2: Dùng Next.js <Image> thay <img> để có resize tự động, AVIF/WebP, lazy load thông minh */}
       <div className="relative h-44 w-full bg-gray-100">
         {image ? (
           <Image
@@ -73,7 +76,7 @@ export default function RestaurantCard({
             alt={name}
             fill
             sizes="(max-width: 768px) 92vw, (max-width: 1200px) 45vw, 360px"
-            quality={58}
+            quality={75}
             loading="lazy"
             className="object-cover"
           />
