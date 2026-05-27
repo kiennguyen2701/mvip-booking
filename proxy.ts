@@ -31,7 +31,7 @@ function getDashboardPath(role?: string | null) {
   return "/dashboard/customer";
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   let supabaseResponse = NextResponse.next({ request });
@@ -92,7 +92,11 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    if (pathname.startsWith("/dashboard/supplier") && !isSupplier && !isAdmin) {
+    if (
+      pathname.startsWith("/dashboard/supplier") &&
+      !isSupplier &&
+      !isAdmin
+    ) {
       return NextResponse.redirect(
         new URL(getDashboardPath(role), request.url),
       );
