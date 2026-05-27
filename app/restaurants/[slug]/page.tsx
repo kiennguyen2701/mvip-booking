@@ -1,7 +1,7 @@
 import dynamic from "next/dynamic";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { adminClient } from "@/lib/supabase/admin";
 import { getPublicRestaurantDetail } from "@/lib/restaurants/get-public-restaurant-detail";
 
 const RestaurantGallery = dynamic(
@@ -88,25 +88,34 @@ function getLocalizedValue(
   return null;
 }
 
+// FIX #5: Đọc preferred_language từ cookie trước — tránh hoàn toàn DB query.
+// Cookie được set lúc login/register, TTL 30 ngày.
+// Chỉ fallback về DB nếu cookie chưa có (lần đầu hoặc clear cookie).
 async function getPreferredLanguage(): Promise<PreferredLanguage> {
   try {
-    const supabase = await createClient();
+    // 1. Thử đọc từ cookie trước (không tốn DB round-trip)
+    const cookieStore = await cookies();
+    const cookieLang = cookieStore.get("mvip_lang")?.value;
+    if (cookieLang === "zh" || cookieLang === "en") {
+      return cookieLang;
+    }
 
+    // 2. Fallback: đọc từ Supabase session + profile
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user?.id) return "en";
 
-    const { data: profile } = await adminClient
-      .from("profiles")
-      .select("preferred_language")
-      .eq("id", user.id)
-      .maybeSingle();
+    // Ưu tiên user_metadata (đã có sẵn trong JWT, không cần DB query)
+    const metaLang = user.user_metadata?.preferred_language;
+    if (metaLang === "zh" || metaLang === "en") {
+      return metaLang;
+    }
 
-    return profile?.preferred_language === "zh" ? "zh" : "en";
-  } catch (error) {
-    console.error("GET_RESTAURANT_DETAIL_LANGUAGE_ERROR:", error);
+    return "en";
+  } catch {
     return "en";
   }
 }
@@ -114,6 +123,8 @@ async function getPreferredLanguage(): Promise<PreferredLanguage> {
 export default async function RestaurantDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
+  // FIX #5: getPublicRestaurantDetail và getPreferredLanguage chạy song song.
+  // getPreferredLanguage giờ đọc cookie — không còn DB round-trip thứ 2.
   const [restaurant, preferredLanguage] = await Promise.all([
     getPublicRestaurantDetail(slug),
     getPreferredLanguage(),
@@ -177,7 +188,9 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
   const coverImage =
     typeof restaurantRecord.cover_image === "string"
       ? restaurantRecord.cover_image
-      : null;
+      : typeof restaurantRecord.cover_image_url === "string"
+        ? restaurantRecord.cover_image_url
+        : null;
 
   const galleryImages = Array.isArray(restaurantRecord.gallery_images)
     ? (restaurantRecord.gallery_images as string[])

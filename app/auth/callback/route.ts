@@ -4,6 +4,14 @@ import { adminClient } from '@/lib/supabase/admin';
 
 type DashboardRole = 'admin' | 'supplier' | 'agent' | 'customer';
 
+const COOKIE_OPTS = {
+  httpOnly: false,
+  sameSite: 'lax' as const,
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
+  maxAge: 60 * 60 * 24 * 30,
+};
+
 function normalizeRefCode(value: string | null | undefined) {
   return String(value || '').trim().toUpperCase();
 }
@@ -12,7 +20,6 @@ function getDashboardPath(role?: string | null) {
   if (role === 'admin') return '/dashboard/admin';
   if (role === 'supplier') return '/dashboard/supplier';
   if (role === 'agent') return '/dashboard/agent';
-
   return '/dashboard/customer';
 }
 
@@ -94,6 +101,8 @@ export async function GET(request: Request) {
 
   let redirectPath = requestedNext || '/dashboard/customer';
 
+  const response = NextResponse.redirect(`${origin}${redirectPath}`);
+
   if (user) {
     const now = new Date().toISOString();
     const currentRole = user.user_metadata?.role || null;
@@ -111,6 +120,13 @@ export async function GET(request: Request) {
       user.user_metadata?.name ||
       user.email?.split('@')[0] ||
       'Customer';
+
+    // FIX #5: Set cookie mvip_lang từ user_metadata sau khi OAuth login
+    // Để trang detail nhà hàng không cần DB query để lấy language
+    const preferredLanguage = user.user_metadata?.preferred_language;
+    if (preferredLanguage === 'zh' || preferredLanguage === 'en') {
+      response.cookies.set('mvip_lang', preferredLanguage, COOKIE_OPTS);
+    }
 
     await adminClient.auth.admin.updateUserById(user.id, {
       user_metadata: {
@@ -151,24 +167,9 @@ export async function GET(request: Request) {
     }
   }
 
-  const response = NextResponse.redirect(`${origin}${redirectPath}`);
-
   if (agent?.ref_code) {
-    response.cookies.set('mvip_ref_code', agent.ref_code, {
-      httpOnly: false,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-    });
-
-    response.cookies.set('ref_code', agent.ref_code, {
-      httpOnly: false,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    response.cookies.set('mvip_ref_code', agent.ref_code, COOKIE_OPTS);
+    response.cookies.set('ref_code', agent.ref_code, COOKIE_OPTS);
   }
 
   return response;

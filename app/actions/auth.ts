@@ -7,11 +7,18 @@ import { adminClient } from '@/lib/supabase/admin';
 
 type DashboardRole = 'admin' | 'supplier' | 'agent' | 'customer';
 
+const LANG_COOKIE_OPTS = {
+  httpOnly: false,
+  sameSite: 'lax' as const,
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
+  maxAge: 60 * 60 * 24 * 30,
+};
+
 function getDashboardPath(role?: string | null) {
   if (role === 'admin') return '/dashboard/admin';
   if (role === 'supplier') return '/dashboard/supplier';
   if (role === 'agent') return '/dashboard/agent';
-
   return '/dashboard/customer';
 }
 
@@ -54,6 +61,14 @@ async function resolveUserRole(userId: string, fallbackRole?: string | null) {
   return 'customer';
 }
 
+// FIX #5: Set cookie mvip_lang khi login để trang detail nhà hàng
+// không cần DB query để lấy preferred_language mỗi lần load.
+async function setLangCookie(preferredLanguage?: string | null) {
+  if (preferredLanguage !== 'zh' && preferredLanguage !== 'en') return;
+  const cookieStore = await cookies();
+  cookieStore.set('mvip_lang', preferredLanguage, LANG_COOKIE_OPTS);
+}
+
 export async function signInWithEmail(formData: FormData) {
   const email = String(formData.get('email') || '').trim().toLowerCase();
   const password = String(formData.get('password') || '');
@@ -71,6 +86,9 @@ export async function signInWithEmail(formData: FormData) {
   const role = data.user
     ? await resolveUserRole(data.user.id, data.user.user_metadata?.role)
     : 'customer';
+
+  // FIX #5: Set lang cookie ngay sau khi login thành công
+  await setLangCookie(data.user?.user_metadata?.preferred_language);
 
   return {
     error: null,
@@ -131,6 +149,9 @@ export async function signUpWithEmail(formData: FormData) {
       referred_by_ref_code: refCode,
       referred_by_agent_id: referredByAgentId,
     });
+
+    // FIX #5: Set lang cookie ngay sau khi register
+    await setLangCookie(preferredLanguage);
   }
 
   redirect('/dashboard/customer');
@@ -138,8 +159,11 @@ export async function signUpWithEmail(formData: FormData) {
 
 export async function signOut() {
   const supabase = await createClient();
-
   await supabase.auth.signOut();
+
+  // Xóa lang cookie khi logout
+  const cookieStore = await cookies();
+  cookieStore.delete('mvip_lang');
 
   redirect('/login');
 }

@@ -16,10 +16,6 @@ type SupplierDashboardStats = {
   completedRevenue: number;
 };
 
-type CompletedBillRow = {
-  total_bill: number | null;
-};
-
 function StatCard({
   label,
   value,
@@ -46,88 +42,116 @@ function formatMoney(value?: number | null) {
   return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 }
 
+// FIX #4: Thay 8 queries Promise.all() bằng 1 RPC call duy nhất.
+// Tạo function get_supplier_stats(uuid) trên Supabase trước (xem file SQL kèm theo).
 async function getSupplierDashboardStats(
   supplierId: string,
 ): Promise<SupplierDashboardStats> {
   const cacheKey = cacheKeys.supplierDashboard(supplierId);
   const cached = await getCache<SupplierDashboardStats>(cacheKey);
-
   if (cached) return cached;
 
-  const [
-    restaurantsCountResult,
-    activeRestaurantsCountResult,
-    totalBookingsResult,
-    pendingCountResult,
-    confirmedCountResult,
-    completedCountResult,
-    cancelledCountResult,
-    completedBillsResult,
-  ] = await Promise.all([
-    adminClient
-      .from("restaurants")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplierId),
+  const { data, error } = await adminClient.rpc("get_supplier_stats", {
+    p_supplier_id: supplierId,
+  });
 
-    adminClient
-      .from("restaurants")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplierId)
-      .eq("is_active", true),
+  // Fallback về 8 queries nếu RPC chưa được tạo
+  if (error) {
+    console.warn("get_supplier_stats RPC not found, falling back:", error.message);
 
-    adminClient
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplierId),
+    const [
+      restaurantsCountResult,
+      activeRestaurantsCountResult,
+      totalBookingsResult,
+      pendingCountResult,
+      confirmedCountResult,
+      completedCountResult,
+      cancelledCountResult,
+      completedBillsResult,
+    ] = await Promise.all([
+      adminClient
+        .from("restaurants")
+        .select("id", { count: "exact", head: true })
+        .eq("supplier_id", supplierId),
+      adminClient
+        .from("restaurants")
+        .select("id", { count: "exact", head: true })
+        .eq("supplier_id", supplierId)
+        .eq("is_active", true),
+      adminClient
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("supplier_id", supplierId),
+      adminClient
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("supplier_id", supplierId)
+        .or("status.eq.pending,status.is.null"),
+      adminClient
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("supplier_id", supplierId)
+        .eq("status", "confirmed"),
+      adminClient
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("supplier_id", supplierId)
+        .eq("status", "completed"),
+      adminClient
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("supplier_id", supplierId)
+        .in("status", ["cancelled", "canceled"]),
+      adminClient
+        .from("bookings")
+        .select("total_bill")
+        .eq("supplier_id", supplierId)
+        .eq("status", "completed"),
+    ]);
 
-    adminClient
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplierId)
-      .or("status.eq.pending,status.is.null"),
+    const completedRevenue = (
+      (completedBillsResult.data || []) as { total_bill: number | null }[]
+    ).reduce((sum, b) => sum + Number(b.total_bill || 0), 0);
 
-    adminClient
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplierId)
-      .eq("status", "confirmed"),
+    const stats: SupplierDashboardStats = {
+      restaurantsCount: restaurantsCountResult.count || 0,
+      activeRestaurantsCount: activeRestaurantsCountResult.count || 0,
+      totalBookings: totalBookingsResult.count || 0,
+      pendingCount: pendingCountResult.count || 0,
+      confirmedCount: confirmedCountResult.count || 0,
+      completedCount: completedCountResult.count || 0,
+      cancelledCount: cancelledCountResult.count || 0,
+      completedRevenue,
+    };
 
-    adminClient
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplierId)
-      .eq("status", "completed"),
+    await setCache(cacheKey, stats, CACHE_TTL.SUPPLIER_DASHBOARD);
+    return stats;
+  }
 
-    adminClient
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("supplier_id", supplierId)
-      .in("status", ["cancelled", "canceled"]),
-
-    adminClient
-      .from("bookings")
-      .select("total_bill")
-      .eq("supplier_id", supplierId)
-      .eq("status", "completed"),
-  ]);
-
-  const completedRevenue = (
-    (completedBillsResult.data || []) as CompletedBillRow[]
-  ).reduce((sum, booking) => sum + Number(booking.total_bill || 0), 0);
+  // Parse kết quả từ RPC
+  const rpc = data as {
+    restaurants_count: number;
+    active_restaurants_count: number;
+    total_bookings: number;
+    pending_count: number;
+    confirmed_count: number;
+    completed_count: number;
+    cancelled_count: number;
+    completed_revenue: number;
+  };
 
   const stats: SupplierDashboardStats = {
-    restaurantsCount: restaurantsCountResult.count || 0,
-    activeRestaurantsCount: activeRestaurantsCountResult.count || 0,
-    totalBookings: totalBookingsResult.count || 0,
-    pendingCount: pendingCountResult.count || 0,
-    confirmedCount: confirmedCountResult.count || 0,
-    completedCount: completedCountResult.count || 0,
-    cancelledCount: cancelledCountResult.count || 0,
-    completedRevenue,
+    restaurantsCount: Number(rpc.restaurants_count || 0),
+    activeRestaurantsCount: Number(rpc.active_restaurants_count || 0),
+    totalBookings: Number(rpc.total_bookings || 0),
+    pendingCount: Number(rpc.pending_count || 0),
+    confirmedCount: Number(rpc.confirmed_count || 0),
+    completedCount: Number(rpc.completed_count || 0),
+    cancelledCount: Number(rpc.cancelled_count || 0),
+    completedRevenue: Number(rpc.completed_revenue || 0),
   };
 
   await setCache(cacheKey, stats, CACHE_TTL.SUPPLIER_DASHBOARD);
-
   return stats;
 }
 
