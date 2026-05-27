@@ -64,22 +64,16 @@ async function getCustomerAgent(userId: string) {
   return { agentId: null as string | null, refCode: "" };
 }
 
-// FIX: Gọi processEmailJob trực tiếp thay vì fetch internal URL.
-// Vercel Hobby plan không cho serverless function tự gọi chính nó (same-origin fetch bị block).
-// Gọi trực tiếp: nhanh hơn, không tốn extra round-trip, không bị Unauthorized.
-async function processJobsDirectly(bookingId: string) {
-  try {
-    const { data: jobs } = await adminClient
-      .from("email_jobs")
-      .select("id, type, payload, status, attempts, max_attempts")
-      .eq("booking_id", bookingId)
-      .eq("status", "pending")
-      .limit(10);
+// FIX: Nhận jobs trực tiếp từ DB sau khi enqueue — tránh race condition
+// và tránh HTTP fetch same-origin bị block trên Vercel Hobby.
+async function processJobsById(jobIds: string[]) {
+  if (!jobIds.length) return;
 
-    if (!jobs?.length) return;
+  console.log("PROCESS_JOBS_START:", jobIds);
 
-    for (const job of jobs) {
-      // Lock job trước khi process
+  for (const jobId of jobIds) {
+    try {
+      // Lock job
       const { data: locked } = await adminClient
         .from("email_jobs")
         .update({
@@ -87,50 +81,60 @@ async function processJobsDirectly(bookingId: string) {
           locked_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq("id", job.id)
+        .eq("id", jobId)
         .neq("status", "sent")
-        .select("id")
+        .select("id, type, payload, attempts, max_attempts")
         .maybeSingle();
 
-      if (!locked) continue;
-
-      try {
-        await processEmailJob({
-          id: job.id,
-          type: String(job.type),
-          payload: (job.payload || {}) as Record<string, unknown>,
-        });
-
-        await adminClient
-          .from("email_jobs")
-          .update({
-            status: "sent",
-            processed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            last_error: null,
-          })
-          .eq("id", job.id);
-      } catch (error) {
-        const attempts = Number(job.attempts || 0) + 1;
-        const maxAttempts = Number(job.max_attempts || 5);
-        const finalFailed = attempts >= maxAttempts;
-
-        await adminClient
-          .from("email_jobs")
-          .update({
-            status: finalFailed ? "failed" : "pending",
-            attempts,
-            updated_at: new Date().toISOString(),
-            last_error: error instanceof Error ? error.message : "Unknown error",
-            locked_at: null,
-          })
-          .eq("id", job.id);
-
-        console.error("EMAIL_JOB_PROCESS_ERROR:", job.id, error);
+      if (!locked) {
+        console.log("PROCESS_JOBS_SKIP:", jobId, "already sent or locked");
+        continue;
       }
+
+      console.log("PROCESS_JOBS_PROCESSING:", jobId, locked.type);
+
+      await processEmailJob({
+        id: locked.id,
+        type: String(locked.type),
+        payload: (locked.payload || {}) as Record<string, unknown>,
+      });
+
+      await adminClient
+        .from("email_jobs")
+        .update({
+          status: "sent",
+          processed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_error: null,
+        })
+        .eq("id", jobId);
+
+      console.log("PROCESS_JOBS_SENT:", jobId);
+    } catch (error) {
+      console.error("PROCESS_JOBS_ERROR:", jobId, error);
+
+      // Lấy attempts hiện tại để tính retry
+      const { data: currentJob } = await adminClient
+        .from("email_jobs")
+        .select("attempts, max_attempts")
+        .eq("id", jobId)
+        .maybeSingle();
+
+      const attempts = Number(currentJob?.attempts || 0) + 1;
+      const maxAttempts = Number(currentJob?.max_attempts || 5);
+      const finalFailed = attempts >= maxAttempts;
+
+      await adminClient
+        .from("email_jobs")
+        .update({
+          status: finalFailed ? "failed" : "pending",
+          attempts,
+          updated_at: new Date().toISOString(),
+          last_error: error instanceof Error ? error.message : "Unknown error",
+          locked_at: null,
+        })
+        .eq("id", jobId);
     }
-  } catch (error) {
-    console.error("PROCESS_JOBS_DIRECTLY_ERROR:", error);
   }
 }
 
@@ -311,8 +315,9 @@ export async function POST(request: Request) {
 
     const supplierEmail = supplier?.email || supplier?.login_email || null;
 
+    // Enqueue rồi lấy job IDs để process trực tiếp — không query lại DB
     try {
-      await enqueueBookingCreatedEmailJob({
+      const jobIds = await enqueueAndGetJobIds({
         bookingId: booking.id,
         customerEmail: user.email || null,
         customerLanguage,
@@ -328,10 +333,10 @@ export async function POST(request: Request) {
         whatsapp,
       });
 
-      // Gọi trực tiếp thay vì fetch internal URL
-      await processJobsDirectly(booking.id);
+      // Process ngay trong cùng request — không HTTP fetch
+      await processJobsById(jobIds);
     } catch (error) {
-      console.error("BOOKING_CREATED_EMAIL_ERROR:", error);
+      console.error("BOOKING_EMAIL_ERROR:", error);
     }
 
     if (supplierId) {
@@ -360,4 +365,105 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+// Enqueue và trả về job IDs ngay lập tức — tránh query lại DB
+async function enqueueAndGetJobIds(payload: {
+  bookingId: string;
+  customerEmail?: string | null;
+  customerLanguage?: "en" | "zh" | null;
+  customerName: string;
+  supplierEmail?: string | null;
+  adminEmail?: string | null;
+  restaurantName: string;
+  bookingCode: string;
+  bookingDate: string;
+  bookingTime: string;
+  guests: number;
+  phone?: string | null;
+  whatsapp?: string | null;
+}): Promise<string[]> {
+  const basePayload = {
+    customerName: payload.customerName,
+    customerLanguage: payload.customerLanguage || "en",
+    restaurantName: payload.restaurantName,
+    bookingCode: payload.bookingCode,
+    bookingDate: payload.bookingDate,
+    bookingTime: payload.bookingTime,
+    guests: payload.guests,
+    phone: payload.phone,
+    whatsapp: payload.whatsapp,
+  };
+
+  const now = new Date().toISOString();
+
+  type JobInsert = {
+    type: string;
+    booking_id: string;
+    dedupe_key: string;
+    payload: Record<string, unknown>;
+    status: string;
+    attempts: number;
+    max_attempts: number;
+    scheduled_at: string;
+    updated_at: string;
+  };
+
+  const jobs: JobInsert[] = [];
+
+  if (payload.customerEmail) {
+    jobs.push({
+      type: "booking_created_customer",
+      booking_id: payload.bookingId,
+      dedupe_key: `booking_created_customer:${payload.bookingId}`,
+      payload: { ...basePayload, customerEmail: payload.customerEmail },
+      status: "pending",
+      attempts: 0,
+      max_attempts: 5,
+      scheduled_at: now,
+      updated_at: now,
+    });
+  }
+
+  if (payload.supplierEmail) {
+    jobs.push({
+      type: "booking_created_supplier",
+      booking_id: payload.bookingId,
+      dedupe_key: `booking_created_supplier:${payload.bookingId}`,
+      payload: { ...basePayload, supplierEmail: payload.supplierEmail },
+      status: "pending",
+      attempts: 0,
+      max_attempts: 5,
+      scheduled_at: now,
+      updated_at: now,
+    });
+  }
+
+  if (payload.adminEmail) {
+    jobs.push({
+      type: "booking_created_admin",
+      booking_id: payload.bookingId,
+      dedupe_key: `booking_created_admin:${payload.bookingId}`,
+      payload: { ...basePayload, adminEmail: payload.adminEmail },
+      status: "pending",
+      attempts: 0,
+      max_attempts: 5,
+      scheduled_at: now,
+      updated_at: now,
+    });
+  }
+
+  if (!jobs.length) return [];
+
+  const { data, error } = await adminClient
+    .from("email_jobs")
+    .upsert(jobs, { onConflict: "dedupe_key", ignoreDuplicates: true })
+    .select("id");
+
+  if (error) {
+    console.error("ENQUEUE_JOBS_ERROR:", error.message);
+    throw error;
+  }
+
+  return (data || []).map((row: { id: string }) => row.id);
 }
