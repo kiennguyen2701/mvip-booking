@@ -1,8 +1,8 @@
 import dynamic from "next/dynamic";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getPublicRestaurantDetail } from "@/lib/restaurants/get-public-restaurant-detail";
+import { adminClient } from "@/lib/supabase/admin";
 
 const RestaurantGallery = dynamic(
   () => import("@/components/restaurants/restaurant-gallery"),
@@ -32,12 +32,29 @@ const RestaurantBookingForm = dynamic(
 );
 
 type PageProps = {
-  params: Promise<{
-    slug: string;
-  }>;
+  params: Promise<{ slug: string }>;
 };
 
 type PreferredLanguage = "en" | "zh";
+
+// ISR: Cache trang trên Vercel CDN 1 giờ.
+// Khi supplier update restaurant → gọi /api/revalidate?slug=xxx để rebuild ngay.
+// 2000 users xem 10 nhà hàng phổ biến = 20,000 renders/giờ → gần 0 với ISR.
+export const revalidate = 3600;
+
+// Pre-render các nhà hàng phổ biến lúc build time
+export async function generateStaticParams() {
+  const { data } = await adminClient
+    .from("restaurants")
+    .select("slug")
+    .eq("is_active", true)
+    .order("booking_priority_score", { ascending: false, nullsFirst: false })
+    .limit(30);
+
+  return (data || [])
+    .filter((r) => r.slug)
+    .map((r) => ({ slug: r.slug as string }));
+}
 
 const DETAIL_COPY = {
   en: {
@@ -88,32 +105,13 @@ function getLocalizedValue(
   return null;
 }
 
-// FIX #5: Đọc preferred_language từ cookie trước — tránh hoàn toàn DB query.
-// Cookie được set lúc login/register, TTL 30 ngày.
-// Chỉ fallback về DB nếu cookie chưa có (lần đầu hoặc clear cookie).
+// FIX ISR: Đọc language từ cookie — không DB query.
+// Trang được cache trên CDN nhưng language vẫn đúng per-user nhờ cookie.
 async function getPreferredLanguage(): Promise<PreferredLanguage> {
   try {
-    // 1. Thử đọc từ cookie trước (không tốn DB round-trip)
     const cookieStore = await cookies();
-    const cookieLang = cookieStore.get("mvip_lang")?.value;
-    if (cookieLang === "zh" || cookieLang === "en") {
-      return cookieLang;
-    }
-
-    // 2. Fallback: đọc từ Supabase session + profile
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user?.id) return "en";
-
-    // Ưu tiên user_metadata (đã có sẵn trong JWT, không cần DB query)
-    const metaLang = user.user_metadata?.preferred_language;
-    if (metaLang === "zh" || metaLang === "en") {
-      return metaLang;
-    }
-
+    const lang = cookieStore.get("mvip_lang")?.value;
+    if (lang === "zh" || lang === "en") return lang;
     return "en";
   } catch {
     return "en";
@@ -123,8 +121,6 @@ async function getPreferredLanguage(): Promise<PreferredLanguage> {
 export default async function RestaurantDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
-  // FIX #5: getPublicRestaurantDetail và getPreferredLanguage chạy song song.
-  // getPreferredLanguage giờ đọc cookie — không còn DB round-trip thứ 2.
   const [restaurant, preferredLanguage] = await Promise.all([
     getPublicRestaurantDetail(slug),
     getPreferredLanguage(),
@@ -141,24 +137,15 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
     t.restaurantFallback;
 
   const shortDescription = getLocalizedValue(
-    restaurantRecord,
-    language,
-    "short_description",
-    "short_description_zh",
+    restaurantRecord, language, "short_description", "short_description_zh",
   );
 
   const fullDescription = getLocalizedValue(
-    restaurantRecord,
-    language,
-    "full_description",
-    "full_description_zh",
+    restaurantRecord, language, "full_description", "full_description_zh",
   );
 
   const address = getLocalizedValue(
-    restaurantRecord,
-    language,
-    "address",
-    "address_zh",
+    restaurantRecord, language, "address", "address_zh",
   );
 
   const city = getLocalizedValue(restaurantRecord, language, "city", "city_zh");
@@ -179,10 +166,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
       : (restaurantRecord.opening_hours as Record<string, string> | null);
 
   const priceRange = getLocalizedValue(
-    restaurantRecord,
-    language,
-    "price_range",
-    "price_range_zh",
+    restaurantRecord, language, "price_range", "price_range_zh",
   );
 
   const coverImage =
