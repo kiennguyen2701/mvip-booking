@@ -36,11 +36,19 @@ export async function createRestaurantReview(
     const user = await requireUser();
     const clientIp = await getActionIp();
 
-    const ipLimit = rateLimit({
-      key: `review:create:ip:${clientIp}`,
-      limit: 40,
-      windowMs: 60 * 60 * 1000,
-    });
+    // Chạy 2 rate limit checks song song
+    const [ipLimit, userLimit] = await Promise.all([
+      rateLimit({
+        key: `review:create:ip:${clientIp}`,
+        limit: 40,
+        windowMs: 60 * 60 * 1000,
+      }),
+      rateLimit({
+        key: `review:create:user:${user.id}`,
+        limit: 8,
+        windowMs: 60 * 60 * 1000,
+      }),
+    ]);
 
     if (!ipLimit.success) {
       return {
@@ -48,12 +56,6 @@ export async function createRestaurantReview(
         message: "Anh gửi review quá nhanh. Vui lòng thử lại sau.",
       };
     }
-
-    const userLimit = rateLimit({
-      key: `review:create:user:${user.id}`,
-      limit: 8,
-      windowMs: 60 * 60 * 1000,
-    });
 
     if (!userLimit.success) {
       return {

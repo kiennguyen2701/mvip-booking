@@ -112,11 +112,19 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const clientIp = getClientIp(request);
 
-    const ipLimit = rateLimit({
-      key: `booking:create:ip:${clientIp}`,
-      limit: 30,
-      windowMs: 60 * 60 * 1000,
-    });
+    // Chạy 2 rate limit checks song song — tiết kiệm 1 Redis round-trip
+    const [ipLimit, userLimit] = await Promise.all([
+      rateLimit({
+        key: `booking:create:ip:${clientIp}`,
+        limit: 30,
+        windowMs: 60 * 60 * 1000,
+      }),
+      rateLimit({
+        key: `booking:create:user:${user.id}`,
+        limit: 12,
+        windowMs: 10 * 60 * 1000,
+      }),
+    ]);
 
     if (!ipLimit.success) {
       return NextResponse.json(
@@ -124,12 +132,6 @@ export async function POST(request: Request) {
         { status: 429 },
       );
     }
-
-    const userLimit = rateLimit({
-      key: `booking:create:user:${user.id}`,
-      limit: 12,
-      windowMs: 10 * 60 * 1000,
-    });
 
     if (!userLimit.success) {
       return NextResponse.json(
@@ -141,11 +143,9 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     const restaurantId = String(body.restaurantId || "").trim();
-
     const customerName = String(body.customerName || "").trim();
     const phone = String(body.phone || "").trim();
     const whatsapp = String(body.whatsapp || "").trim();
-
     const guests = Number(body.guests || 1);
     const bookingDate = String(body.bookingDate || "").trim();
     const bookingTime = String(body.bookingTime || "").trim();
