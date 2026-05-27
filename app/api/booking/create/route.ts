@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { enqueueBookingCreatedEmailJob } from "@/lib/email/email-queue";
+import { processEmailJob } from "@/lib/email/process-email-job";
 import { deleteCache, deleteCacheByPattern } from "@/lib/cache/cache";
 import { cacheKeys, cachePatterns } from "@/lib/cache/keys";
 import { requireUser } from "@/lib/auth/guards";
@@ -21,57 +22,16 @@ function generateBookingCode() {
   return `MVIP-${ymd}-${random}`;
 }
 
-function getRequestOrigin(request: Request) {
-  const url = new URL(request.url);
-  const forwardedProto = request.headers.get("x-forwarded-proto");
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const host = forwardedHost || request.headers.get("host");
-
-  if (forwardedProto && host) {
-    return `${forwardedProto}://${host}`;
-  }
-
-  return url.origin;
-}
-
 function getTodayInputValue() {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
 function isValidBookingTime(value: string) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
-async function triggerEmailProcessor(request: Request) {
-  try {
-    const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET;
-    const origin = getRequestOrigin(request);
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-
-    if (secret) {
-      headers.authorization = `Bearer ${secret}`;
-    }
-
-    const response = await fetch(`${origin}/api/email/process`, {
-      method: "POST",
-      headers,
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      console.error("TRIGGER_EMAIL_PROCESSOR_ERROR:", response.status, text);
-    }
-  } catch (error) {
-    console.error("TRIGGER_EMAIL_PROCESSOR_EXCEPTION:", error);
-  }
 }
 
 async function getCustomerAgent(userId: string) {
@@ -101,10 +61,77 @@ async function getCustomerAgent(userId: string) {
     };
   }
 
-  return {
-    agentId: null as string | null,
-    refCode: "",
-  };
+  return { agentId: null as string | null, refCode: "" };
+}
+
+// FIX: Gọi processEmailJob trực tiếp thay vì fetch internal URL.
+// Vercel Hobby plan không cho serverless function tự gọi chính nó (same-origin fetch bị block).
+// Gọi trực tiếp: nhanh hơn, không tốn extra round-trip, không bị Unauthorized.
+async function processJobsDirectly(bookingId: string) {
+  try {
+    const { data: jobs } = await adminClient
+      .from("email_jobs")
+      .select("id, type, payload, status, attempts, max_attempts")
+      .eq("booking_id", bookingId)
+      .eq("status", "pending")
+      .limit(10);
+
+    if (!jobs?.length) return;
+
+    for (const job of jobs) {
+      // Lock job trước khi process
+      const { data: locked } = await adminClient
+        .from("email_jobs")
+        .update({
+          status: "processing",
+          locked_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", job.id)
+        .neq("status", "sent")
+        .select("id")
+        .maybeSingle();
+
+      if (!locked) continue;
+
+      try {
+        await processEmailJob({
+          id: job.id,
+          type: String(job.type),
+          payload: (job.payload || {}) as Record<string, unknown>,
+        });
+
+        await adminClient
+          .from("email_jobs")
+          .update({
+            status: "sent",
+            processed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_error: null,
+          })
+          .eq("id", job.id);
+      } catch (error) {
+        const attempts = Number(job.attempts || 0) + 1;
+        const maxAttempts = Number(job.max_attempts || 5);
+        const finalFailed = attempts >= maxAttempts;
+
+        await adminClient
+          .from("email_jobs")
+          .update({
+            status: finalFailed ? "failed" : "pending",
+            attempts,
+            updated_at: new Date().toISOString(),
+            last_error: error instanceof Error ? error.message : "Unknown error",
+            locked_at: null,
+          })
+          .eq("id", job.id);
+
+        console.error("EMAIL_JOB_PROCESS_ERROR:", job.id, error);
+      }
+    }
+  } catch (error) {
+    console.error("PROCESS_JOBS_DIRECTLY_ERROR:", error);
+  }
 }
 
 export async function POST(request: Request) {
@@ -112,7 +139,6 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const clientIp = getClientIp(request);
 
-    // Chạy 2 rate limit checks song song — tiết kiệm 1 Redis round-trip
     const [ipLimit, userLimit] = await Promise.all([
       rateLimit({
         key: `booking:create:ip:${clientIp}`,
@@ -150,13 +176,7 @@ export async function POST(request: Request) {
     const bookingDate = String(body.bookingDate || "").trim();
     const bookingTime = String(body.bookingTime || "").trim();
 
-    if (
-      !restaurantId ||
-      !customerName ||
-      !phone ||
-      !bookingDate ||
-      !bookingTime
-    ) {
+    if (!restaurantId || !customerName || !phone || !bookingDate || !bookingTime) {
       return NextResponse.json(
         { error: "Missing required booking information." },
         { status: 400 },
@@ -308,9 +328,10 @@ export async function POST(request: Request) {
         whatsapp,
       });
 
-      await triggerEmailProcessor(request);
+      // Gọi trực tiếp thay vì fetch internal URL
+      await processJobsDirectly(booking.id);
     } catch (error) {
-      console.error("BOOKING_CREATED_EMAIL_QUEUE_ERROR:", error);
+      console.error("BOOKING_CREATED_EMAIL_ERROR:", error);
     }
 
     if (supplierId) {
