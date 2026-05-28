@@ -285,6 +285,7 @@ export async function POST(request: Request) {
         booking_time: bookingTime,
         guests,
         guest_count: guests,
+        customer_language: customerLanguage,
         status: "pending",
         total_bill: 0,
         customer_discount_amount: 0,
