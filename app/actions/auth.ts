@@ -88,7 +88,7 @@ export async function signInWithEmail(formData: FormData) {
     : 'customer';
 
   // FIX #5: Set lang cookie ngay sau khi login thành công
-  await setLangCookie(data.user?.user_metadata?.preferred_language);
+  await setLangCookie(data.user?.user_metadata?.preferred_language ?? 'en');
 
   return {
     error: null,
