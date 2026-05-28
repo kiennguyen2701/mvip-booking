@@ -1,20 +1,10 @@
-// middleware.ts  ← đặt tại ROOT của project (cùng cấp package.json)
-//
-// Sửa 3 bug:
-// 1. File tên sai (proxy.ts → middleware.ts) — Next.js chỉ nhận middleware.ts
-// 2. Redirect loop: app/page.tsx redirect → /dashboard/customer
-//    → middleware thấy chưa login → /login → login thấy đã login → /dashboard/customer → loop
-//    FIX: thêm "/" vào PUBLIC_ROUTES và bỏ redirect trong app/page.tsx (xem bên dưới)
-// 3. Admin trắng màn hình: middleware không chạy → role guard không hoạt động
-//    → app/dashboard/page.tsx đọc role từ DB nhưng admin user có thể không có
-//    role trong user_metadata → redirect về /login → loop
-//    FIX: middleware chạy đúng, role guard ở Edge xử lý trước khi đến server
+// proxy.ts — Next.js 16 convention (thay thế middleware.ts)
+// Không thay đổi logic auth/role guard — chỉ sửa redirect loop
 
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { CookieOptions } from "@supabase/ssr";
 
-// "/" là public — user chưa login vào trang chủ không bị redirect login
 const PUBLIC_ROUTES = [
   "/",
   "/login",
@@ -44,7 +34,7 @@ function getDashboardPath(role?: string | null) {
   return "/dashboard/customer";
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   let supabaseResponse = NextResponse.next({ request });
@@ -77,7 +67,6 @@ export async function middleware(request: NextRequest) {
   );
 
   // getSession() = local JWT decode, 0 DB round-trip
-  // getUser() vẫn dùng ở server actions khi cần verify thật
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -99,7 +88,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Role guard tại Edge — không tốn server render
+  // Role guard tại Edge
   if (user && pathname.startsWith("/dashboard")) {
     const isAdmin = role === "admin";
     const isSupplier = role === "supplier";
