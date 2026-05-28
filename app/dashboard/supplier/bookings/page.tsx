@@ -18,17 +18,12 @@ type BookingRow = {
   id: string;
   booking_code?: string | null;
 
-  customer_full_name?: string | null;
   customer_name?: string | null;
-  name?: string | null;
 
-  customer_email?: string | null;
   email?: string | null;
 
-  customer_phone?: string | null;
   phone?: string | null;
 
-  customer_whatsapp?: string | null;
   whatsapp?: string | null;
 
   restaurant_id?: string | null;
@@ -99,16 +94,11 @@ function getRestaurant(booking: BookingRow) {
 }
 
 function getCustomerName(booking: BookingRow) {
-  return (
-    booking.customer_full_name ||
-    booking.customer_name ||
-    booking.name ||
-    "Customer"
-  );
+  return booking.customer_name || "Customer";
 }
 
 function getCustomerEmail(booking: BookingRow) {
-  return booking.customer_email || booking.email || null;
+  return booking.email || null;
 }
 
 async function getRestaurantName(booking: BookingRow) {
@@ -315,14 +305,9 @@ export default async function SupplierBookingsPage() {
       `
       id,
       booking_code,
-      customer_full_name,
       customer_name,
-      name,
-      customer_email,
       email,
-      customer_phone,
       phone,
-      customer_whatsapp,
       whatsapp,
       restaurant_id,
       supplier_id,
