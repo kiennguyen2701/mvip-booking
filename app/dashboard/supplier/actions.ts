@@ -10,6 +10,7 @@ import {
   enqueueBookingCompletedEmailJob,
   enqueueBookingConfirmedEmailJob,
 } from "@/lib/email/email-queue";
+import { processEmailJobsForBooking } from "@/lib/email/process-email-jobs-helper";
 
 export type SupplierActionState = {
   success: boolean;
@@ -36,25 +37,6 @@ function getGuestCount(booking: {
   guest_count?: number | null;
 }) {
   return booking.guests ?? booking.guest_count ?? 1;
-}
-
-async function triggerEmailWorker() {
-  try {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.mvipbooking.com";
-    const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET || "";
-    const url = new URL("/api/email/process", siteUrl);
-
-    if (secret) {
-      url.searchParams.set("secret", secret);
-    }
-
-    await fetch(url.toString(), {
-      method: "POST",
-      cache: "no-store",
-    });
-  } catch (error) {
-    console.error("TRIGGER_EMAIL_WORKER_ERROR:", error);
-  }
 }
 
 export async function changeSupplierPassword(formData: FormData): Promise<void> {
@@ -283,77 +265,34 @@ export async function updateSupplierBookingStatus(
         bookingTime: currentBooking.booking_time || "",
       });
 
-      await triggerEmailWorker();
+      await processEmailJobsForBooking(bookingId);
     }
 
     if (oldStatus !== status && status === "completed") {
       await enqueueBookingCompletedEmailJob({
-  bookingId: currentBooking.id,
+        bookingId: currentBooking.id,
+        customerEmail: currentBooking.email,
+        supplierEmail:
+          supplierEmailRow?.email || supplierEmailRow?.login_email || null,
+        agentEmail: agentRow?.email || null,
+        adminEmail:
+          process.env.ADMIN_EMAIL || process.env.EMAIL_TEST_TO || null,
+        customerName: currentBooking.customer_name || "Customer",
+        restaurantName: currentBooking.service_name || "Restaurant",
+        bookingCode: currentBooking.booking_code || currentBooking.id,
+        bookingDate: currentBooking.booking_date || "",
+        bookingTime: currentBooking.booking_time || "",
+        guests: getGuestCount(currentBooking),
+        phone: currentBooking.phone || "",
+        whatsapp: currentBooking.whatsapp || "",
+        totalBill,
+        customerDiscountAmount: amountFields.customer_discount_amount,
+        platformCommissionAmount: amountFields.platform_commission_amount,
+        agentCommissionAmount: amountFields.agent_commission_amount,
+        platformNetAmount: amountFields.platform_net_amount,
+      });
 
-  customerEmail: currentBooking.email,
-  supplierEmail:
-    supplierEmailRow?.email ||
-    supplierEmailRow?.login_email ||
-    null,
-
-  agentEmail:
-    agentRow?.email || null,
-
-  adminEmail:
-    process.env.ADMIN_EMAIL ||
-    process.env.EMAIL_TEST_TO ||
-    null,
-
-  customerName:
-    currentBooking.customer_name ||
-    "Customer",
-
-  restaurantName:
-    currentBooking.service_name ||
-    "Restaurant",
-
-  bookingCode:
-    currentBooking.booking_code ||
-    currentBooking.id,
-
-  bookingDate:
-    currentBooking.booking_date || "",
-
-  bookingTime:
-    currentBooking.booking_time || "",
-
-  guests:
-    currentBooking.guests ||
-    currentBooking.guest_count ||
-    1,
-
-  phone:
-    currentBooking.phone || "",
-
-  whatsapp:
-    currentBooking.whatsapp || "",
-
-  totalBill,
-
-  customerDiscountAmount:
-    amountFields.customer_discount_amount,
-
-  platformCommissionAmount:
-    amountFields.platform_commission_amount,
-
-  agentCommissionAmount:
-    amountFields.agent_commission_amount,
-
-  platformNetAmount:
-    amountFields.platform_net_amount,
-}).catch((error: unknown) => {
-  console.error(
-    "ENQUEUE_SUPPLIER_COMPLETED_EMAIL_ERROR:",
-    error,
-  );
-});
-
-      await triggerEmailWorker();
+      await processEmailJobsForBooking(bookingId);
     }
 
     if (oldStatus !== status && status === "cancelled") {
@@ -371,7 +310,7 @@ export async function updateSupplierBookingStatus(
         cancellationReason,
       });
 
-      await triggerEmailWorker();
+      await processEmailJobsForBooking(bookingId);
     }
 
     revalidatePath("/dashboard/supplier/bookings");
