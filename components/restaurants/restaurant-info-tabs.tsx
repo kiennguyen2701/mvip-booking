@@ -14,8 +14,11 @@ import {
   createRestaurantReview,
   type ReviewActionState,
 } from "@/app/actions/restaurant-reviews";
+import { useLang } from "@/lib/hooks/use-lang";
 
-type PreferredLanguage = "en" | "zh";
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type RestaurantReview = {
   id: string;
@@ -31,22 +34,35 @@ type ReviewSummary = {
   breakdown: Record<1 | 2 | 3 | 4 | 5, number>;
 };
 
+// OPTION 2: Props mang cả 2 ngôn ngữ — không còn preferredLanguage từ server.
+// Client tự chọn đúng giá trị qua useLang().
 type Props = {
   restaurantId: string;
   slug: string;
-  shortDescription?: string | null;
-  fullDescription?: string | null;
-  openingHours?: Record<string, string> | null;
-  address?: string | null;
-  city?: string | null;
+  shortDescriptionEn?: string | null;
+  shortDescriptionZh?: string | null;
+  fullDescriptionEn?: string | null;
+  fullDescriptionZh?: string | null;
+  openingHoursEn?: Record<string, string> | null;
+  openingHoursZh?: Record<string, string> | null;
+  addressEn?: string | null;
+  addressZh?: string | null;
+  cityEn?: string | null;
+  cityZh?: string | null;
   latitude?: number | null;
   longitude?: number | null;
-  tags?: string[] | null;
-  amenities?: string[] | null;
-  priceRange?: string | null;
+  tagsEn?: string[] | null;
+  tagsZh?: string[] | null;
+  amenitiesEn?: string[] | null;
+  amenitiesZh?: string[] | null;
+  priceRangeEn?: string | null;
+  priceRangeZh?: string | null;
   menuImages?: string[] | null;
-  preferredLanguage?: PreferredLanguage;
 };
+
+// ---------------------------------------------------------------------------
+// Static i18n data
+// ---------------------------------------------------------------------------
 
 const emptySummary: ReviewSummary = {
   totalReviews: 0,
@@ -161,6 +177,10 @@ type TabKey = (typeof tabsByLanguage.en)[number]["key"];
 
 const initialReviewState: ReviewActionState = { success: false, message: "" };
 
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
 const Stars = memo(function Stars({
   value,
   onChange,
@@ -215,18 +235,15 @@ const ReviewSkeleton = memo(function ReviewSkeleton() {
             </div>
           ))}
         </div>
-
         <div className="space-y-3">
           <div className="mx-auto h-16 w-24 rounded-2xl bg-white/10" />
           <div className="mx-auto h-4 w-32 rounded-full bg-white/10" />
         </div>
       </div>
-
       <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
         <div className="h-4 w-40 rounded-full bg-white/10" />
         <div className="mt-4 h-20 rounded-2xl bg-white/10" />
       </div>
-
       <div className="space-y-3">
         <div className="h-24 rounded-2xl border border-white/10 bg-white/[0.04]" />
         <div className="h-24 rounded-2xl border border-white/10 bg-white/[0.04]" />
@@ -237,7 +254,6 @@ const ReviewSkeleton = memo(function ReviewSkeleton() {
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
-
   return new Date(value).toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
@@ -245,27 +261,55 @@ function formatDate(value?: string | null) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export default function RestaurantInfoTabs({
   restaurantId,
   slug,
-  shortDescription,
-  fullDescription,
-  openingHours,
-  address,
-  city,
+  shortDescriptionEn,
+  shortDescriptionZh,
+  fullDescriptionEn,
+  fullDescriptionZh,
+  openingHoursEn,
+  openingHoursZh,
+  addressEn,
+  addressZh,
+  cityEn,
+  cityZh,
   latitude,
   longitude,
-  tags,
-  amenities,
-  priceRange,
+  tagsEn,
+  tagsZh,
+  amenitiesEn,
+  amenitiesZh,
+  priceRangeEn,
+  priceRangeZh,
   menuImages,
-  preferredLanguage = "en",
 }: Props) {
   const router = useRouter();
-  const language = preferredLanguage === "zh" ? "zh" : "en";
-  const tabs = tabsByLanguage[language];
-  const text = textByLanguage[language];
-  const dayOrder = dayOrderByLanguage[language];
+
+  // useLang(): "en" khi SSR (khớp ISR), cập nhật sau hydrate theo cookie
+  const lang = useLang();
+  const tabs = tabsByLanguage[lang];
+  const text = textByLanguage[lang];
+  const dayOrder = dayOrderByLanguage[lang];
+
+  // Chọn đúng giá trị theo ngôn ngữ
+  const shortDescription =
+    (lang === "zh" ? shortDescriptionZh : null) ?? shortDescriptionEn ?? null;
+  const fullDescription =
+    (lang === "zh" ? fullDescriptionZh : null) ?? fullDescriptionEn ?? null;
+  const openingHours =
+    (lang === "zh" ? openingHoursZh : null) ?? openingHoursEn ?? null;
+  const address = (lang === "zh" ? addressZh : null) ?? addressEn ?? null;
+  const city = (lang === "zh" ? cityZh : null) ?? cityEn ?? null;
+  const tags = (lang === "zh" && tagsZh?.length ? tagsZh : tagsEn) ?? [];
+  const amenities =
+    (lang === "zh" && amenitiesZh?.length ? amenitiesZh : amenitiesEn) ?? [];
+  const priceRange =
+    (lang === "zh" ? priceRangeZh : null) ?? priceRangeEn ?? null;
 
   const [activeTab, setActiveTab] = useState<TabKey>("about");
   const [reviews, setReviews] = useState<RestaurantReview[]>([]);
@@ -287,7 +331,6 @@ export default function RestaurantInfoTabs({
 
   const hours = useMemo(() => {
     if (!openingHours) return [];
-
     return dayOrder
       .map((day) => ({
         label: day.label,
@@ -363,22 +406,12 @@ export default function RestaurantInfoTabs({
         setLoadingMore(false);
       }
     },
-    [
-      loadingMore,
-      ratingFilter,
-      restaurantId,
-      reviews.length,
-      reviewsLoading,
-    ],
+    [loadingMore, ratingFilter, restaurantId, reviews.length, reviewsLoading],
   );
 
   const preloadReviews = useCallback(() => {
     if (reviewsLoaded || reviewsLoading || loadingMore) return;
-
-    void loadReviews({
-      reset: true,
-      ratingValue: ratingFilter,
-    });
+    void loadReviews({ reset: true, ratingValue: ratingFilter });
   }, [loadReviews, loadingMore, ratingFilter, reviewsLoaded, reviewsLoading]);
 
   useEffect(() => {
@@ -518,7 +551,7 @@ export default function RestaurantInfoTabs({
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {(tags || []).map((tag) => (
+              {tags.map((tag) => (
                 <span
                   key={tag}
                   className="rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-black text-amber-100"
@@ -527,7 +560,7 @@ export default function RestaurantInfoTabs({
                 </span>
               ))}
 
-              {(amenities || []).map((item) => (
+              {amenities.map((item) => (
                 <span
                   key={item}
                   className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-black text-slate-300"
@@ -590,7 +623,6 @@ export default function RestaurantInfoTabs({
                     {[5, 4, 3, 2, 1].map((star) => {
                       const count =
                         summary.breakdown[star as 1 | 2 | 3 | 4 | 5] || 0;
-
                       const percent =
                         summary.totalReviews > 0
                           ? (count / summary.totalReviews) * 100
@@ -603,10 +635,7 @@ export default function RestaurantInfoTabs({
                           onClick={() => {
                             const next = ratingFilter === star ? 0 : star;
                             setRatingFilter(next);
-                            void loadReviews({
-                              reset: true,
-                              ratingValue: next,
-                            });
+                            void loadReviews({ reset: true, ratingValue: next });
                           }}
                           className="grid w-full grid-cols-[86px_1fr_32px] items-center gap-3 text-left text-xs font-black text-slate-300"
                         >
@@ -663,11 +692,7 @@ export default function RestaurantInfoTabs({
                     </option>
 
                     {[5, 4, 3, 2, 1].map((star) => (
-                      <option
-                        key={star}
-                        value={star}
-                        className="text-slate-950"
-                      >
+                      <option key={star} value={star} className="text-slate-950">
                         {star} ★
                       </option>
                     ))}

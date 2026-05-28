@@ -7,14 +7,17 @@ import {
   useRef,
   useState,
 } from "react";
+import { useLang } from "@/lib/hooks/use-lang";
 
-type PreferredLanguage = "en" | "zh";
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type Props = {
   restaurantId: string;
-  restaurantName: string;
+  restaurantNameEn: string;
+  restaurantNameZh: string;
   supplierId?: string | null;
-  preferredLanguage?: PreferredLanguage;
 };
 
 type CustomerProfile = {
@@ -23,6 +26,10 @@ type CustomerProfile = {
   whatsapp?: string | null;
   email?: string | null;
 };
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const HOURS = Array.from({ length: 24 }, (_, index) =>
   String(index).padStart(2, "0"),
@@ -35,9 +42,12 @@ function getTodayDateInputValue() {
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, "0");
   const day = String(today.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
+
+// ---------------------------------------------------------------------------
+// i18n
+// ---------------------------------------------------------------------------
 
 const bookingText = {
   en: {
@@ -89,9 +99,14 @@ const bookingText = {
   },
 } as const;
 
+// ---------------------------------------------------------------------------
+// Outer wrapper — lazy-mount form khi gần viewport
+// ---------------------------------------------------------------------------
+
 export default function RestaurantBookingForm(props: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [shouldMountForm, setShouldMountForm] = useState(false);
+  const lang = useLang();
 
   useEffect(() => {
     const target = mountRef.current;
@@ -104,40 +119,35 @@ export default function RestaurantBookingForm(props: Props) {
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries.some((entry) => entry.isIntersecting);
-
         if (visible) {
           setShouldMountForm(true);
           observer.disconnect();
         }
       },
-      {
-        rootMargin: "700px 0px",
-        threshold: 0.01,
-      },
+      { rootMargin: "700px 0px", threshold: 0.01 },
     );
 
     observer.observe(target);
-
     return () => observer.disconnect();
   }, []);
 
   return (
     <div ref={mountRef}>
       {shouldMountForm ? (
-        <RestaurantBookingFormInner {...props} />
+        <RestaurantBookingFormInner {...props} lang={lang} />
       ) : (
-        <BookingFormSkeleton preferredLanguage={props.preferredLanguage} />
+        <BookingFormSkeleton lang={lang} />
       )}
     </div>
   );
 }
 
-function BookingFormSkeleton({
-  preferredLanguage = "en",
-}: {
-  preferredLanguage?: PreferredLanguage;
-}) {
-  const t = preferredLanguage === "zh" ? bookingText.zh : bookingText.en;
+// ---------------------------------------------------------------------------
+// Skeleton — hiển thị trong lúc lazy-mount
+// ---------------------------------------------------------------------------
+
+function BookingFormSkeleton({ lang }: { lang: "en" | "zh" }) {
+  const t = bookingText[lang];
 
   return (
     <aside className="self-start lg:sticky lg:top-28 lg:h-fit">
@@ -148,12 +158,10 @@ function BookingFormSkeleton({
             <p className="mx-auto mt-4 h-3 w-36 rounded-full bg-amber-300/20" />
             <h2 className="mx-auto mt-3 h-8 w-48 rounded-full bg-white/10" />
             <p className="mx-auto mt-3 h-4 w-56 rounded-full bg-white/10" />
-
             <div className="mx-auto mt-4 w-fit rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-200">
               {t.instantDiscount}
             </div>
           </div>
-
           <div className="mt-7 space-y-4">
             {[1, 2, 3, 4, 5].map((item) => (
               <div
@@ -169,15 +177,21 @@ function BookingFormSkeleton({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Inner form
+// ---------------------------------------------------------------------------
+
 function RestaurantBookingFormInner({
   restaurantId,
-  restaurantName,
+  restaurantNameEn,
+  restaurantNameZh,
   supplierId,
-  preferredLanguage = "en",
-}: Props) {
-  const t = useMemo(() => {
-    return preferredLanguage === "zh" ? bookingText.zh : bookingText.en;
-  }, [preferredLanguage]);
+  lang,
+}: Props & { lang: "en" | "zh" }) {
+  const t = useMemo(() => bookingText[lang], [lang]);
+  const restaurantName = lang === "zh" && restaurantNameZh
+    ? restaurantNameZh
+    : restaurantNameEn;
 
   const formRef = useRef<HTMLFormElement | null>(null);
   const profileLoadedRef = useRef(false);
@@ -185,36 +199,27 @@ function RestaurantBookingFormInner({
   const todayDate = useMemo(() => getTodayDateInputValue(), []);
 
   const [loading, setLoading] = useState(false);
-
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-
   const [bookingDate, setBookingDate] = useState(todayDate);
   const [bookingHour, setBookingHour] = useState("18");
   const [bookingMinute, setBookingMinute] = useState("00");
-
   const [profileLoading, setProfileLoading] = useState(false);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (profileLoadedRef.current) return;
-
     profileLoadedRef.current = true;
 
     try {
       setProfileLoading(true);
-
       const response = await fetch("/api/customer/profile", {
         cache: "no-store",
       });
-
       if (!response.ok) return;
-
       const data = await response.json();
-
       if (!data?.profile) return;
-
       setProfile(data.profile);
     } catch (error) {
       console.error("LOAD_PROFILE_ERROR:", error);
@@ -227,36 +232,27 @@ function RestaurantBookingFormInner({
     const currentForm = formRef.current;
 
     if (!currentForm || typeof IntersectionObserver === "undefined") {
-      const timer = window.setTimeout(() => {
-        void loadProfile();
-      }, 800);
-
+      const timer = window.setTimeout(() => { void loadProfile(); }, 800);
       return () => window.clearTimeout(timer);
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries.some((entry) => entry.isIntersecting);
-
         if (visible) {
           void loadProfile();
           observer.disconnect();
         }
       },
-      {
-        rootMargin: "300px 0px",
-        threshold: 0.01,
-      },
+      { rootMargin: "300px 0px", threshold: 0.01 },
     );
 
     observer.observe(currentForm);
-
     return () => observer.disconnect();
   }, [loadProfile]);
 
   const applyProfile = useCallback(() => {
     if (!profile) return;
-
     setCustomerName(profile.full_name || "");
     setPhone(profile.phone || "");
     setWhatsapp(profile.whatsapp || "");
@@ -265,7 +261,6 @@ function RestaurantBookingFormInner({
   const handleSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-
       if (loading) return;
 
       const formData = new FormData(event.currentTarget);
@@ -276,15 +271,12 @@ function RestaurantBookingFormInner({
         "";
 
       const bookingTime = `${bookingHour}:${bookingMinute}`;
-
       setLoading(true);
 
       try {
         const response = await fetch("/api/booking/create", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             restaurantId,
             restaurantName,
@@ -296,13 +288,12 @@ function RestaurantBookingFormInner({
             bookingDate: String(formData.get("booking_date") || bookingDate),
             bookingTime,
             agentRef,
-            customerLanguage: preferredLanguage,
-            preferredLanguage,
+            customerLanguage: lang,
+            preferredLanguage: lang,
           }),
         });
 
         const rawText = await response.text();
-
         let result: { bookingId?: string; error?: string } = {};
 
         try {
@@ -337,8 +328,8 @@ function RestaurantBookingFormInner({
       bookingDate,
       bookingHour,
       bookingMinute,
+      lang,
       loading,
-      preferredLanguage,
       restaurantId,
       restaurantName,
       supplierId,
@@ -428,11 +419,7 @@ function RestaurantBookingFormInner({
             </Field>
 
             <Field label={t.guests}>
-              <select
-                name="guest_count"
-                defaultValue="2"
-                className="booking-input"
-              >
+              <select name="guest_count" defaultValue="2" className="booking-input">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
                   <option key={item} value={item} className="text-slate-950">
                     {item} {item === 1 ? t.guest : t.guestPlural}
@@ -450,12 +437,10 @@ function RestaurantBookingFormInner({
                 value={bookingDate}
                 onChange={(event) => {
                   const nextDate = event.target.value;
-
                   if (!nextDate || nextDate < todayDate) {
                     setBookingDate(todayDate);
                     return;
                   }
-
                   setBookingDate(nextDate);
                 }}
                 className="booking-input"
@@ -470,11 +455,7 @@ function RestaurantBookingFormInner({
                   className="booking-input"
                 >
                   {HOURS.map((hour) => (
-                    <option
-                      key={hour}
-                      value={hour}
-                      className="text-slate-950"
-                    >
+                    <option key={hour} value={hour} className="text-slate-950">
                       {hour}h
                     </option>
                   ))}
@@ -488,11 +469,7 @@ function RestaurantBookingFormInner({
                   className="booking-input"
                 >
                   {MINUTES.map((minute) => (
-                    <option
-                      key={minute}
-                      value={minute}
-                      className="text-slate-950"
-                    >
+                    <option key={minute} value={minute} className="text-slate-950">
                       {minute}
                     </option>
                   ))}
@@ -516,6 +493,10 @@ function RestaurantBookingFormInner({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Field helper
+// ---------------------------------------------------------------------------
+
 function Field({
   label,
   children,
@@ -528,7 +509,6 @@ function Field({
       <span className="mb-2 block text-sm font-black text-slate-300">
         {label}
       </span>
-
       <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-[1px] shadow-inner shadow-black/20 transition focus-within:border-amber-300/40 focus-within:ring-4 focus-within:ring-amber-300/10">
         {children}
       </div>

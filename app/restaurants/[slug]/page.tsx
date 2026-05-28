@@ -1,5 +1,4 @@
 import dynamic from "next/dynamic";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { getPublicRestaurantDetail } from "@/lib/restaurants/get-public-restaurant-detail";
 import { adminClient } from "@/lib/supabase/admin";
@@ -35,8 +34,6 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
-type PreferredLanguage = "en" | "zh";
-
 // ISR: Cache trang trên Vercel CDN 1 giờ.
 // Khi supplier update restaurant → gọi /api/revalidate?slug=xxx để rebuild ngay.
 // 2000 users xem 10 nhà hàng phổ biến = 20,000 renders/giờ → gần 0 với ISR.
@@ -56,6 +53,9 @@ export async function generateStaticParams() {
     .map((r) => ({ slug: r.slug as string }));
 }
 
+// OPTION 2 — Bilingual copy: ISR cache trang với cả 2 ngôn ngữ.
+// Client components tự đọc cookie mvip_lang để chọn ngôn ngữ đúng.
+// Không cần cookies() trên server → không phá ISR.
 const DETAIL_COPY = {
   en: {
     previewMode:
@@ -85,96 +85,27 @@ const DETAIL_COPY = {
   },
 } as const;
 
-function getLocalizedValue(
-  restaurant: Record<string, unknown>,
-  language: PreferredLanguage,
-  enKey: string,
-  zhKey: string,
-) {
-  const zhValue = restaurant[zhKey];
-  const enValue = restaurant[enKey];
-
-  if (language === "zh" && typeof zhValue === "string" && zhValue.trim()) {
-    return zhValue;
-  }
-
-  if (typeof enValue === "string" && enValue.trim()) {
-    return enValue;
-  }
-
-  return null;
-}
-
-// FIX ISR: Đọc language từ cookie — không DB query.
-// Trang được cache trên CDN nhưng language vẫn đúng per-user nhờ cookie.
-async function getPreferredLanguage(): Promise<PreferredLanguage> {
-  try {
-    const cookieStore = await cookies();
-    const lang = cookieStore.get("mvip_lang")?.value;
-    if (lang === "zh" || lang === "en") return lang;
-    return "en";
-  } catch {
-    return "en";
-  }
-}
-
 export default async function RestaurantDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
-  const [restaurant, preferredLanguage] = await Promise.all([
-    getPublicRestaurantDetail(slug),
-    getPreferredLanguage(),
-  ]);
+  const restaurant = await getPublicRestaurantDetail(slug);
 
   if (!restaurant) notFound();
 
-  const language = preferredLanguage === "zh" ? "zh" : "en";
-  const t = DETAIL_COPY[language];
   const restaurantRecord = restaurant as Record<string, unknown>;
 
-  const restaurantName =
-    getLocalizedValue(restaurantRecord, language, "name", "name_zh") ||
-    t.restaurantFallback;
+  // Truyền cả 2 ngôn ngữ xuống client — không đọc cookie trên server.
+  // Client components sẽ chọn đúng ngôn ngữ dựa trên cookie mvip_lang.
+  const nameEn =
+    typeof restaurantRecord.name === "string" && restaurantRecord.name.trim()
+      ? restaurantRecord.name
+      : DETAIL_COPY.en.restaurantFallback;
 
-  const shortDescription = getLocalizedValue(
-    restaurantRecord, language, "short_description", "short_description_zh",
-  );
-
-  const fullDescription = getLocalizedValue(
-    restaurantRecord, language, "full_description", "full_description_zh",
-  );
-
-  const address = getLocalizedValue(
-    restaurantRecord, language, "address", "address_zh",
-  );
-
-  const city = getLocalizedValue(restaurantRecord, language, "city", "city_zh");
-
-  const tags =
-    language === "zh" && Array.isArray(restaurantRecord.tags_zh)
-      ? (restaurantRecord.tags_zh as string[])
-      : ((restaurantRecord.tags as string[] | null) || []);
-
-  const amenities =
-    language === "zh" && Array.isArray(restaurantRecord.amenities_zh)
-      ? (restaurantRecord.amenities_zh as string[])
-      : ((restaurantRecord.amenities as string[] | null) || []);
-
-  const openingHours =
-    language === "zh" && restaurantRecord.opening_hours_zh
-      ? (restaurantRecord.opening_hours_zh as Record<string, string>)
-      : (restaurantRecord.opening_hours as Record<string, string> | null);
-
-  const priceRange = getLocalizedValue(
-    restaurantRecord, language, "price_range", "price_range_zh",
-  );
-
-  const coverImage =
-    typeof restaurantRecord.cover_image === "string"
-      ? restaurantRecord.cover_image
-      : typeof restaurantRecord.cover_image_url === "string"
-        ? restaurantRecord.cover_image_url
-        : null;
+  const nameZh =
+    typeof restaurantRecord.name_zh === "string" &&
+    restaurantRecord.name_zh.trim()
+      ? restaurantRecord.name_zh
+      : nameEn;
 
   const galleryImages = Array.isArray(restaurantRecord.gallery_images)
     ? (restaurantRecord.gallery_images as string[])
@@ -183,6 +114,13 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
   const menuImages = Array.isArray(restaurantRecord.menu_images)
     ? (restaurantRecord.menu_images as string[])
     : [];
+
+  const coverImage =
+    typeof restaurantRecord.cover_image === "string"
+      ? restaurantRecord.cover_image
+      : typeof restaurantRecord.cover_image_url === "string"
+        ? restaurantRecord.cover_image_url
+        : null;
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[#070604] pb-24 text-white">
@@ -195,57 +133,24 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
 
       <section className="relative mx-auto w-full max-w-7xl overflow-hidden px-4 py-4 md:px-6 md:py-6">
         {!restaurant.is_active && (
+          // Banner preview — không cần i18n vì chỉ admin/supplier thấy
           <div className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
-            {t.previewMode}
+            {DETAIL_COPY.en.previewMode}
           </div>
         )}
 
-        <section className="relative mb-5 overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.055] p-4 shadow-2xl shadow-black/35 backdrop-blur-2xl md:rounded-[34px] md:p-6">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-300/10 via-transparent to-orange-800/20" />
-
-          <div className="relative grid min-w-0 gap-3 md:grid-cols-[1fr_220px] md:items-center lg:grid-cols-[1fr_260px]">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300 md:text-xs md:tracking-[0.28em]">
-                {t.luxuryDiningPartner}
-              </p>
-
-              <h1 className="mt-3 max-w-full break-words text-[2.55rem] font-black leading-[1] tracking-tight text-white drop-shadow-[0_8px_28px_rgba(0,0,0,0.7)] md:text-5xl lg:text-6xl">
-                {restaurantName}
-              </h1>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <div className="rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-100">
-                  ★ {t.reviews}
-                </div>
-
-                {city && (
-                  <div className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-slate-300">
-                    📍 {city}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="-mt-1 max-w-full rounded-[18px] border border-amber-300/20 bg-gradient-to-br from-amber-300/16 to-yellow-700/10 px-4 py-3 text-center shadow-xl shadow-amber-900/10 backdrop-blur-xl md:mt-0 md:rounded-[22px] md:px-5 md:py-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-200 md:text-[10px]">
-                {t.exclusiveOffer}
-              </p>
-
-              <p className="mt-1 text-3xl font-black leading-none text-amber-300 md:text-4xl">
-                -5%
-              </p>
-
-              <p className="mt-1 text-[11px] font-bold leading-5 text-slate-300 md:text-xs">
-                {t.instantCustomerDiscount}
-              </p>
-            </div>
-          </div>
-        </section>
+        {/* RestaurantPageHeader: client component tự chọn ngôn ngữ */}
+        <RestaurantPageHeader
+          nameEn={nameEn}
+          nameZh={nameZh}
+          isActive={Boolean(restaurant.is_active)}
+        />
 
         <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
           <div className="min-w-0 space-y-5">
             <RestaurantGallery
-              name={restaurantName}
+              // Tên gallery không phụ thuộc language — dùng en làm fallback
+              name={nameEn}
               coverImage={coverImage}
               galleryImages={galleryImages}
             />
@@ -253,11 +158,59 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
             <RestaurantInfoTabs
               restaurantId={String(restaurantRecord.id)}
               slug={String(restaurantRecord.slug)}
-              shortDescription={shortDescription}
-              fullDescription={fullDescription}
-              openingHours={openingHours}
-              address={address}
-              city={city}
+              // Truyền cả 2 ngôn ngữ — component tự chọn
+              shortDescriptionEn={
+                typeof restaurantRecord.short_description === "string"
+                  ? restaurantRecord.short_description
+                  : null
+              }
+              shortDescriptionZh={
+                typeof restaurantRecord.short_description_zh === "string"
+                  ? restaurantRecord.short_description_zh
+                  : null
+              }
+              fullDescriptionEn={
+                typeof restaurantRecord.full_description === "string"
+                  ? restaurantRecord.full_description
+                  : null
+              }
+              fullDescriptionZh={
+                typeof restaurantRecord.full_description_zh === "string"
+                  ? restaurantRecord.full_description_zh
+                  : null
+              }
+              openingHoursEn={
+                restaurantRecord.opening_hours as Record<
+                  string,
+                  string
+                > | null
+              }
+              openingHoursZh={
+                restaurantRecord.opening_hours_zh as Record<
+                  string,
+                  string
+                > | null
+              }
+              addressEn={
+                typeof restaurantRecord.address === "string"
+                  ? restaurantRecord.address
+                  : null
+              }
+              addressZh={
+                typeof restaurantRecord.address_zh === "string"
+                  ? restaurantRecord.address_zh
+                  : null
+              }
+              cityEn={
+                typeof restaurantRecord.city === "string"
+                  ? restaurantRecord.city
+                  : null
+              }
+              cityZh={
+                typeof restaurantRecord.city_zh === "string"
+                  ? restaurantRecord.city_zh
+                  : null
+              }
               latitude={
                 typeof restaurantRecord.latitude === "number"
                   ? restaurantRecord.latitude
@@ -268,11 +221,37 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
                   ? restaurantRecord.longitude
                   : null
               }
-              tags={tags}
-              amenities={amenities}
-              priceRange={priceRange}
+              tagsEn={
+                Array.isArray(restaurantRecord.tags)
+                  ? (restaurantRecord.tags as string[])
+                  : []
+              }
+              tagsZh={
+                Array.isArray(restaurantRecord.tags_zh)
+                  ? (restaurantRecord.tags_zh as string[])
+                  : []
+              }
+              amenitiesEn={
+                Array.isArray(restaurantRecord.amenities)
+                  ? (restaurantRecord.amenities as string[])
+                  : []
+              }
+              amenitiesZh={
+                Array.isArray(restaurantRecord.amenities_zh)
+                  ? (restaurantRecord.amenities_zh as string[])
+                  : []
+              }
+              priceRangeEn={
+                typeof restaurantRecord.price_range === "string"
+                  ? restaurantRecord.price_range
+                  : null
+              }
+              priceRangeZh={
+                typeof restaurantRecord.price_range_zh === "string"
+                  ? restaurantRecord.price_range_zh
+                  : null
+              }
               menuImages={menuImages}
-              preferredLanguage={language}
             />
           </div>
 
@@ -280,26 +259,25 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
             {restaurant.is_active ? (
               <RestaurantBookingForm
                 restaurantId={String(restaurantRecord.id)}
-                restaurantName={restaurantName}
+                restaurantNameEn={nameEn}
+                restaurantNameZh={nameZh}
                 supplierId={
                   typeof restaurantRecord.supplier_id === "string"
                     ? restaurantRecord.supplier_id
                     : null
                 }
-                preferredLanguage={language}
               />
             ) : (
+              // Inactive state — chỉ admin/supplier thấy, dùng en
               <aside className="self-start rounded-[30px] border border-amber-300/20 bg-white/[0.055] p-6 shadow-2xl shadow-black/25 backdrop-blur-2xl lg:sticky lg:top-28">
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">
-                  {t.supplierPreview}
+                  {DETAIL_COPY.en.supplierPreview}
                 </p>
-
                 <h2 className="mt-3 text-2xl font-black text-white">
-                  {t.bookingDisabled}
+                  {DETAIL_COPY.en.bookingDisabled}
                 </h2>
-
                 <p className="mt-3 text-sm leading-6 text-slate-400">
-                  {t.inactiveMessage}
+                  {DETAIL_COPY.en.inactiveMessage}
                 </p>
               </aside>
             )}
@@ -308,15 +286,17 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
       </section>
 
       {restaurant.is_active && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070604]/92 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur-xl md:hidden">
-          <a
-            href="#booking-form"
-            className="flex h-14 w-full items-center justify-center rounded-2xl bg-amber-300 text-base font-black text-slate-950 shadow-2xl shadow-amber-950/30 active:scale-[0.99]"
-          >
-            {t.bookNow}
-          </a>
-        </div>
+        <RestaurantBookNowBar />
       )}
     </main>
   );
 }
+
+// ---------------------------------------------------------------------------
+// RestaurantPageHeader — client component, tự đọc cookie để chọn ngôn ngữ
+// ---------------------------------------------------------------------------
+// Đặt ở cuối file để tránh tạo thêm file mới.
+// Nếu project lớn hơn, tách ra components/restaurants/restaurant-page-header.tsx
+
+import RestaurantPageHeader from "@/components/restaurants/restaurant-page-header";
+import RestaurantBookNowBar from "@/components/restaurants/restaurant-book-now-bar";
