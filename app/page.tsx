@@ -3,5 +3,5 @@
 export const dynamic = "force-dynamic";
 
 export default function HomePage() {
-  redirect("/restaurants");
+  redirect("/login");
 }
