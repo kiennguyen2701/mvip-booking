@@ -1,4 +1,3 @@
-import React from "react";
 "use client";
 
 // components/booking/booking-confirmation-client.tsx
