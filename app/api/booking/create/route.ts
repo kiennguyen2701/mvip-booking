@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
-import { enqueueBookingCreatedEmailJob } from "@/lib/email/email-queue";
 import { processEmailJob } from "@/lib/email/process-email-job";
 import { deleteCache, deleteCacheByPattern } from "@/lib/cache/cache";
 import { cacheKeys, cachePatterns } from "@/lib/cache/keys";
@@ -64,8 +63,7 @@ async function getCustomerAgent(userId: string) {
   return { agentId: null as string | null, refCode: "" };
 }
 
-// FIX: Nhận jobs trực tiếp từ DB sau khi enqueue — tránh race condition
-// và tránh HTTP fetch same-origin bị block trên Vercel Hobby.
+// Process email jobs by ID — tránh HTTP fetch same-origin bị block trên Vercel Hobby
 async function processJobsById(jobIds: string[]) {
   if (!jobIds.length) return;
 
@@ -73,7 +71,6 @@ async function processJobsById(jobIds: string[]) {
 
   for (const jobId of jobIds) {
     try {
-      // Lock job
       const { data: locked } = await adminClient
         .from("email_jobs")
         .update({
@@ -113,7 +110,6 @@ async function processJobsById(jobIds: string[]) {
     } catch (error) {
       console.error("PROCESS_JOBS_ERROR:", jobId, error);
 
-      // Lấy attempts hiện tại để tính retry
       const { data: currentJob } = await adminClient
         .from("email_jobs")
         .select("attempts, max_attempts")
@@ -122,12 +118,11 @@ async function processJobsById(jobIds: string[]) {
 
       const attempts = Number(currentJob?.attempts || 0) + 1;
       const maxAttempts = Number(currentJob?.max_attempts || 5);
-      const finalFailed = attempts >= maxAttempts;
 
       await adminClient
         .from("email_jobs")
         .update({
-          status: finalFailed ? "failed" : "pending",
+          status: attempts >= maxAttempts ? "failed" : "pending",
           attempts,
           updated_at: new Date().toISOString(),
           last_error: error instanceof Error ? error.message : "Unknown error",
@@ -208,6 +203,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Fetch restaurant kèm address + location cho Google Maps
     const { data: restaurant, error: restaurantError } = await adminClient
       .from("restaurants")
       .select("id, name, supplier_id, is_active, address, city, latitude, longitude")
@@ -269,11 +265,26 @@ export async function POST(request: Request) {
       supplier?.name ||
       String(body.restaurantName || "Restaurant");
 
+    // Build address + Google Maps URL cho email
+    const restaurantAddress =
+      [restaurant.address, restaurant.city].filter(Boolean).join(", ") || null;
+
+    const googleMapsUrl =
+      typeof restaurant.latitude === "number" &&
+      typeof restaurant.longitude === "number" &&
+      Number.isFinite(restaurant.latitude) &&
+      Number.isFinite(restaurant.longitude)
+        ? `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`
+        : restaurantAddress
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurantAddress)}`
+          : null;
+
     const { data: booking, error: bookingError } = await adminClient
       .from("bookings")
       .insert({
         booking_code: bookingCode,
         customer_name: customerName,
+        customer_language: customerLanguage,
         phone,
         whatsapp: whatsapp || null,
         email: user.email || null,
@@ -315,17 +326,7 @@ export async function POST(request: Request) {
 
     const supplierEmail = supplier?.email || supplier?.login_email || null;
 
-    const restaurantAddress =
-      [restaurant.address, restaurant.city].filter(Boolean).join(", ") || null;
-
-    const googleMapsUrl =
-      typeof restaurant.latitude === "number" && typeof restaurant.longitude === "number"
-        ? `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`
-        : restaurantAddress
-          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurantAddress)}`
-          : null;
-
-    // Enqueue rồi lấy job IDs để process trực tiếp — không query lại DB
+    // Enqueue + process email jobs trực tiếp trong cùng request
     try {
       const jobIds = await enqueueAndGetJobIds({
         bookingId: booking.id,
@@ -345,7 +346,6 @@ export async function POST(request: Request) {
         whatsapp,
       });
 
-      // Process ngay trong cùng request — không HTTP fetch
       await processJobsById(jobIds);
     } catch (error) {
       console.error("BOOKING_EMAIL_ERROR:", error);
@@ -379,17 +379,17 @@ export async function POST(request: Request) {
   }
 }
 
-// Enqueue và trả về job IDs ngay lập tức — tránh query lại DB
+// Enqueue jobs và trả về IDs để process trực tiếp
 async function enqueueAndGetJobIds(payload: {
   bookingId: string;
   customerEmail?: string | null;
-  customerLanguage?: "en" | "zh" | null;
+  customerLanguage?: PreferredLanguage | null;
   customerName: string;
   supplierEmail?: string | null;
   adminEmail?: string | null;
   restaurantName: string;
-  restaurantAddress?: string | null;   // ← thêm
-  googleMapsUrl?: string | null;       // ← thêm
+  restaurantAddress?: string | null;
+  googleMapsUrl?: string | null;
   bookingCode: string;
   bookingDate: string;
   bookingTime: string;
