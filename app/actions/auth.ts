@@ -61,8 +61,6 @@ async function resolveUserRole(userId: string, fallbackRole?: string | null) {
   return 'customer';
 }
 
-// FIX #5: Set cookie mvip_lang khi login để trang detail nhà hàng
-// không cần DB query để lấy preferred_language mỗi lần load.
 async function setLangCookie(preferredLanguage?: string | null) {
   if (preferredLanguage !== 'zh' && preferredLanguage !== 'en') return;
   const cookieStore = await cookies();
@@ -87,7 +85,7 @@ export async function signInWithEmail(formData: FormData) {
     ? await resolveUserRole(data.user.id, data.user.user_metadata?.role)
     : 'customer';
 
-  // FIX #5: Set lang cookie ngay sau khi login thành công
+  // Fallback 'en' nếu preferred_language chưa set — tránh cookie cũ từ session trước
   await setLangCookie(data.user?.user_metadata?.preferred_language ?? 'en');
 
   return {
@@ -107,7 +105,15 @@ export async function signUpWithEmail(formData: FormData) {
 
   const supabase = await createClient();
   const cookieStore = await cookies();
-  const refCode = cookieStore.get('ref_code')?.value || null;
+
+  // FIX: Đọc ref_code từ cả formData (hidden input trong form đăng ký)
+  // lẫn cookie — ưu tiên formData vì chắc chắn hơn cookie
+  const refCodeFromForm = String(formData.get('ref_code') || '').trim().toUpperCase() || null;
+  const refCodeFromCookie =
+    cookieStore.get('mvip_ref_code')?.value ||
+    cookieStore.get('ref_code')?.value ||
+    null;
+  const refCode = refCodeFromForm || refCodeFromCookie || null;
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -150,7 +156,6 @@ export async function signUpWithEmail(formData: FormData) {
       referred_by_agent_id: referredByAgentId,
     });
 
-    // FIX #5: Set lang cookie ngay sau khi register
     await setLangCookie(preferredLanguage);
   }
 
@@ -161,7 +166,6 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
 
-  // Xóa lang cookie khi logout
   const cookieStore = await cookies();
   cookieStore.delete('mvip_lang');
 

@@ -253,6 +253,7 @@ export default function CustomerRegisterForm({
 
         <input
           type="text"
+          name="ref_code"
           placeholder="Referral Code"
           value={form.refCode}
           onChange={(event) =>
