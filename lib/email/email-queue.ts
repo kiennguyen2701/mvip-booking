@@ -59,11 +59,15 @@ export async function enqueueBookingCreatedEmailJob(payload: {
   guests: number;
   phone?: string | null;
   whatsapp?: string | null;
+  restaurantAddress?: string | null;
+  googleMapsUrl?: string | null;
 }) {
   const basePayload = {
     customerName: payload.customerName,
     customerLanguage: payload.customerLanguage || "en",
     restaurantName: payload.restaurantName,
+    restaurantAddress: payload.restaurantAddress || null,
+    googleMapsUrl: payload.googleMapsUrl || null,
     bookingCode: payload.bookingCode,
     bookingDate: payload.bookingDate,
     bookingTime: payload.bookingTime,
@@ -125,9 +129,12 @@ export async function enqueueBookingConfirmedEmailJob(payload: {
   customerLanguage?: "en" | "zh" | null;
   customerName: string;
   restaurantName: string;
+  restaurantAddress?: string | null;
+  googleMapsUrl?: string | null;
   bookingCode: string;
   bookingDate: string;
   bookingTime: string;
+  guests?: number | null;
 }) {
   await enqueueEmailJob({
     type: "booking_confirmed",

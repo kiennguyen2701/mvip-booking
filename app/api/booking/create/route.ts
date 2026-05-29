@@ -210,7 +210,7 @@ export async function POST(request: Request) {
 
     const { data: restaurant, error: restaurantError } = await adminClient
       .from("restaurants")
-      .select("id, name, supplier_id, is_active")
+      .select("id, name, supplier_id, is_active, address, city, latitude, longitude")
       .eq("id", restaurantId)
       .maybeSingle();
 
@@ -285,7 +285,6 @@ export async function POST(request: Request) {
         booking_time: bookingTime,
         guests,
         guest_count: guests,
-        customer_language: customerLanguage,
         status: "pending",
         total_bill: 0,
         customer_discount_amount: 0,
@@ -316,6 +315,16 @@ export async function POST(request: Request) {
 
     const supplierEmail = supplier?.email || supplier?.login_email || null;
 
+    const restaurantAddress =
+      [restaurant.address, restaurant.city].filter(Boolean).join(", ") || null;
+
+    const googleMapsUrl =
+      typeof restaurant.latitude === "number" && typeof restaurant.longitude === "number"
+        ? `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`
+        : restaurantAddress
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurantAddress)}`
+          : null;
+
     // Enqueue rồi lấy job IDs để process trực tiếp — không query lại DB
     try {
       const jobIds = await enqueueAndGetJobIds({
@@ -326,6 +335,8 @@ export async function POST(request: Request) {
         supplierEmail,
         adminEmail: process.env.ADMIN_EMAIL || null,
         restaurantName,
+        restaurantAddress,
+        googleMapsUrl,
         bookingCode,
         bookingDate,
         bookingTime,
@@ -377,6 +388,8 @@ async function enqueueAndGetJobIds(payload: {
   supplierEmail?: string | null;
   adminEmail?: string | null;
   restaurantName: string;
+  restaurantAddress?: string | null;   // ← thêm
+  googleMapsUrl?: string | null;       // ← thêm
   bookingCode: string;
   bookingDate: string;
   bookingTime: string;
@@ -388,6 +401,8 @@ async function enqueueAndGetJobIds(payload: {
     customerName: payload.customerName,
     customerLanguage: payload.customerLanguage || "en",
     restaurantName: payload.restaurantName,
+    restaurantAddress: payload.restaurantAddress || null,
+    googleMapsUrl: payload.googleMapsUrl || null,
     bookingCode: payload.bookingCode,
     bookingDate: payload.bookingDate,
     bookingTime: payload.bookingTime,

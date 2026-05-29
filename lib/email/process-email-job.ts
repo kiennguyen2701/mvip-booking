@@ -84,6 +84,8 @@ export async function processEmailJob(job: EmailJobRow) {
 
       restaurantName:
         getString(payload.restaurantName) || "Restaurant",
+      restaurantAddress: getNullableString(payload.restaurantAddress),
+      googleMapsUrl: getNullableString(payload.googleMapsUrl),
 
       bookingCode: getString(payload.bookingCode),
       bookingDate: getString(payload.bookingDate),
@@ -177,6 +179,9 @@ export async function processEmailJob(job: EmailJobRow) {
         getString(payload.restaurantName) || "Restaurant",
 
       bookingCode: getString(payload.bookingCode),
+      restaurantAddress: getNullableString(payload.restaurantAddress),
+      googleMapsUrl: getNullableString(payload.googleMapsUrl),
+      guests: getNumber(payload.guests) || null,
 
       bookingDate: getString(payload.bookingDate),
       bookingTime: getString(payload.bookingTime),
