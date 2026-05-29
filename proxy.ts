@@ -6,6 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { CookieOptions } from "@supabase/ssr";
 
 const PUBLIC_ROUTES = [
+  "/api",
   "/",
   "/login",
   "/register",
