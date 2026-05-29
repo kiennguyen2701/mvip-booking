@@ -6,7 +6,6 @@
 // Nhận cả 2 ngôn ngữ từ server page, không cần fetch thêm.
 
 import Link from "next/link";
-import { useLang } from "@/lib/hooks/use-lang";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,16 +140,10 @@ export default function BookingConfirmationClient({
   restaurant,
   serviceNameFallback,
 }: Props) {
-  // useLang(): ưu tiên cookie hiện tại của browser.
-  // Fallback về booking.customerLanguage nếu cookie chưa load (SSR flash).
-  // Cả 2 đều trỏ về cùng ngôn ngữ trong > 99% trường hợp.
-  const cookieLang = useLang();
-
-  // Sau khi hydrate, dùng cookie; trước đó dùng giá trị đã lưu lúc book
-  // để tránh flash tiếng Anh → tiếng Trung.
-  // useLang() khởi tạo "en" → ngay sau useEffect sẽ cập nhật đúng.
-  // Để tránh flash, dùng booking.customerLanguage làm initial value thật.
-  const lang = cookieLang !== "en" ? cookieLang : booking.customerLanguage;
+  // Dùng booking.customerLanguage từ DB làm nguồn sự thật chính.
+  // Đây là giá trị đã lưu lúc book — chắc chắn đúng, không phụ thuộc cookie.
+  // Không dùng useLang() vì trang này không có ISR — data từ DB là đủ tin cậy.
+  const lang = booking.customerLanguage;
 
   const t = COPY[lang];
   const statusCopy = STATUS_COPY[lang];
