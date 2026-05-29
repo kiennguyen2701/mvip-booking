@@ -1,3 +1,4 @@
+import React from "react";
 "use client";
 
 // components/booking/booking-confirmation-client.tsx
@@ -37,6 +38,7 @@ type Props = {
   booking: BookingData;
   restaurant: RestaurantData;
   serviceNameFallback: string;
+  cancelButton?: React.ReactNode;
 };
 
 // ---------------------------------------------------------------------------
@@ -139,6 +141,7 @@ export default function BookingConfirmationClient({
   booking,
   restaurant,
   serviceNameFallback,
+  cancelButton,
 }: Props) {
   // Dùng booking.customerLanguage từ DB làm nguồn sự thật chính.
   // Đây là giá trị đã lưu lúc book — chắc chắn đúng, không phụ thuộc cookie.
@@ -246,6 +249,9 @@ export default function BookingConfirmationClient({
             >
               {t.dashboard}
             </Link>
+
+            {cancelButton}
+
           </div>
 
         </div>
