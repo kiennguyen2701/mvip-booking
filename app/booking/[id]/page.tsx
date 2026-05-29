@@ -174,6 +174,10 @@ export default async function BookingDetailPage({ params }: PageProps) {
             >
               Go to Customer Dashboard
             </Link>
+            <CancelBookingButton
+              bookingId={id}
+              status={String(booking.status || "pending")}
+            />
           </div>
         </div>
       </section>
