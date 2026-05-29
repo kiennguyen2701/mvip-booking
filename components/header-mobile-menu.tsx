@@ -5,6 +5,30 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
+import { useLang } from "@/lib/hooks/use-lang";
+
+const COPY = {
+  en: {
+    dashboard: "Dashboard",
+    myBookings: "My Bookings",
+    myProfile: "My Profile",
+    bookingList: "Booking List",
+    myRestaurants: "My Restaurants",
+    changePassword: "Change Password",
+    login: "Login",
+    register: "Register",
+  },
+  zh: {
+    dashboard: "控制台",
+    myBookings: "我的预订",
+    myProfile: "我的资料",
+    bookingList: "预订列表",
+    myRestaurants: "我的餐厅",
+    changePassword: "修改密码",
+    login: "登录",
+    register: "注册",
+  },
+} as const;
 
 function getDashboardHref(role: string | null) {
   if (role === "admin") return "/dashboard/admin";
@@ -24,6 +48,8 @@ export default function HeaderMobileMenu({
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const lang = useLang();
+  const t = COPY[lang];
 
   const dashboardHref = getDashboardHref(role);
   const isCustomer = role === "customer";
@@ -99,7 +125,7 @@ export default function HeaderMobileMenu({
                 onClick={() => setOpen(false)}
                 className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
               >
-                Dashboard
+                {t.dashboard}
               </Link>
 
               {isCustomer && (
@@ -110,7 +136,7 @@ export default function HeaderMobileMenu({
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
                   >
-                    My Bookings
+                    {t.myBookings}
                   </Link>
 
                   <Link
@@ -119,7 +145,7 @@ export default function HeaderMobileMenu({
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-amber-300 px-4 py-4 text-base font-black text-slate-950"
                   >
-                    My Profile
+                    {t.myProfile}
                   </Link>
                 </>
               )}
@@ -132,7 +158,7 @@ export default function HeaderMobileMenu({
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
                   >
-                    Booking List
+                    {t.bookingList}
                   </Link>
 
                   <Link
@@ -141,7 +167,7 @@ export default function HeaderMobileMenu({
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
                   >
-                    My Restaurants
+                    {t.myRestaurants}
                   </Link>
 
                   <Link
@@ -150,7 +176,7 @@ export default function HeaderMobileMenu({
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-amber-300 px-4 py-4 text-base font-black text-slate-950"
                   >
-                    My Profile
+                    {t.myProfile}
                   </Link>
 
                   <Link
@@ -159,7 +185,7 @@ export default function HeaderMobileMenu({
                     onClick={() => setOpen(false)}
                     className="block rounded-2xl bg-white/10 px-4 py-4 text-base font-black"
                   >
-                    Change Password
+                    {t.changePassword}
                   </Link>
                 </>
               )}
@@ -176,7 +202,7 @@ export default function HeaderMobileMenu({
                 onClick={() => setOpen(false)}
                 className="block rounded-2xl bg-white/10 px-4 py-4 text-center text-base font-black"
               >
-                Login
+                {t.login}
               </Link>
 
               <Link
@@ -185,7 +211,7 @@ export default function HeaderMobileMenu({
                 onClick={() => setOpen(false)}
                 className="block rounded-2xl bg-amber-300 px-4 py-4 text-center text-base font-black text-slate-950"
               >
-                Register
+                {t.register}
               </Link>
             </>
           )}
