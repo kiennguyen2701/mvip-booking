@@ -100,46 +100,26 @@ const bookingText = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Outer wrapper — lazy-mount form khi gần viewport
+// Outer wrapper
 // ---------------------------------------------------------------------------
 
 export default function RestaurantBookingForm(props: Props) {
-  const mountRef = useRef<HTMLDivElement | null>(null);
-  const [shouldMountForm, setShouldMountForm] = useState(false);
+  // FIX: Không lazy-mount bằng IntersectionObserver nữa.
+  // Race condition: IntersectionObserver trigger trước useLang() settle
+  // → form mount với lang="en" dù user đang dùng "zh".
+  // Mount ngay sau hydration — lang đã settled trước khi form render.
   const lang = useLang();
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const target = mountRef.current;
-
-    if (!target || typeof IntersectionObserver === "undefined") {
-      const timer = window.setTimeout(() => setShouldMountForm(true), 900);
-      return () => window.clearTimeout(timer);
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.some((entry) => entry.isIntersecting);
-        if (visible) {
-          setShouldMountForm(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "700px 0px", threshold: 0.01 },
-    );
-
-    observer.observe(target);
-    return () => observer.disconnect();
+    setHydrated(true);
   }, []);
 
-  return (
-    <div ref={mountRef}>
-      {shouldMountForm ? (
-        <RestaurantBookingFormInner {...props} lang={lang} />
-      ) : (
-        <BookingFormSkeleton lang={lang} />
-      )}
-    </div>
-  );
+  if (!hydrated) {
+    return <BookingFormSkeleton lang={lang} />;
+  }
+
+  return <RestaurantBookingFormInner {...props} lang={lang} />;
 }
 
 // ---------------------------------------------------------------------------
