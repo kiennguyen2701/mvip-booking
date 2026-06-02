@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,35 @@ async function resolveAgent(refCode: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp = getClientIp(request);
+
+    const [ipLimit, globalLimit] = await Promise.all([
+      rateLimit({
+        key: `register:ip:${clientIp}`,
+        limit: 5,
+        windowMs: 60 * 60 * 1000, // 5 lần / giờ / IP
+      }),
+      rateLimit({
+        key: `register:global`,
+        limit: 100,
+        windowMs: 60 * 60 * 1000, // 100 tài khoản / giờ toàn hệ thống
+      }),
+    ]);
+
+    if (!ipLimit.success) {
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please try again later." },
+        { status: 429 },
+      );
+    }
+
+    if (!globalLimit.success) {
+      return NextResponse.json(
+        { error: "Registration temporarily unavailable. Please try again later." },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const url = new URL(request.url);
     const cookieHeader = request.headers.get("cookie") || "";

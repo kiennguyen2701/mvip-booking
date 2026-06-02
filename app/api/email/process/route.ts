@@ -38,7 +38,11 @@ function getErrorMessage(error: unknown) {
 function isAuthorized(request: Request) {
   const secret = process.env.CRON_SECRET || process.env.EMAIL_QUEUE_SECRET;
 
-  if (!secret) return true;
+  // Deny-by-default: nếu chưa set secret thì chặn luôn (tránh lộ ở production)
+  if (!secret) {
+    console.warn("EMAIL_PROCESS_AUTH: CRON_SECRET chưa được set — request bị từ chối.");
+    return false;
+  }
 
   const url = new URL(request.url);
   const querySecret = url.searchParams.get("secret");
