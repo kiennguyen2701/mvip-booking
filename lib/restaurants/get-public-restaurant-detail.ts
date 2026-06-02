@@ -40,7 +40,7 @@ export async function getPublicRestaurantDetail(slug: string) {
 
   if (!normalizedSlug) return null;
 
-  const cacheKey = `${cacheKeys.publicRestaurantDetail(normalizedSlug)}:v8`;
+  const cacheKey = cacheKeys.publicRestaurantDetail(normalizedSlug);
 
   const cached = await getCache<Record<string, unknown>>(cacheKey);
 

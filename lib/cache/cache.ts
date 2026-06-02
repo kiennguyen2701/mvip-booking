@@ -27,6 +27,23 @@ export async function setCache<T>(
   }
 }
 
+/**
+ * Cache-aside helper: trả về cached value nếu có,
+ * ngược lại gọi fetcher(), cache kết quả rồi trả về.
+ */
+export async function getOrSetCache<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttlSeconds: number,
+): Promise<T> {
+  const cached = await getCache<T>(key);
+  if (cached !== null) return cached;
+
+  const value = await fetcher();
+  await setCache(key, value, ttlSeconds);
+  return value;
+}
+
 export async function deleteCache(key: string) {
   if (!redis || !key) return;
 
@@ -37,15 +54,26 @@ export async function deleteCache(key: string) {
   }
 }
 
+/**
+ * Xóa cache theo pattern dùng SCAN thay vì KEYS.
+ * KEYS là blocking O(N) - nguy hiểm trên production Redis.
+ * SCAN là non-blocking, xử lý từng batch 100 keys.
+ */
 export async function deleteCacheByPattern(pattern: string) {
   if (!redis || !pattern) return;
 
   try {
-    const keys = await redis.keys(pattern);
-
-    if (keys.length > 0) {
-      await redis.del(...keys);
-    }
+    let cursor = 0;
+    do {
+      const [nextCursor, keys] = await (redis as any).scan(cursor, {
+        match: pattern,
+        count: 100,
+      });
+      cursor = Number(nextCursor);
+      if (keys.length > 0) {
+        await redis.del(...(keys as string[]));
+      }
+    } while (cursor !== 0);
   } catch (error) {
     console.error("REDIS_DELETE_PATTERN_ERROR:", error);
   }

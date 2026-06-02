@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getCache, setCache } from "@/lib/cache/cache";
+import { getOrSetCache, getCache } from "@/lib/cache/cache";
 import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
 
 // Chỉ select các cột cần thiết cho danh sách — đúng với schema thực tế trên DB.
@@ -148,16 +148,62 @@ function buildRatingMap(rows: ReviewRatingRow[]) {
   return map;
 }
 
-function getCacheKey(params: Required<GetPublicRestaurantsParams>) {
-  const suffix = [
-    normalizeText(params.query || "all"),
-    normalizeText(params.city || "all"),
-    normalizeText(params.tag || "all"),
-    normalizeText(params.priceRange || "all"),
-    params.limit,
-  ].join(":");
+// Cache key cho toàn bộ danh sách (không filter) — dùng làm base list
+const BASE_LIST_CACHE_KEY = cacheKeys.publicRestaurants("base");
 
-  return cacheKeys.publicRestaurants(suffix);
+/**
+ * Fetch toàn bộ danh sách nhà hàng active từ DB (không filter).
+ * Kết quả được cache 1 giờ. Mọi filter (query/city/tag/priceRange)
+ * đều được áp dụng in-memory từ base list này thay vì tạo cache entry riêng.
+ *
+ * Lợi ích:
+ * - Chỉ 1 DB query dù có bao nhiêu combo filter
+ * - Cache invalidation đơn giản: chỉ cần xóa 1 key
+ * - Không tích lũy vô số cache entries theo từng search term
+ */
+async function fetchBaseList(): Promise<PublicRestaurant[]> {
+  const supabase = await createClient();
+
+  const [restaurantsResult, reviewsResult] = await Promise.all([
+    supabase
+      .from("restaurants")
+      .select(LIST_SELECT)
+      .eq("is_active", true)
+      .order("booking_priority_score", { ascending: false, nullsFirst: false })
+      .order("is_featured", { ascending: false, nullsFirst: false })
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .limit(200),
+    supabase
+      .from("restaurant_reviews")
+      .select("restaurant_id, rating"),
+  ]);
+
+  if (restaurantsResult.error) {
+    console.error("GET_PUBLIC_RESTAURANTS_ERROR:", restaurantsResult.error);
+    return [];
+  }
+
+  const restaurantsRaw = (restaurantsResult.data || []) as Omit<
+    PublicRestaurant,
+    "average_rating" | "total_reviews"
+  >[];
+
+  const ratingMap = buildRatingMap(
+    (reviewsResult.data || []) as ReviewRatingRow[],
+  );
+
+  return restaurantsRaw.map((restaurant) => {
+    const ratingInfo = ratingMap.get(restaurant.id);
+    const totalReviews = ratingInfo?.count || 0;
+    const averageRating =
+      totalReviews > 0 ? ratingInfo!.total / totalReviews : 5;
+
+    return {
+      ...restaurant,
+      average_rating: Number(averageRating.toFixed(1)),
+      total_reviews: totalReviews,
+    };
+  });
 }
 
 export async function getPublicRestaurants({
@@ -167,53 +213,20 @@ export async function getPublicRestaurants({
   priceRange = "",
   limit = 60,
 }: GetPublicRestaurantsParams = {}) {
-  const cacheKey = getCacheKey({ query, city, tag, priceRange, limit });
+  // Lấy base list từ cache (hoặc fetch từ DB một lần)
+  const allRestaurants = await getOrSetCache<PublicRestaurant[]>(
+    BASE_LIST_CACHE_KEY,
+    fetchBaseList,
+    CACHE_TTL.PUBLIC_RESTAURANTS,
+  );
 
-  const cached = await getCache<PublicRestaurant[]>(cacheKey);
-  if (cached) return cached;
-
-  const supabase = await createClient();
-
-  let request = supabase
-    .from("restaurants")
-    .select(LIST_SELECT)
-    .eq("is_active", true)
-    .order("booking_priority_score", { ascending: false, nullsFirst: false })
-    .order("is_featured", { ascending: false, nullsFirst: false })
-    .order("updated_at", { ascending: false, nullsFirst: false })
-    .limit(limit);
-
-  if (priceRange) {
-    request = request.eq("price_range", priceRange);
+  // Nếu không có filter nào, trả về giới hạn limit
+  const hasFilters = query || city || tag || priceRange;
+  if (!hasFilters) {
+    return allRestaurants.slice(0, limit);
   }
 
-  const { data, error } = await request;
-
-  if (error) {
-    console.error("GET_PUBLIC_RESTAURANTS_ERROR:", error);
-    return [];
-  }
-
-  const restaurantsRaw = (data || []) as Omit<
-    PublicRestaurant,
-    "average_rating" | "total_reviews"
-  >[];
-
-  const restaurantIds = restaurantsRaw.map((item) => item.id);
-
-  let ratingMap = new Map<string, { total: number; count: number }>();
-
-  if (restaurantIds.length > 0) {
-    const { data: reviewRows, error: reviewError } = await supabase
-      .from("restaurant_reviews")
-      .select("restaurant_id, rating")
-      .in("restaurant_id", restaurantIds);
-
-    if (!reviewError && reviewRows) {
-      ratingMap = buildRatingMap(reviewRows as ReviewRatingRow[]);
-    }
-  }
-
+  // Filter in-memory từ base list đã cache
   const normalizedQuery = normalizeText(query);
   const normalizedCity = normalizeText(city);
   const normalizedTag = normalizeText(tag);
@@ -223,20 +236,10 @@ export async function getPublicRestaurants({
     ...(Array.isArray(item.category_tags) ? item.category_tags : []),
   ];
 
-  const restaurants = restaurantsRaw
-    .map((restaurant) => {
-      const ratingInfo = ratingMap.get(restaurant.id);
-      const totalReviews = ratingInfo?.count || 0;
-      const averageRating =
-        totalReviews > 0 ? ratingInfo!.total / totalReviews : 5;
-
-      return {
-        ...restaurant,
-        average_rating: Number(averageRating.toFixed(1)),
-        total_reviews: totalReviews,
-      };
-    })
+  return allRestaurants
     .filter((restaurant) => {
+      if (priceRange && restaurant.price_range !== priceRange) return false;
+
       const tags = allTags(restaurant);
 
       const matchQuery =
@@ -272,9 +275,6 @@ export async function getPublicRestaurants({
         includesNormalized(restaurant.category_zh, normalizedTag);
 
       return matchQuery && matchCity && matchTag;
-    });
-
-  await setCache(cacheKey, restaurants, CACHE_TTL.PUBLIC_RESTAURANTS);
-
-  return restaurants;
+    })
+    .slice(0, limit);
 }
