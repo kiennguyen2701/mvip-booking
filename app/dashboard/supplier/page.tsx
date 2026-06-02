@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { getCache, setCache } from "@/lib/cache/cache";
 import { CACHE_TTL, cacheKeys } from "@/lib/cache/keys";
+import SupplierReportButton from "@/components/dashboard/supplier-report-button";
 
 type SupplierDashboardStats = {
   restaurantsCount: number;
@@ -219,6 +220,8 @@ export default async function SupplierDashboardPage() {
               >
                 My Restaurants →
               </Link>
+
+              <SupplierReportButton />
             </div>
           </div>
 
