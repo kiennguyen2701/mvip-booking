@@ -27,6 +27,11 @@ export default function RestaurantGallery({
   }, [coverImage, galleryImages]);
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+
+  function handleImageError(src: string) {
+    setFailedImages((prev) => new Set(prev).add(src));
+  }
 
   const visibleThumbnails = useMemo(() => {
     return images.slice(0, MAX_VISIBLE_THUMBNAILS);
@@ -44,15 +49,20 @@ export default function RestaurantGallery({
   return (
     <section className="w-full overflow-hidden rounded-[28px] border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/30 md:p-4">
       <div className="relative h-[235px] w-full overflow-hidden rounded-[22px] bg-[#19150f] sm:h-[320px] md:h-[500px]">
-        <Image
-          src={activeImage}
-          alt={name}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 780px, 860px"
-          quality={activeIndex === 0 ? 62 : 56}
-          priority={activeIndex === 0}
-          className="object-cover"
-        />
+        {!failedImages.has(activeImage) ? (
+          <Image
+            src={activeImage}
+            alt={name}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 780px, 860px"
+            quality={activeIndex === 0 ? 62 : 56}
+            priority={activeIndex === 0}
+            className="object-cover"
+            onError={() => handleImageError(activeImage)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-6xl opacity-30">🍽️</div>
+        )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
 
@@ -79,15 +89,20 @@ export default function RestaurantGallery({
                     : "border-transparent opacity-70 hover:opacity-100"
                 }`}
               >
-                <Image
-                  src={image}
-                  alt={`${name} ${index + 1}`}
-                  fill
-                  sizes="112px"
-                  quality={34}
-                  loading="lazy"
-                  className="object-cover"
-                />
+                {!failedImages.has(image) ? (
+                  <Image
+                    src={image}
+                    alt={`${name} ${index + 1}`}
+                    fill
+                    sizes="112px"
+                    quality={34}
+                    loading="lazy"
+                    className="object-cover"
+                    onError={() => handleImageError(image)}
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-2xl opacity-30">🍽️</div>
+                )}
 
                 {isLastVisible && (
                   <div className="absolute inset-0 grid place-items-center bg-black/55 text-sm font-black text-white backdrop-blur-[1px]">

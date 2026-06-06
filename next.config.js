@@ -13,6 +13,12 @@ const nextConfig = {
         pathname: "/storage/v1/object/public/**",
       },
       {
+        // Supabase Storage signed URLs
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/sign/**",
+      },
+      {
         // Supabase Storage (custom domain nếu có)
         protocol: "https",
         hostname: "*.supabase.in",
@@ -27,6 +33,21 @@ const nextConfig = {
         // Google user avatars (OAuth login)
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
+      },
+      {
+        // Unsplash — seed data & external images
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        // Unsplash CDN
+        protocol: "https",
+        hostname: "plus.unsplash.com",
+      },
+      {
+        // Allow all other HTTPS image sources (admin-entered external URLs)
+        protocol: "https",
+        hostname: "**",
       },
     ],
   },

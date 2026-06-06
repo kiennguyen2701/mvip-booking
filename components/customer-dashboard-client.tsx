@@ -317,6 +317,7 @@ const RestaurantCard = memo(function RestaurantCard({
 }) {
   const t = CUSTOMER_COPY[language];
   const image = getImage(restaurant);
+  const [imgError, setImgError] = useState(false);
   const cuisine = getCuisine(restaurant, language, t.signatureDining);
   const discount = getDiscount(restaurant);
   const rating = getAverageRating(restaurant);
@@ -344,7 +345,7 @@ const RestaurantCard = memo(function RestaurantCard({
     >
       {/* FIX #2: Next.js <Image> với fill + sizes thay vì <img src> */}
       <div className="relative h-44 w-full overflow-hidden bg-[#12100b] sm:h-56">
-        {image ? (
+        {image && !imgError ? (
           <Image
             src={image}
             alt={restaurantName || t.restaurantAlt}
@@ -353,6 +354,7 @@ const RestaurantCard = memo(function RestaurantCard({
             quality={75}
             loading="lazy"
             className="object-cover transition duration-500 group-hover:scale-[1.03]"
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#12100b] via-[#1c1407] to-[#3a2407] text-5xl">
