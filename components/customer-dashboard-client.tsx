@@ -53,6 +53,17 @@ const CUSTOMER_COPY = {
     unnamedRestaurant: "Unnamed Restaurant",
     restaurantAlt: "Restaurant",
     vietnam: "Vietnam",
+    aiSearchBtn: "✨ AI Search",
+    normalSearchBtn: "← Normal",
+    aiPlaceholder: "Describe what you're looking for... e.g. \"Rooftop with city view, romantic dinner for 2, budget under $50\"",
+    aiSearching: "AI is finding the best matches...",
+    aiResultsFor: "AI results for",
+    aiNoResults: "No restaurants matched your description. Try being more specific or use normal search.",
+    aiError: "AI Search error",
+    aiResultsBadge: "AI Pick",
+    aiResultsCount: "matches found",
+    aiClear: "Clear AI results",
+    aiHint: "Describe cuisine, atmosphere, location, budget, occasion...",
   },
   zh: {
     dashboardLabel: "客户中心",
@@ -89,6 +100,17 @@ const CUSTOMER_COPY = {
     unnamedRestaurant: "未命名餐厅",
     restaurantAlt: "餐厅",
     vietnam: "越南",
+    aiSearchBtn: "✨ AI 搜索",
+    normalSearchBtn: "← 普通搜索",
+    aiPlaceholder: "描述您想要的餐厅... 例如「有城市景观的屋顶餐厅，适合两人浪漫晚餐，预算50美元以内」",
+    aiSearching: "AI 正在为您寻找最佳餐厅...",
+    aiResultsFor: "AI 搜索结果：",
+    aiNoResults: "没有找到符合描述的餐厅。请尝试更具体的描述或使用普通搜索。",
+    aiError: "AI 搜索出错",
+    aiResultsBadge: "AI 推荐",
+    aiResultsCount: "个匹配结果",
+    aiClear: "清除 AI 结果",
+    aiHint: "可描述菜系、氛围、位置、预算、场合...",
   },
 } satisfies Record<PreferredLanguage, Record<string, string>>;
 
@@ -144,6 +166,10 @@ type Restaurant = {
 
 type RestaurantWithDistance = Restaurant & {
   distance: number | null;
+};
+
+type AIResult = Restaurant & {
+  ai_reason: string;
 };
 
 type Props = {
@@ -311,9 +337,11 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 const RestaurantCard = memo(function RestaurantCard({
   restaurant,
   language,
+  aiReason,
 }: {
   restaurant: RestaurantWithDistance;
   language: PreferredLanguage;
+  aiReason?: string;
 }) {
   const t = CUSTOMER_COPY[language];
   const image = getImage(restaurant);
@@ -393,6 +421,15 @@ const RestaurantCard = memo(function RestaurantCard({
             {rating} ★
           </span>
         </div>
+
+        {aiReason && (
+          <div className="mt-3 rounded-xl border border-violet-400/25 bg-violet-500/10 px-3 py-2">
+            <p className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-violet-400">
+              ✨ {t.aiResultsBadge}
+            </p>
+            <p className="text-xs leading-5 text-slate-300">{aiReason}</p>
+          </div>
+        )}
       </div>
     </Link>
   );
@@ -420,6 +457,14 @@ export default function CustomerDashboardClient({
     lng: number;
   } | null>(null);
 
+  // AI Search state
+  const [isAIMode, setIsAIMode] = useState(false);
+  const [aiInput, setAIInput] = useState("");
+  const [aiLoading, setAILoading] = useState(false);
+  const [aiResults, setAIResults] = useState<AIResult[] | null>(null);
+  const [aiError, setAIError] = useState("");
+  const [aiQueryLabel, setAIQueryLabel] = useState("");
+
   useEffect(() => {
     hardLockViewport();
   }, [deferredQuery, cuisine, sortMode, nearbyOnly, visibleCount]);
@@ -446,6 +491,54 @@ export default function CustomerDashboardClient({
     setLocationStatus("");
     setTimeout(hardLockViewport, 80);
   }, [resetVisibleCount]);
+
+  const handleAISearch = useCallback(async () => {
+    const trimmed = aiInput.trim();
+    if (!trimmed || aiLoading) return;
+
+    setAILoading(true);
+    setAIError("");
+    setAIResults(null);
+
+    try {
+      const res = await fetch("/api/ai-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: trimmed }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAIError(data.error || t.aiError);
+        return;
+      }
+
+      setAIResults(data.results || []);
+      setAIQueryLabel(trimmed);
+    } catch {
+      setAIError(t.aiError);
+    } finally {
+      setAILoading(false);
+    }
+  }, [aiInput, aiLoading, t.aiError]);
+
+  const clearAIResults = useCallback(() => {
+    setAIResults(null);
+    setAIError("");
+    setAIQueryLabel("");
+    setAIInput("");
+  }, []);
+
+  const toggleAIMode = useCallback(() => {
+    setIsAIMode((prev) => {
+      if (prev) {
+        // switching back to normal — clear AI state
+        clearAIResults();
+      }
+      return !prev;
+    });
+  }, [clearAIResults]);
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -652,92 +745,172 @@ export default function CustomerDashboardClient({
             </div>
 
             <div className="mobile-safe-card rounded-[1.35rem] border border-white/10 bg-black/40 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:rounded-[1.7rem]">
-              <div className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-[1fr_120px_260px]">
-                <input
-                  ref={inputRef}
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") handleSearch();
-                  }}
-                  placeholder={t.searchPlaceholder}
-                  className="h-14 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-base font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
-                />
 
+              {/* Toggle AI / Normal */}
+              <div className="mb-3 flex justify-end">
                 <button
                   type="button"
-                  onClick={handleSearch}
-                  className="h-14 w-full rounded-2xl bg-amber-300 px-5 text-base font-black text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
+                  onClick={toggleAIMode}
+                  className={
+                    isAIMode
+                      ? "rounded-xl border border-violet-400/40 bg-violet-500/20 px-4 py-2 text-xs font-black text-violet-300 transition hover:bg-violet-500/30"
+                      : "rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-xs font-black text-amber-300 transition hover:bg-amber-300/20"
+                  }
                 >
-                  {t.search}
+                  {isAIMode ? t.normalSearchBtn : t.aiSearchBtn}
                 </button>
-
-                <select
-                  value={cuisine}
-                  onChange={(event) => {
-                    setCuisine(event.target.value);
-                    resetVisibleCount();
-                    setTimeout(hardLockViewport, 80);
-                  }}
-                  className="h-14 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-base font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
-                >
-                  <option value="" className="text-slate-950">
-                    {t.allCuisines}
-                  </option>
-
-                  {cuisines.map((item) => (
-                    <option key={item} value={item} className="text-slate-950">
-                      {item}
-                    </option>
-                  ))}
-                </select>
               </div>
 
-              <div className="mt-4 flex min-w-0 flex-col gap-3 border-t border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
-                <div className="grid w-full min-w-0 grid-cols-3 gap-2 md:flex md:w-auto md:flex-wrap">
-                  {(["top", "nearby", "popular"] as SortMode[]).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        if (mode === "nearby") {
-                          toggleNearby();
-                          return;
+              {isAIMode ? (
+                /* ── AI Search mode ── */
+                <div className="space-y-3">
+                  <div className="relative">
+                    <textarea
+                      value={aiInput}
+                      onChange={(e) => setAIInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                          handleAISearch();
                         }
-
-                        setSortMode(mode);
-                        setNearbyOnly(false);
-                        resetVisibleCount();
                       }}
-                      className={
-                        sortMode === mode
-                          ? "min-w-0 rounded-xl bg-amber-300 px-2 py-3 text-[11px] font-black uppercase tracking-wide text-slate-950 md:px-5 md:text-xs"
-                          : "min-w-0 rounded-xl border border-white/10 px-2 py-3 text-[11px] font-black uppercase tracking-wide text-slate-400 transition hover:bg-white/[0.08] hover:text-white md:px-5 md:text-xs"
-                      }
-                    >
-                      {t[mode]}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex min-w-0 flex-wrap items-center gap-3 text-xs font-black text-slate-400">
-                  <span>
-                    {t.showing} {filteredRestaurants.length} {t.of}{" "}
-                    {restaurants.length}
-                  </span>
+                      placeholder={t.aiPlaceholder}
+                      rows={3}
+                      disabled={aiLoading}
+                      className="w-full min-w-0 resize-none rounded-2xl border border-violet-400/30 bg-violet-500/10 px-4 py-3 text-base font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-violet-400/60 focus:ring-4 focus:ring-violet-400/10 disabled:opacity-60"
+                    />
+                    <p className="mt-1 px-1 text-[11px] text-slate-500">
+                      {t.aiHint} · Ctrl+Enter để tìm kiếm
+                    </p>
+                  </div>
 
                   <button
                     type="button"
-                    onClick={clearFilters}
-                    className="text-amber-300 transition hover:text-amber-200"
+                    onClick={handleAISearch}
+                    disabled={aiLoading || !aiInput.trim()}
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 px-5 text-base font-black text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {t.clearFilters}
+                    {aiLoading ? (
+                      <>
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        {t.aiSearching}
+                      </>
+                    ) : (
+                      <>{t.aiSearchBtn}</>
+                    )}
                   </button>
+
+                  {aiError && (
+                    <div className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+                      {aiError}
+                    </div>
+                  )}
+
+                  {aiResults !== null && (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-violet-400/20 bg-violet-500/10 px-4 py-3">
+                      <p className="text-xs font-black text-violet-300">
+                        ✨ {aiResults.length} {t.aiResultsCount} — &ldquo;{aiQueryLabel}&rdquo;
+                      </p>
+                      <button
+                        type="button"
+                        onClick={clearAIResults}
+                        className="text-xs font-black text-slate-400 transition hover:text-white"
+                      >
+                        {t.aiClear}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                /* ── Normal Search mode ── */
+                <>
+                  <div className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-[1fr_120px_260px]">
+                    <input
+                      ref={inputRef}
+                      value={input}
+                      onChange={(event) => setInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") handleSearch();
+                      }}
+                      placeholder={t.searchPlaceholder}
+                      className="h-14 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-base font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={handleSearch}
+                      className="h-14 w-full rounded-2xl bg-amber-300 px-5 text-base font-black text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
+                    >
+                      {t.search}
+                    </button>
+
+                    <select
+                      value={cuisine}
+                      onChange={(event) => {
+                        setCuisine(event.target.value);
+                        resetVisibleCount();
+                        setTimeout(hardLockViewport, 80);
+                      }}
+                      className="h-14 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-base font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10"
+                    >
+                      <option value="" className="text-slate-950">
+                        {t.allCuisines}
+                      </option>
+
+                      {cuisines.map((item) => (
+                        <option key={item} value={item} className="text-slate-950">
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mt-4 flex min-w-0 flex-col gap-3 border-t border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
+                    <div className="grid w-full min-w-0 grid-cols-3 gap-2 md:flex md:w-auto md:flex-wrap">
+                      {(["top", "nearby", "popular"] as SortMode[]).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => {
+                            if (mode === "nearby") {
+                              toggleNearby();
+                              return;
+                            }
+
+                            setSortMode(mode);
+                            setNearbyOnly(false);
+                            resetVisibleCount();
+                          }}
+                          className={
+                            sortMode === mode
+                              ? "min-w-0 rounded-xl bg-amber-300 px-2 py-3 text-[11px] font-black uppercase tracking-wide text-slate-950 md:px-5 md:text-xs"
+                              : "min-w-0 rounded-xl border border-white/10 px-2 py-3 text-[11px] font-black uppercase tracking-wide text-slate-400 transition hover:bg-white/[0.08] hover:text-white md:px-5 md:text-xs"
+                          }
+                        >
+                          {t[mode]}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex min-w-0 flex-wrap items-center gap-3 text-xs font-black text-slate-400">
+                      <span>
+                        {t.showing} {filteredRestaurants.length} {t.of}{" "}
+                        {restaurants.length}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={clearFilters}
+                        className="text-amber-300 transition hover:text-amber-200"
+                      >
+                        {t.clearFilters}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
-            {locationStatus && (
+            {locationStatus && !isAIMode && (
               <div className="mt-4 break-words rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
                 {locationStatus}
               </div>
@@ -770,35 +943,75 @@ export default function CustomerDashboardClient({
             </button>
           </div>
 
-          {visibleRestaurants.length === 0 ? (
-            <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.05] px-6 py-10 text-center text-sm text-slate-300">
-              {t.noRestaurants}
-            </div>
-          ) : (
+          {/* AI Search results */}
+          {isAIMode && aiResults !== null ? (
+            aiResults.length === 0 ? (
+              <div className="mt-6 rounded-3xl border border-violet-400/20 bg-violet-500/5 px-6 py-10 text-center text-sm text-slate-300">
+                {t.aiNoResults}
+              </div>
+            ) : (
+              <div className="mt-6 grid w-full min-w-0 grid-cols-1 gap-5 overflow-hidden md:grid-cols-2 xl:grid-cols-3">
+                {aiResults.map((restaurant) => (
+                  <RestaurantCard
+                    key={restaurant.id}
+                    restaurant={{ ...restaurant, distance: null }}
+                    language={language}
+                    aiReason={restaurant.ai_reason}
+                  />
+                ))}
+              </div>
+            )
+          ) : isAIMode && aiLoading ? (
+            /* Loading skeleton */
             <div className="mt-6 grid w-full min-w-0 grid-cols-1 gap-5 overflow-hidden md:grid-cols-2 xl:grid-cols-3">
-              {visibleRestaurants.map((restaurant) => (
-                <RestaurantCard
-                  key={restaurant.id}
-                  restaurant={restaurant}
-                  language={language}
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-72 animate-pulse rounded-3xl border border-violet-400/10 bg-violet-500/5"
                 />
               ))}
             </div>
-          )}
-
-          {visibleRestaurants.length < filteredRestaurants.length && (
-            <div className="mt-8 flex justify-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setVisibleCount((current) => current + LOAD_MORE_COUNT);
-                  setTimeout(hardLockViewport, 80);
-                }}
-                className="rounded-2xl border border-amber-300/40 px-6 py-3 text-sm font-black text-amber-300 transition hover:bg-amber-300 hover:text-slate-950"
-              >
-                {t.loadMore}
-              </button>
+          ) : isAIMode ? (
+            /* AI mode idle — prompt to search */
+            <div className="mt-6 rounded-3xl border border-violet-400/20 bg-violet-500/5 px-6 py-12 text-center">
+              <p className="text-4xl">✨</p>
+              <p className="mt-3 text-base font-black text-violet-300">AI Restaurant Search</p>
+              <p className="mt-2 text-sm text-slate-400">{t.aiHint}</p>
             </div>
+          ) : (
+            /* Normal results */
+            <>
+              {visibleRestaurants.length === 0 ? (
+                <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.05] px-6 py-10 text-center text-sm text-slate-300">
+                  {t.noRestaurants}
+                </div>
+              ) : (
+                <div className="mt-6 grid w-full min-w-0 grid-cols-1 gap-5 overflow-hidden md:grid-cols-2 xl:grid-cols-3">
+                  {visibleRestaurants.map((restaurant) => (
+                    <RestaurantCard
+                      key={restaurant.id}
+                      restaurant={restaurant}
+                      language={language}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {visibleRestaurants.length < filteredRestaurants.length && (
+                <div className="mt-8 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVisibleCount((current) => current + LOAD_MORE_COUNT);
+                      setTimeout(hardLockViewport, 80);
+                    }}
+                    className="rounded-2xl border border-amber-300/40 px-6 py-3 text-sm font-black text-amber-300 transition hover:bg-amber-300 hover:text-slate-950"
+                  >
+                    {t.loadMore}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>
