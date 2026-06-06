@@ -166,7 +166,7 @@ export default async function SupplierDashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?_loop_guard=1");
 
   const { data: supplier } = await adminClient
     .from("suppliers")

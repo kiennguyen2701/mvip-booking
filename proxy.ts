@@ -76,7 +76,10 @@ export async function proxy(request: NextRequest) {
   const role = user?.user_metadata?.role as string | undefined;
 
   // Đã login + vào trang guest-only → redirect về đúng dashboard
-  if (user && isGuestOnlyRoute(pathname)) {
+  // Exception: nếu URL có ?_loop_guard=1 thì đây là redirect từ trang bị lỗi auth
+  // → cho qua để user thấy login form và tự đăng nhập lại, không bounce loop
+  const hasLoopGuard = request.nextUrl.searchParams.has("_loop_guard");
+  if (user && isGuestOnlyRoute(pathname) && !hasLoopGuard) {
     return NextResponse.redirect(
       new URL(getDashboardPath(role), request.url),
     );

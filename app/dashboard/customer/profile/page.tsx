@@ -16,7 +16,7 @@ export default async function CustomerProfilePage({
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!user) redirect('/login?_loop_guard=1');
 
   const { data: profile } = await supabase
     .from('profiles')

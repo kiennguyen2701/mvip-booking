@@ -23,7 +23,7 @@ export default async function SupplierProfilePage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/login?_loop_guard=1");
   }
 
   const { data: supplier, error } = await supabase

@@ -24,7 +24,7 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    redirect('/login');
+    redirect('/login?_loop_guard=1');
   }
 
   let role: string | null = null;
@@ -79,10 +79,9 @@ export default async function DashboardPage() {
     }
   }
 
-  if (!isRole(role)) {
-    redirect('/login');
-  }
-
+  // If role still unknown after all lookups → treat as customer (safe default)
+  // Do NOT redirect to /login — that creates a loop when the proxy
+  // sees a valid session and immediately bounces back to /dashboard/customer
   if (role === 'admin') redirect('/dashboard/admin');
   if (role === 'supplier') redirect('/dashboard/supplier');
   if (role === 'agent') redirect('/dashboard/agent');

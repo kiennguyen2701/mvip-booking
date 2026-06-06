@@ -19,7 +19,8 @@ export default async function CustomerPage() {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    redirect("/login");
+    // _loop_guard prevents proxy from immediately bouncing back
+    redirect("/login?_loop_guard=1");
   }
 
   const [profileResult, restaurants] = await Promise.all([
@@ -36,9 +37,11 @@ export default async function CustomerPage() {
   const profileRow = profileResult.data;
   const role = profileRow?.role || user.user_metadata?.role;
 
-  if (role && role !== "customer") {
-    redirect("/dashboard");
-  }
+  // Redirect to the correct dashboard — avoid going through /dashboard
+  // to prevent a /dashboard → /dashboard/customer → /dashboard loop
+  if (role === "admin") redirect("/dashboard/admin");
+  if (role === "supplier") redirect("/dashboard/supplier");
+  if (role === "agent") redirect("/dashboard/agent");
 
   const preferredLanguage =
     profileRow?.preferred_language === "zh" ? "zh" : "en";

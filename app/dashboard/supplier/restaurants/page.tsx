@@ -21,7 +21,7 @@ export default async function SupplierRestaurantsPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?_loop_guard=1");
 
   const { data: profile } = await adminClient
     .from("profiles")
