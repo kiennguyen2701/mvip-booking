@@ -465,6 +465,28 @@ export default function CustomerDashboardClient({
   const [aiError, setAIError] = useState("");
   const [aiQueryLabel, setAIQueryLabel] = useState("");
 
+  // ── Restore AI state from sessionStorage on mount (back navigation) ────────
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("mvip_ai_state");
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as {
+        isAIMode: boolean;
+        aiInput: string;
+        aiQueryLabel: string;
+        aiResults: AIResult[];
+      };
+      if (parsed.isAIMode && Array.isArray(parsed.aiResults)) {
+        setIsAIMode(true);
+        setAIInput(parsed.aiInput || "");
+        setAIQueryLabel(parsed.aiQueryLabel || "");
+        setAIResults(parsed.aiResults);
+      }
+    } catch {
+      // ignore corrupt storage
+    }
+  }, []);
+
   useEffect(() => {
     hardLockViewport();
   }, [deferredQuery, cuisine, sortMode, nearbyOnly, visibleCount]);
@@ -514,8 +536,21 @@ export default function CustomerDashboardClient({
         return;
       }
 
-      setAIResults(data.results || []);
+      const results = data.results || [];
+      setAIResults(results);
       setAIQueryLabel(trimmed);
+      // Persist so back-navigation restores results
+      try {
+        sessionStorage.setItem(
+          "mvip_ai_state",
+          JSON.stringify({
+            isAIMode: true,
+            aiInput: trimmed,
+            aiQueryLabel: trimmed,
+            aiResults: results,
+          }),
+        );
+      } catch { /* quota exceeded — ignore */ }
     } catch {
       setAIError(t.aiError);
     } finally {
@@ -528,12 +563,13 @@ export default function CustomerDashboardClient({
     setAIError("");
     setAIQueryLabel("");
     setAIInput("");
+    try { sessionStorage.removeItem("mvip_ai_state"); } catch { /* ignore */ }
   }, []);
 
   const toggleAIMode = useCallback(() => {
     setIsAIMode((prev) => {
       if (prev) {
-        // switching back to normal — clear AI state
+        // switching back to normal — clear AI state + storage
         clearAIResults();
       }
       return !prev;
