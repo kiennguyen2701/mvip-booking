@@ -92,6 +92,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // /dashboard exact → redirect về đúng dashboard của role, 0 DB query
+  // Tránh dashboard/page.tsx phải chạy 4 DB queries chỉ để dispatch
+  if (user && pathname === "/dashboard") {
+    return NextResponse.redirect(
+      new URL(getDashboardPath(role), request.url),
+    );
+  }
+
   // Role guard tại Edge
   if (user && pathname.startsWith("/dashboard")) {
     const isAdmin = role === "admin";
@@ -127,5 +135,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|public/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2)$).*)",
+  ],
+};
+",
   ],
 };

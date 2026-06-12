@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { processEmailJob } from "@/lib/email/process-email-job";
 import { deleteCache, deleteCacheByPattern } from "@/lib/cache/cache";
@@ -326,36 +326,38 @@ export async function POST(request: Request) {
 
     const supplierEmail = supplier?.email || supplier?.login_email || null;
 
-    // Enqueue + process email jobs trực tiếp trong cùng request
-    try {
-      const jobIds = await enqueueAndGetJobIds({
-        bookingId: booking.id,
-        customerEmail: user.email || null,
-        customerLanguage,
-        customerName,
-        supplierEmail,
-        adminEmail: process.env.ADMIN_EMAIL || null,
-        restaurantName,
-        restaurantAddress,
-        googleMapsUrl,
-        bookingCode,
-        bookingDate,
-        bookingTime,
-        guests,
-        phone,
-        whatsapp,
-      });
-
-      await processJobsById(jobIds);
-    } catch (error) {
-      console.error("BOOKING_EMAIL_ERROR:", error);
-    }
-
+    // Invalidate cache trước khi respond
     if (supplierId) {
       await deleteCache(cacheKeys.supplierDashboard(supplierId));
     }
-
     await deleteCacheByPattern(cachePatterns.publicRestaurants());
+
+    // Enqueue + process email SAU KHI response đã trả về client (after = Next.js 15+)
+    // Tránh user phải chờ 1-3s email sending mới nhận được booking confirmation
+    after(async () => {
+      try {
+        const jobIds = await enqueueAndGetJobIds({
+          bookingId: booking.id,
+          customerEmail: user.email || null,
+          customerLanguage,
+          customerName,
+          supplierEmail,
+          adminEmail: process.env.ADMIN_EMAIL || null,
+          restaurantName,
+          restaurantAddress,
+          googleMapsUrl,
+          bookingCode,
+          bookingDate,
+          bookingTime,
+          guests,
+          phone,
+          whatsapp,
+        });
+        await processJobsById(jobIds);
+      } catch (error) {
+        console.error("BOOKING_EMAIL_AFTER_ERROR:", error);
+      }
+    });
 
     return NextResponse.json({
       success: true,
