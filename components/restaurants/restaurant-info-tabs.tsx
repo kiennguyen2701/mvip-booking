@@ -5,9 +5,11 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { getRestaurantImageUrl } from "@/lib/restaurants/images";
 import {
@@ -420,6 +422,48 @@ export default function RestaurantInfoTabs({
     }
   }, [activeTab, loadReviews, reviewsLoaded]);
 
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // ROOT CAUSE đã xác nhận bằng test:
+  // content-visibility:auto làm content render lazy → switch tab → height tăng → scroll anchor kéo page xuống.
+  // Fix: xóa content-visibility:auto + disable overflow-anchor tạm trong lúc switch + flushSync + restore scroll.
+  const handleTabClick = useCallback(
+    (key: TabKey) => {
+      if (key === "reviews") preloadReviews();
+      const savedY = typeof window !== "undefined" ? window.scrollY : 0;
+
+      // Tắt scroll anchoring toàn page trong lúc switch để tránh browser tự scroll
+      if (typeof document !== "undefined") {
+        document.documentElement.style.overflowAnchor = "none";
+      }
+
+      // Lock content height để page height không giảm (tránh scroll bị clamp)
+      if (contentRef.current) {
+        contentRef.current.style.minHeight =
+          contentRef.current.scrollHeight + "px";
+      }
+
+      // Force synchronous React render
+      flushSync(() => {
+        setActiveTab(key);
+      });
+
+      // Restore scroll position ngay sau khi DOM đã commit
+      window.scrollTo({ top: savedY, behavior: "instant" });
+
+      // Release locks sau 1 frame
+      requestAnimationFrame(() => {
+        if (contentRef.current) {
+          contentRef.current.style.minHeight = "";
+        }
+        if (typeof document !== "undefined") {
+          document.documentElement.style.overflowAnchor = "";
+        }
+      });
+    },
+    [preloadReviews],
+  );
+
   function submitReview(formData: FormData) {
     setReviewState(initialReviewState);
 
@@ -456,10 +500,8 @@ export default function RestaurantInfoTabs({
               onTouchStart={() => {
                 if (tab.key === "reviews") preloadReviews();
               }}
-              onClick={() => {
-                if (tab.key === "reviews") preloadReviews();
-                setActiveTab(tab.key);
-              }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => handleTabClick(tab.key)}
               className={
                 active
                   ? "shrink-0 whitespace-nowrap rounded-xl bg-amber-300 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-950"
@@ -472,9 +514,9 @@ export default function RestaurantInfoTabs({
         })}
       </div>
 
-      <div className="mt-5 max-w-full overflow-hidden">
+      <div ref={contentRef} className="mt-5 max-w-full min-h-[320px] overflow-hidden [overflow-anchor:none]">
         {activeTab === "about" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.aboutRestaurant}
             </p>
@@ -493,7 +535,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "hours" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.openingHours}
             </p>
@@ -521,7 +563,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "location" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.location}
             </p>
@@ -545,7 +587,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "food" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.foodType}
             </p>
@@ -579,7 +621,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "menu" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
               {text.restaurantMenu}
             </p>
@@ -613,7 +655,7 @@ export default function RestaurantInfoTabs({
         )}
 
         {activeTab === "reviews" && (
-          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5 [content-visibility:auto]">
+          <div className="rounded-[22px] border border-white/10 bg-black/20 p-5">
             {reviewsLoading && !reviewsLoaded ? (
               <ReviewSkeleton />
             ) : (
